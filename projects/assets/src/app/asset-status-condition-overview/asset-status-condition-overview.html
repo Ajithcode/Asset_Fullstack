@@ -6,60 +6,32 @@
   </nav>
 
   <section class="card panel">
-    <!-- Title -->
     <header class="sco-head">
       <div class="grow">
         <h1>Asset Status &amp; Condition</h1>
         <p class="muted">Monitor operational availability and asset condition</p>
       </div>
+      <button type="button" class="btn btn-outline" (click)="exportCsv()" [disabled]="!total" title="Export the filtered list as CSV">
+        <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export
+      </button>
       <button type="button" class="btn btn-outline" (click)="refresh()" aria-label="Refresh">
         <lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon>
       </button>
       <button type="button" class="btn btn-primary" (click)="openUpdate()">
-        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Update
+        <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Update Status / Condition
       </button>
     </header>
 
-    <!-- Summary cards: click to filter the list -->
+    <!-- KPIs from GET /summary; click to filter -->
     <div class="sco-kpis">
-      <button *ngFor="let k of kpis" type="button" class="sco-kpi" (click)="pickKpi(k)" [attr.title]="k.hint || ('Show ' + k.label)"
-        [class.is-active]="(k.status && k.status === status && !condition) || (k.condition && k.condition === condition && !status) || (!k.status && !k.condition && !status && !condition && k.label === 'Total Assets')">
+      <button *ngFor="let k of kpis" type="button" class="sco-kpi" (click)="pickKpi(k)" [attr.title]="k.hint || ('Show ' + k.label)" [class.is-active]="isKpiActive(k)">
         <span class="sco-kpi-icon"><lucide-icon [img]="k.icon" [size]="18"></lucide-icon></span>
         <strong>{{ k.value | number }}</strong>
         <span class="sco-kpi-label">{{ k.label }}</span>
       </button>
       <ng-container *ngIf="!kpis.length">
-        <div *ngFor="let _ of [1, 2, 3, 4, 5, 6]" class="sco-kpi sco-kpi--loading" aria-hidden="true"></div>
+        <div *ngFor="let _ of [1, 2, 3, 4, 5, 6, 7]" class="sco-kpi sco-kpi--loading" aria-hidden="true"></div>
       </ng-container>
-    </div>
-    <p *ngIf="summary?.pendingApprovals" class="sco-pending">
-      <lucide-icon [img]="icons.ClipboardList" [size]="15"></lucide-icon>
-      {{ summary!.pendingApprovals }} change{{ summary!.pendingApprovals === 1 ? '' : 's' }} waiting for approval.
-      <button type="button" class="link-btn link-btn--u" (click)="state = 'Pending Approval'; view = 'history'; reload()">Review</button>
-    </p>
-
-    <!-- Filters -->
-    <label class="search search--full sco-search">
-      <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
-      <input type="search" [(ngModel)]="search" (ngModelChange)="onSearch()" placeholder="Search asset ID, name, or site..." aria-label="Search assets" />
-    </label>
-    <div class="sco-filters">
-      <select class="control" [(ngModel)]="status" (ngModelChange)="reload()" aria-label="Operational status">
-        <option value="">All Statuses</option>
-        <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
-      </select>
-      <select class="control" [(ngModel)]="condition" (ngModelChange)="reload()" aria-label="Physical condition">
-        <option value="">All Conditions</option>
-        <option *ngFor="let c of conditions" [value]="c">{{ c }}</option>
-        <option [value]="poorOrCritical">Poor or Critical</option>
-      </select>
-      <select *ngIf="view === 'history'" class="control" [(ngModel)]="state" (ngModelChange)="reload()" aria-label="Approval state">
-        <option value="">All States</option>
-        <option value="Draft">Draft</option>
-        <option value="Pending Approval">Pending Approval</option>
-        <option value="Approved">Approved</option>
-        <option value="Rejected">Rejected</option>
-      </select>
     </div>
 
     <!-- Asset Summary / Change History -->
@@ -68,76 +40,205 @@
       <button type="button" role="tab" [attr.aria-selected]="view === 'history'" [class.is-active]="view === 'history'" (click)="setView('history')">Change History</button>
     </div>
 
+    <!-- Filters -->
+    <label class="search search--full sco-search">
+      <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+      <input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" [placeholder]="view === 'assets' ? 'Search asset ID, tag, name, site, category or type' : 'Search change number, asset or site'" aria-label="Search" />
+    </label>
+    <div class="sco-filters sco-filters--wide">
+      <select class="control" [(ngModel)]="site" (ngModelChange)="onFilter()" aria-label="Site">
+        <option value="">All Sites</option>
+        <option *ngFor="let s of sites" [value]="s">{{ s }}</option>
+      </select>
+      <ng-container *ngIf="view === 'assets'">
+        <select class="control" [(ngModel)]="category" (ngModelChange)="assetType = ''; onFilter()" aria-label="Asset category">
+          <option value="">All Categories</option>
+          <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+        </select>
+        <select class="control" [(ngModel)]="assetType" (ngModelChange)="onFilter()" aria-label="Asset type">
+          <option value="">All Asset Types</option>
+          <option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option>
+        </select>
+      </ng-container>
+      <select class="control" [(ngModel)]="status" (ngModelChange)="onFilter()" aria-label="Operational status">
+        <option value="">All Statuses</option>
+        <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+      </select>
+      <select class="control" [(ngModel)]="condition" (ngModelChange)="onFilter()" aria-label="Condition">
+        <option value="">All Conditions</option>
+        <option *ngFor="let c of conditions" [value]="c">{{ c }}</option>
+        <option [value]="poorOrCritical">Poor or Critical</option>
+      </select>
+      <select *ngIf="view === 'assets'" class="control" [(ngModel)]="criticality" (ngModelChange)="onFilter()" aria-label="Criticality">
+        <option value="">All Criticality</option>
+        <option *ngFor="let c of criticalities" [value]="c">{{ c }}</option>
+      </select>
+      <select class="control" [(ngModel)]="source" (ngModelChange)="onFilter()" aria-label="Assessment source">
+        <option value="">All Assessment Sources</option>
+        <option *ngFor="let s of sources" [value]="s">{{ s }}</option>
+      </select>
+      <ng-container *ngIf="view === 'assets'">
+        <select class="control" [(ngModel)]="due" (ngModelChange)="onFilter()" aria-label="Assessment due">
+          <option value="">Any Assessment Due</option>
+          <option value="overdue">Overdue</option>
+          <option value="due">Due soon or overdue</option>
+          <option value="scheduled">Scheduled later</option>
+          <option value="none">Not scheduled</option>
+        </select>
+        <label class="sco-check"><input type="checkbox" [(ngModel)]="pendingOnly" (ngModelChange)="onFilter()" /> Pending approval</label>
+      </ng-container>
+      <ng-container *ngIf="view === 'history'">
+        <select class="control" [(ngModel)]="kind" (ngModelChange)="onFilter()" aria-label="Change type">
+          <option value="">Status &amp; condition changes</option>
+          <option value="status">Status change history</option>
+          <option value="condition">Condition assessment history</option>
+        </select>
+        <select class="control" [(ngModel)]="state" (ngModelChange)="onFilter()" aria-label="Approval state">
+          <option value="">All States</option>
+          <option *ngFor="let s of states" [value]="s">{{ s }}</option>
+        </select>
+        <label class="sco-date"><span class="muted">From</span><input type="date" class="control" [(ngModel)]="from" (ngModelChange)="onFilter()" /></label>
+        <label class="sco-date"><span class="muted">To</span><input type="date" class="control" [(ngModel)]="to" (ngModelChange)="onFilter()" /></label>
+      </ng-container>
+      <button *ngIf="hasFilters" type="button" class="link-btn" (click)="clearFilters()">Clear filters</button>
+    </div>
+
     <p *ngIf="loadError" class="form-error" role="alert">
       {{ loadError }} <button type="button" class="link-btn" (click)="refresh()">Retry</button>
     </p>
 
-    <!-- Asset Summary -->
-    <ng-container *ngIf="view === 'assets'">
-      <div class="table-wrap">
-        <table class="data-table sco-table">
-          <thead>
-            <tr>
-              <th>Asset ID</th><th>Asset Name</th><th>Site</th><th>Operational Status</th><th>Condition</th>
-              <th>Health</th><th>Last Assessment</th><th>Next Due</th><th class="col-actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let a of assets; trackBy: trackAsset">
-              <td class="nowrap"><a class="asset-link" routerLink="/assets/status-condition" [queryParams]="{ tag: a.assetTag }">{{ a.assetTag || a.assetRegistrationId }}</a></td>
-              <td>{{ a.assetName || '-' }}</td>
-              <td>{{ a.siteName || '-' }}</td>
-              <td>
-                <span class="pill pill--xs" [ngClass]="statusTone(a.status)"><span class="dot"></span>{{ a.status || '-' }}</span>
-                <button *ngIf="a.pendingChangeId" type="button" class="sco-badge" (click)="openPending(a)" [attr.title]="'Change ' + a.pendingChangeNumber + ' waiting for approval'">Pending</button>
-              </td>
-              <td><span *ngIf="a.condition; else noValue" class="pill pill--xs" [ngClass]="conditionTone(a.condition)"><span class="dot"></span>{{ a.condition }}</span></td>
-              <td class="nowrap">{{ a.healthScore != null ? a.healthScore + '%' : '-' }}</td>
-              <td class="nowrap">{{ formatDate(a.lastAssessmentDate) }}<span *ngIf="a.lastAssessmentSource" class="muted sco-sub">{{ a.lastAssessmentSource }}</span></td>
-              <td class="nowrap">{{ formatDate(a.nextAssessmentDue) }}</td>
-              <td class="col-actions">
-                <button type="button" class="btn btn-outline btn-xs" (click)="openUpdate(a)" [attr.aria-label]="'Update ' + a.assetTag">
-                  <lucide-icon [img]="icons.Pencil" [size]="13"></lucide-icon>Update
-                </button>
-              </td>
-            </tr>
-            <tr *ngIf="loading && !assets.length"><td colspan="9" class="empty-line">Loading assets…</td></tr>
-            <tr *ngIf="!loading && !assets.length && !loadError"><td colspan="9" class="empty-line">No assets match these filters.</td></tr>
-          </tbody>
-        </table>
+    <div class="sco-body" [class.has-panel]="!!detail && view === 'assets'">
+      <div class="sco-main">
+        <!-- Asset Summary -->
+        <ng-container *ngIf="view === 'assets'">
+          <div class="table-wrap">
+            <table class="data-table sco-table">
+              <thead>
+                <tr>
+                  <th>Asset</th><th>Category / Type</th><th>Site</th><th>Operational Status</th><th>Condition</th><th>Criticality</th>
+                  <th>Health</th><th>Last Assessment</th><th>Next Due</th><th>Last Updated By</th><th class="col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of pageAssets; trackBy: trackAsset" [class.is-picked]="detail?.assetRegistrationId === a.assetRegistrationId" (click)="openDetail(a)">
+                  <td class="nowrap">
+                    <span class="sco-strong">{{ a.assetTag || a.assetRegistrationId }}</span>
+                    <span class="muted sco-sub">{{ a.assetName || '-' }}</span>
+                  </td>
+                  <td>{{ a.category || '-' }}<span *ngIf="a.assetType" class="muted sco-sub">{{ a.assetType }}</span></td>
+                  <td>{{ a.siteName || '-' }}</td>
+                  <td>
+                    <span class="pill pill--xs" [ngClass]="statusTone(a.status)"><span class="dot"></span>{{ a.status || '-' }}</span>
+                    <button *ngIf="a.pendingChangeId" type="button" class="sco-badge" (click)="$event.stopPropagation(); openPending(a)" [attr.title]="'Change ' + a.pendingChangeNumber + ' waiting for approval'">Pending</button>
+                  </td>
+                  <td><span *ngIf="a.condition; else noValue" class="pill pill--xs" [ngClass]="conditionTone(a.condition)"><span class="dot"></span>{{ a.condition }}</span></td>
+                  <td>{{ a.criticality || '-' }}</td>
+                  <td class="nowrap">{{ a.healthScore != null ? a.healthScore + '%' : '-' }}</td>
+                  <td class="nowrap">{{ formatDate(a.lastAssessmentDate) }}<span *ngIf="a.lastAssessmentSource" class="muted sco-sub">{{ a.lastAssessmentSource }}</span></td>
+                  <td class="nowrap" [class.text-danger]="dueState(a) === 'overdue'">{{ formatDate(a.nextAssessmentDue) }}<span *ngIf="dueState(a) === 'overdue'" class="sco-sub">Overdue</span></td>
+                  <td class="nowrap">{{ lastUpdatedBy(a) }}</td>
+                  <td class="col-actions" (click)="$event.stopPropagation()">
+                    <div class="row-actions">
+                      <button type="button" class="icon-btn" (click)="openDetail(a)" [attr.aria-label]="'View ' + (a.assetTag || a.assetRegistrationId)"><lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon></button>
+                      <button type="button" class="icon-btn" (click)="openUpdate(a)" [attr.aria-label]="'Update ' + (a.assetTag || a.assetRegistrationId)"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon></button>
+                      <button type="button" class="icon-btn" (click)="historyFor(a)" [attr.aria-label]="'History of ' + (a.assetTag || a.assetRegistrationId)"><lucide-icon [img]="icons.History" [size]="16"></lucide-icon></button>
+                    </div>
+                  </td>
+                </tr>
+                <tr *ngIf="loading && !allAssets.length"><td colspan="11" class="empty-line">Loading assets…</td></tr>
+                <tr *ngIf="!loading && !loadError && !allAssets.length"><td colspan="11" class="empty-line">No registered assets yet.</td></tr>
+                <tr *ngIf="allAssets.length && !filteredAssets.length"><td colspan="11" class="empty-line">No assets match these filters. <button type="button" class="link-btn" (click)="clearFilters()">Clear filters</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </ng-container>
+
+        <!-- Change History: status transitions and condition reassessments -->
+        <ng-container *ngIf="view === 'history'">
+          <ul class="sco-events">
+            <li *ngFor="let c of pageChanges; trackBy: trackChange">
+              <button type="button" class="sco-event" (click)="openChange(c)">
+                <span class="sco-event-top">
+                  <strong>{{ c.assetTag || c.assetRegistrationId }}</strong>
+                  <span class="muted sco-num">{{ c.changeNumber }}</span>
+                  <span class="pill pill--xs" [ngClass]="stateTone(c.state)">{{ c.state }}</span>
+                  <span class="muted sco-num">{{ kindLabel(c) }}</span>
+                  <span class="grow"></span>
+                  <span class="muted nowrap">{{ formatDateTime(c.appliedAt || c.submittedAt || c.updatedAt || c.createdAt) }}</span>
+                </span>
+                <span *ngIf="isStatusChange(c)">Status: {{ c.previousStatus || '-' }} &rarr; <strong>{{ c.newStatus }}</strong></span>
+                <span *ngIf="isConditionChange(c)">Condition: {{ c.previousCondition || '-' }} &rarr; <strong>{{ c.newCondition }}</strong></span>
+                <span class="muted">{{ c.reasonCode || '' }}{{ c.assessmentSource ? ' · Source: ' + c.assessmentSource : '' }}{{ (c.submittedBy || c.createdBy) ? ' · By ' + (c.submittedBy || c.createdBy) : '' }}</span>
+              </button>
+            </li>
+            <li *ngIf="loading && !allChanges.length" class="empty-line">Loading changes…</li>
+            <li *ngIf="!loading && !loadError && !allChanges.length" class="empty-line">No status or condition changes recorded yet.</li>
+            <li *ngIf="allChanges.length && !filteredChanges.length" class="empty-line">No changes match these filters.</li>
+          </ul>
+        </ng-container>
+
+        <footer *ngIf="total > pageSize" class="sco-pager">
+          <span class="muted grow">{{ rangeLabel }}</span>
+          <button type="button" class="btn btn-outline btn-sm" [disabled]="page <= 1" (click)="setPage(page - 1)">Previous</button>
+          <span class="muted">Page {{ page }} of {{ pageCount }}</span>
+          <button type="button" class="btn btn-outline btn-sm" [disabled]="page >= pageCount" (click)="setPage(page + 1)">Next</button>
+        </footer>
       </div>
-    </ng-container>
 
-    <!-- Change History -->
-    <ng-container *ngIf="view === 'history'">
-      <h3 class="sco-list-title">Latest Status &amp; Condition Events</h3>
-      <ul class="sco-events">
-        <li *ngFor="let c of changes; trackBy: trackChange">
-          <button type="button" class="sco-event" (click)="openChange(c)">
-            <span class="sco-event-top">
-              <strong>{{ c.assetTag || c.assetRegistrationId }}</strong>
-              <span class="muted sco-num">{{ c.changeNumber }}</span>
+      <!-- Details panel for the selected asset -->
+      <aside *ngIf="detail && view === 'assets'" class="sco-panel card" aria-label="Asset status and condition details">
+        <header class="sco-panel-head">
+          <div class="grow">
+            <strong>{{ detail.assetTag || detail.assetRegistrationId }}</strong>
+            <span class="muted sco-sub">{{ detail.assetName }}<ng-container *ngIf="detail.siteName"> · {{ detail.siteName }}</ng-container></span>
+          </div>
+          <button type="button" class="icon-btn" (click)="closeDetail()" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+        </header>
+        <dl class="sco-panel-facts">
+          <dt>Operational Status</dt><dd><span class="pill pill--xs" [ngClass]="statusTone(detail.status)">{{ detail.status || '-' }}</span></dd>
+          <dt>Condition</dt><dd><span *ngIf="detail.condition; else noValue" class="pill pill--xs" [ngClass]="conditionTone(detail.condition)">{{ detail.condition }}</span></dd>
+          <dt>Criticality</dt><dd>{{ detail.criticality || '-' }}</dd>
+          <dt>Health Score</dt><dd>{{ detail.healthScore != null ? detail.healthScore + '%' : '-' }}</dd>
+          <dt>Category / Type</dt><dd>{{ detail.category || '-' }}{{ detail.assetType ? ' / ' + detail.assetType : '' }}</dd>
+          <dt>Location</dt><dd>{{ detail.locationPath || '-' }}</dd>
+          <dt>Last Assessment</dt><dd>{{ formatDate(detail.lastAssessmentDate) }}{{ detail.lastAssessmentSource ? ' · ' + detail.lastAssessmentSource : '' }}</dd>
+          <dt>Next Assessment Due</dt><dd [class.text-danger]="dueState(detail) === 'overdue'">{{ formatDate(detail.nextAssessmentDue) }}</dd>
+        </dl>
+        <div class="sco-panel-actions">
+          <button type="button" class="btn btn-primary btn-sm" (click)="openUpdate(detail)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Update</button>
+          <button type="button" class="btn btn-outline btn-sm" (click)="historyFor(detail)"><lucide-icon [img]="icons.History" [size]="14"></lucide-icon>View History</button>
+          <button *ngIf="detail.pendingChangeId" type="button" class="btn btn-outline btn-sm" (click)="openPending(detail)">Pending {{ detail.pendingChangeNumber }}</button>
+        </div>
+
+        <section class="sco-panel-sec">
+          <h4>Open Work Orders</h4>
+          <p *ngIf="detailLoading" class="muted">Loading…</p>
+          <ng-container *ngIf="detailLookups as l">
+            <ul *ngIf="openWorkOrders(l).length; else noWo" class="sco-panel-list">
+              <li *ngFor="let w of openWorkOrders(l)"><strong>{{ w.workOrderId }}</strong> {{ w.title || '' }}<span class="muted sco-sub">{{ w.workType || '' }}{{ w.status ? ' · ' + w.status : '' }}{{ w.scheduledDate ? ' · ' + formatDate(w.scheduledDate) : '' }}</span></li>
+            </ul>
+            <ng-template #noWo><p class="muted">No open work orders.</p></ng-template>
+          </ng-container>
+        </section>
+        <section *ngIf="detailLookups?.inspections?.length" class="sco-panel-sec">
+          <h4>Inspections</h4>
+          <ul class="sco-panel-list">
+            <li *ngFor="let i of detailLookups!.inspections"><strong>{{ i.code }}</strong> {{ i.name }}<span class="muted sco-sub">{{ i.kind }}</span></li>
+          </ul>
+        </section>
+        <section class="sco-panel-sec">
+          <h4>Recent Changes</h4>
+          <ul *ngIf="changesOf(detail).length; else noChanges" class="sco-panel-list">
+            <li *ngFor="let c of changesOf(detail).slice(0, 5)">
+              <button type="button" class="link-btn" (click)="openChange(c)">{{ c.changeNumber }}</button>
               <span class="pill pill--xs" [ngClass]="stateTone(c.state)">{{ c.state }}</span>
-              <span class="grow"></span>
-              <span class="muted nowrap">{{ formatDate(c.conditionAssessmentDate || c.updatedAt || c.createdAt) }}</span>
-            </span>
-            <span>Latest recorded condition: <strong>{{ c.newCondition || '-' }}</strong>
-              <span *ngIf="c.previousCondition && c.previousCondition !== c.newCondition" class="muted"> (was {{ c.previousCondition }})</span>
-            </span>
-            <span class="muted">{{ sourceLine(c) }}<ng-container *ngIf="c.previousStatus && c.previousStatus !== c.newStatus"> (was {{ c.previousStatus }})</ng-container></span>
-          </button>
-        </li>
-        <li *ngIf="loading && !changes.length" class="empty-line">Loading changes…</li>
-        <li *ngIf="!loading && !changes.length && !loadError" class="empty-line">No status or condition changes recorded yet.</li>
-      </ul>
-    </ng-container>
-
-    <footer *ngIf="total > pageSize" class="sco-pager">
-      <span class="muted grow">{{ rangeLabel }}</span>
-      <button type="button" class="btn btn-outline btn-sm" [disabled]="page <= 1 || loading" (click)="reload(page - 1)">Previous</button>
-      <span class="muted">Page {{ page }} of {{ pageCount }}</span>
-      <button type="button" class="btn btn-outline btn-sm" [disabled]="page >= pageCount || loading" (click)="reload(page + 1)">Next</button>
-    </footer>
+              <span class="muted sco-sub">{{ kindLabel(c) }} · {{ formatDate(c.appliedAt || c.submittedAt || c.createdAt) }}</span>
+            </li>
+          </ul>
+          <ng-template #noChanges><p class="muted">No changes recorded for this asset.</p></ng-template>
+        </section>
+      </aside>
+    </div>
   </section>
 </section>
 

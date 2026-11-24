@@ -40,8 +40,6 @@ import { apiErrorMessage } from '../../services/asset-api';
 import {
   Approval,
   Evidence,
-  OPERATIONAL_STATUSES,
-  PHYSICAL_CONDITIONS,
   SaveChangeRequest,
   StatusConditionAsset,
   StatusConditionChange,
@@ -102,45 +100,20 @@ const REQUIRED: [keyof ChangeForm, string][] = [
 
 const REMARKS_MAX = 500;
 
-/** Used until GET /options answers (or when it fails), so the form is always usable. Same values as the API. */
-const DEFAULT_OPTIONS: StatusConditionOptions = {
-  statuses: [...OPERATIONAL_STATUSES],
-  conditions: [...PHYSICAL_CONDITIONS],
-  states: ['Draft', 'Pending Approval', 'Approved', 'Rejected'],
-  reasons: [
-    'Performance Degradation', 'Mechanical Failure', 'Electrical Fault', 'Abnormal Vibration', 'Overheating', 'Leakage',
-    'Wear and Tear', 'Damage / Accident', 'Safety Concern', 'Scheduled Maintenance', 'Preventive Maintenance',
-    'Repair Completed', 'Overhaul Completed', 'Inspection Finding', 'Calibration Due', 'Routine Assessment', 'Other',
-  ],
-  assessmentMethods: [
-    'Visual Inspection', 'Functional Test', 'Performance Test', 'Vibration Analysis', 'Thermography', 'Oil Analysis',
-    'Ultrasonic Test', 'Sensor Reading', 'Other',
-  ],
-  assessmentSources: ['Inspection', 'Maintenance', 'Manual', 'IoT Alert', 'Audit', 'Operator Report'],
-  operationalImpacts: ['No Impact', 'Reduced Capacity', 'Partial Shutdown', 'Full Shutdown', 'Safety Risk'],
-  downtimeUnits: ['Hours', 'Days'],
-  approvalLevels: [
-    { level: 1, role: 'Maintenance Manager' },
-    { level: 2, role: 'Asset Manager' },
-  ],
-  reasonsByStatus: {
-    Active: ['Repair Completed', 'Overhaul Completed', 'Preventive Maintenance', 'Routine Assessment', 'Inspection Finding', 'Calibration Due', 'Wear and Tear', 'Performance Degradation', 'Other'],
-    'Under Maintenance': ['Scheduled Maintenance', 'Preventive Maintenance', 'Performance Degradation', 'Abnormal Vibration', 'Overheating', 'Leakage', 'Wear and Tear', 'Calibration Due', 'Inspection Finding', 'Mechanical Failure', 'Electrical Fault', 'Other'],
-    'Out of Service': ['Mechanical Failure', 'Electrical Fault', 'Damage / Accident', 'Safety Concern', 'Leakage', 'Overheating', 'Abnormal Vibration', 'Inspection Finding', 'Other'],
-  },
-  impactsByStatus: {
-    Active: ['No Impact', 'Reduced Capacity'],
-    'Under Maintenance': ['Reduced Capacity', 'Partial Shutdown', 'Full Shutdown', 'Safety Risk'],
-    'Out of Service': ['Full Shutdown', 'Partial Shutdown', 'Safety Risk'],
-  },
-  methodsBySource: {
-    Inspection: ['Visual Inspection', 'Functional Test', 'Thermography', 'Ultrasonic Test', 'Vibration Analysis', 'Oil Analysis', 'Other'],
-    Maintenance: ['Functional Test', 'Performance Test', 'Vibration Analysis', 'Oil Analysis', 'Thermography', 'Visual Inspection', 'Other'],
-    Manual: ['Visual Inspection', 'Functional Test', 'Other'],
-    'IoT Alert': ['Sensor Reading', 'Vibration Analysis', 'Performance Test', 'Other'],
-    Audit: ['Visual Inspection', 'Functional Test', 'Other'],
-    'Operator Report': ['Visual Inspection', 'Functional Test', 'Performance Test', 'Other'],
-  },
+/** Dropdown options come only from GET /api/asset-status-condition/options; empty until it answers. */
+const EMPTY_OPTIONS: StatusConditionOptions = {
+  statuses: [],
+  conditions: [],
+  states: [],
+  reasons: [],
+  assessmentMethods: [],
+  assessmentSources: [],
+  operationalImpacts: [],
+  downtimeUnits: [],
+  approvalLevels: [],
+  reasonsByStatus: {},
+  impactsByStatus: {},
+  methodsBySource: {},
 };
 
 const EMPTY_LOOKUPS: StatusConditionLookups = { workOrders: [], inspections: [], failureReasons: [] };
@@ -221,8 +194,8 @@ export class UpdateStatusCondition implements OnDestroy {
     Activity, Boxes, CalendarDays, Check, CircleAlert, CircleCheck, CircleX, Clock, ClipboardList, ExternalLink, FileText, Heart,
     History, Info, Layers, Link, MapPin, Network, Paperclip, Search, Send, Save, ShieldCheck, Trash2, Upload, User, X, Zap,
   };
-  readonly statuses: readonly string[] = OPERATIONAL_STATUSES;
-  readonly conditions: readonly string[] = PHYSICAL_CONDITIONS;
+  get statuses(): readonly string[] { return this.options.statuses; }
+  get conditions(): readonly string[] { return this.options.conditions; }
   readonly statusTone = statusTone;
   readonly conditionTone = conditionTone;
   readonly stateTone = stateTone;
@@ -243,7 +216,7 @@ export class UpdateStatusCondition implements OnDestroy {
 
   readonly userName = this.auth.getUser()?.userName || this.auth.getUserEmail() || '';
 
-  options: StatusConditionOptions = DEFAULT_OPTIONS;
+  options: StatusConditionOptions = EMPTY_OPTIONS;
   /** The asset's work orders and inspections and the failure reasons master data. */
   lookups: StatusConditionLookups = EMPTY_LOOKUPS;
 
@@ -338,16 +311,16 @@ export class UpdateStatusCondition implements OnDestroy {
     this.asset = null;
     this.form = emptyForm(this.userName);
 
-    // Options fall back to the built-in lists when the API cannot be read.
+    // Options (statuses, conditions, reasons, methods, sources...) come from the API only.
     this.lookups = EMPTY_LOOKUPS;
     this.refreshChoices();
     this.subs.push(
       this.api.options().subscribe({
         next: (options) => {
-          this.options = { ...DEFAULT_OPTIONS, ...options };
+          this.options = { ...EMPTY_OPTIONS, ...options };
           this.refreshChoices();
         },
-        error: () => undefined,
+        error: (err) => (this.loadError = apiErrorMessage(err, 'Could not load the status and condition options.')),
       }),
     );
 
@@ -381,6 +354,9 @@ export class UpdateStatusCondition implements OnDestroy {
     this.loading = false;
     this.asset = asset;
     delete this.errors.asset;
+    // Start from the current values: the user changes the status, the condition, or both.
+    if (!this.form.newStatus) this.form.newStatus = asset.status ?? '';
+    if (!this.form.newCondition) this.form.newCondition = asset.condition ?? '';
     this.refreshChoices();
     // Work orders, inspections and failure reasons for the dropdowns; the form still works without them.
     this.subs.push(
@@ -553,8 +529,20 @@ export class UpdateStatusCondition implements OnDestroy {
     }));
   }
 
+  /**
+   * Required fields for this change: status and condition are independent, so the status dates are only needed when
+   * the status changes and the assessment fields only when the condition is reassessed.
+   */
+  private get requiredFields(): [keyof ChangeForm, string][] {
+    const statusOnly: (keyof ChangeForm)[] = ['effectiveDate', 'effectiveTime'];
+    const conditionOnly: (keyof ChangeForm)[] = ['assessmentDate', 'assessmentTime', 'assessedBy'];
+    return REQUIRED.filter(([key]) =>
+      statusOnly.includes(key) ? this.statusChanged : conditionOnly.includes(key) ? this.conditionChanged : true,
+    );
+  }
+
   get missingFields(): string[] {
-    return REQUIRED.filter(([key]) => !`${this.form[key] ?? ''}`.trim()).map(([, label]) => label);
+    return this.requiredFields.filter(([key]) => !`${this.form[key] ?? ''}`.trim()).map(([, label]) => label);
   }
 
   get checks(): ValidationCheck[] {
@@ -639,9 +627,10 @@ export class UpdateStatusCondition implements OnDestroy {
   private validateDetails(): boolean {
     const errors: typeof this.errors = {};
     if (!this.asset) errors.asset = 'Select an asset.';
-    for (const [key, label] of REQUIRED) {
+    for (const [key, label] of this.requiredFields) {
       if (!`${this.form[key] ?? ''}`.trim()) errors[key] = `${label} is required.`;
     }
+    if (this.asset && !this.statusChanged && !this.conditionChanged) errors.newStatus = 'Change the operational status, the condition, or both.';
     if (this.form.remarks.length > REMARKS_MAX) errors.remarks = `Remarks cannot be longer than ${REMARKS_MAX} characters.`;
     const assessed = joinLocal(this.form.assessmentDate, this.form.assessmentTime);
     if (assessed && new Date(assessed).getTime() > Date.now() + 60_000) errors.assessmentDate = 'Assessment date cannot be in the future.';

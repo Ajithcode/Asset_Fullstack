@@ -1,11 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
 import { ASSET_API, MEDIA_API } from '../services/asset-api';
-
-/** Statuses an asset can be given on the Asset Status & Condition pages. */
-export const OPERATIONAL_STATUSES = ['Active', 'Under Maintenance', 'Out of Service'] as const;
-export const PHYSICAL_CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor', 'Critical'] as const;
 
 export type ChangeState = 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
 export type ApprovalStatus = 'Not Started' | 'Pending' | 'Approved' | 'Rejected';
@@ -191,6 +187,28 @@ export class StatusConditionService {
 
   assets(filters: ListFilters): Observable<Paged<StatusConditionAsset>> {
     return this.http.get<Paged<StatusConditionAsset>>(`${this.api}/assets`, { params: toParams(filters) });
+  }
+
+  /** Every asset with its current status and condition (all pages of GET /assets, 100 per page). */
+  allAssets(): Observable<StatusConditionAsset[]> {
+    return this.allPages((page) => this.assets({ page, pageSize: 100 }), 100);
+  }
+
+  /** Every status & condition change (all pages of GET /changes, 200 per page). */
+  allChanges(): Observable<StatusConditionChange[]> {
+    return this.allPages((page) => this.changes({ page, pageSize: 200 }), 200);
+  }
+
+  private allPages<T>(load: (page: number) => Observable<Paged<T>>, size: number): Observable<T[]> {
+    return load(1).pipe(
+      switchMap((first) => {
+        const pages = Math.ceil((first.totalCount ?? 0) / size);
+        if (pages <= 1) return of(first.items ?? []);
+        return forkJoin(Array.from({ length: pages - 1 }, (_, i) => load(i + 2).pipe(map((r) => r.items ?? [])))).pipe(
+          map((more) => [...(first.items ?? []), ...more.flat()]),
+        );
+      }),
+    );
   }
 
   /** By asset registration id or asset tag. */
