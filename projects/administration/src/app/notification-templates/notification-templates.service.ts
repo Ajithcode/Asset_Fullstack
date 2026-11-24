@@ -17,6 +17,14 @@ interface SaveNotificationTemplateRequest {
   deliveryTiming: string;
   retryPolicy: string;
   status: TemplateStatus;
+  /** Message content; placeholders such as {assetName}, {zone}, {time} are stored as written. */
+  subject?: string | null;
+  body?: string | null;
+  smsText?: string | null;
+  inAppTitle?: string | null;
+  inAppBody?: string | null;
+  pushTitle?: string | null;
+  pushBody?: string | null;
 }
 
 /** Raw shape returned by the notification templates API. */
@@ -38,6 +46,13 @@ interface NotificationTemplateDto {
   updatedAt: string | null;
   tenantId: string | null;
   clientId: string | null;
+  subject?: string | null;
+  body?: string | null;
+  smsText?: string | null;
+  inAppTitle?: string | null;
+  inAppBody?: string | null;
+  pushTitle?: string | null;
+  pushBody?: string | null;
 }
 
 function toRequest(t: NotificationTemplate): SaveNotificationTemplateRequest {
@@ -51,13 +66,20 @@ function toRequest(t: NotificationTemplate): SaveNotificationTemplateRequest {
     priority: t.priority,
     deliveryTiming: t.deliveryTiming,
     retryPolicy: t.retryPolicy,
-    status: t.status
+    status: t.status,
+    subject: t.email.subject,
+    body: t.email.body,
+    smsText: t.sms.text,
+    inAppTitle: t.inApp.title,
+    inAppBody: t.inApp.body,
+    pushTitle: t.push.title,
+    pushBody: t.push.body
   };
 }
 
 /**
- * Starting point for a template loaded from the API with no local copy: message content, description, version, icon
- * and tone have no backend field yet, so they start empty / default.
+ * Starting point for a template loaded from the API with no local copy: description, version, icon and tone have no
+ * backend field yet, so they start at their defaults (the message content comes from the API).
  */
 function baseTemplate(dto: NotificationTemplateDto): NotificationTemplate {
   return {
@@ -76,18 +98,18 @@ function baseTemplate(dto: NotificationTemplateDto): NotificationTemplate {
     priority: 'Normal',
     deliveryTiming: 'Send Immediately',
     retryPolicy: '3 retries (1hr apart)',
-    email: { subject: '', fromName: 'Asset360 Notifications', replyTo: 'noreply@asset360.com', recipientType: 'Assignee', body: '' },
-    sms: { text: '' },
-    inApp: { title: dto.templateName, body: '', link: '{{portal_url}}' },
-    push: { title: '', body: '' },
+    email: { subject: dto.subject ?? '', fromName: 'Asset360 Notifications', replyTo: 'noreply@asset360.com', recipientType: 'Assignee', body: dto.body ?? '' },
+    sms: { text: dto.smsText ?? '' },
+    inApp: { title: dto.inAppTitle ?? dto.templateName, body: dto.inAppBody ?? '', link: '{{portal_url}}' },
+    push: { title: dto.pushTitle ?? '', body: dto.pushBody ?? '' },
     icon: 'mail',
     tone: 'purple'
   };
 }
 
 /**
- * The API stores the template settings only; message content, description, version, icon and tone have no
- * backend field yet, so they are kept from the local copy (for this session only).
+ * The API stores the template settings and the message content (subject, body, SMS / in-app / push text); description,
+ * version, icon, tone, sender and link have no backend field yet and are kept from the local copy (this session only).
  */
 function toAppTemplate(dto: NotificationTemplateDto, local: NotificationTemplate): NotificationTemplate {
   const channels = Object.fromEntries(
@@ -107,7 +129,11 @@ function toAppTemplate(dto: NotificationTemplateDto, local: NotificationTemplate
     language: dto.language,
     priority: dto.priority ?? local.priority,
     deliveryTiming: dto.deliveryTiming ?? local.deliveryTiming,
-    retryPolicy: dto.retryPolicy ?? local.retryPolicy
+    retryPolicy: dto.retryPolicy ?? local.retryPolicy,
+    email: { ...local.email, subject: dto.subject ?? '', body: dto.body ?? '' },
+    sms: { ...local.sms, text: dto.smsText ?? '' },
+    inApp: { ...local.inApp, title: dto.inAppTitle ?? '', body: dto.inAppBody ?? '' },
+    push: { ...local.push, title: dto.pushTitle ?? '', body: dto.pushBody ?? '' }
   };
 }
 
