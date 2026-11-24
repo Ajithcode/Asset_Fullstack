@@ -12,6 +12,8 @@ export interface LivePoint {
   label: string;
   /** Live, Stale or Offline: Stale / Offline are drawn greyed out. */
   state: string;
+  /** The asset's id: when its marker is drawn in a zone, the point sits on that marker (same in-zone grid spot) instead of on x / y. */
+  assetId?: string;
 }
 
 /** Zoom request: the map flies to the point whenever `key` changes. */
@@ -517,6 +519,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       e.m.setTooltipContent(this.assetTip(a));
     }
     this.applyAssetFocus(zones);
+    if (this.live?.assetId || this.signal?.assetId) this.updateLive();
   }
 
   private drawTrail(a: [number, number], b: [number, number]): void {
@@ -569,7 +572,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.signalMarker = undefined;
       return;
     }
-    const pos = this.at(s.x, s.y);
+    const pos = this.pointOf(s);
     const wait = s.state !== 'Live';
     const icon = L.divIcon({
       className: '',
@@ -601,7 +604,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
-    const pos = this.at(live.x, live.y);
+    const pos = this.pointOf(live);
     const stale = live.state !== 'Live';
     const html = `<span class="fp-live${stale ? ' fp-live--stale' : ''}"><i></i><b></b><span>${esc(live.label)}${stale ? ' · ' + esc(live.state.toLowerCase()) : ''}</span></span>`;
     if (!this.liveMarker) {
@@ -617,7 +620,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.liveMarker.setIcon(L.divIcon({ className: 'fp-live-marker', html, iconSize: [22, 22], iconAnchor: [11, 11] }));
     }
 
-    const path = this.liveTrail.map((p) => this.at(p.x, p.y));
+    // the trail is gateway-to-gateway: it does not fit a marker that sits in its zone's grid spot
+    const path = this.assetMk.has(live.assetId ?? '') ? [] : this.liveTrail.map((p) => this.at(p.x, p.y));
     if (path.length > 1) {
       if (!this.liveLine) this.liveLine = L.polyline(path, { color: '#dc2626', weight: 3, opacity: 0.55, dashArray: '6 6', interactive: false }).addTo(this.liveLayer);
       else this.liveLine.setLatLngs(path);
@@ -627,6 +631,12 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     this.applyFocus();
+  }
+
+  /** Where a live / signal point is drawn: on the asset's own marker in its zone when there is one, else at x / y (gateway). */
+  private pointOf(p: LivePoint): Leaflet.LatLngExpression {
+    const mk = p.assetId ? this.assetMk.get(p.assetId) : undefined;
+    return mk ? mk.m.getLatLng() : this.at(p.x, p.y);
   }
 
   private applyFocus(): void {

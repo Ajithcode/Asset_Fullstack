@@ -727,7 +727,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
       const floor = this.floorOfPlan(spot.floorPlanId);
       if (floor && floor !== this.mapFloorId) this.setFloor(floor);
       const what = s.command === 'buzzer' ? 'beeping' : s.command === 'both' ? 'blinking + beeping' : 'blinking';
-      this.signalPoint = { x: spot.x, y: spot.y, label: s.state === 'on' ? `${s.name} · ${what}` : `${s.name} · sending…`, state: s.state === 'on' ? 'Live' : 'Waiting' };
+      this.signalPoint = { x: spot.x, y: spot.y, label: s.state === 'on' ? `${s.name} · ${what}` : `${s.name} · sending…`, state: s.state === 'on' ? 'Live' : 'Waiting', assetId: s.assetId };
       if (!this.followId) this.mapFocus = { key: `signal:${s.tagId}:${spot.floorPlanId}`, x: spot.x, y: spot.y };
     });
   }
@@ -933,7 +933,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
       if (this.livePoint) this.livePoint = { ...this.livePoint, state: 'Last known' };
       return;
     }
-    this.livePoint = { x: d.x, y: d.y, label: d.name, state: d.state };
+    this.livePoint = { x: d.x, y: d.y, label: d.name, state: d.state, assetId: a.assetId };
     const last = this.liveTrail[this.liveTrail.length - 1];
     if (!last || Math.hypot(last.x - d.x, last.y - d.y) > 0.3) this.liveTrail = [...this.liveTrail, { x: d.x, y: d.y }].slice(-60);
     // Zoom in once per asset and floor
