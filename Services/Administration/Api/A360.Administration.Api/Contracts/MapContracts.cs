@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using A360.Administration.Domain.Entities;
+using A360.Administration.Repository.Repositories;
 
 namespace A360.Administration.Api.Contracts;
 
@@ -297,6 +298,25 @@ public sealed record ZoneResponse(
             MapLocationDto.FromEntity(zone.Location));
     }
 }
+
+/// <summary>A Geofence &amp; Alerts rule that watches a zone being deleted.</summary>
+public sealed record ZoneAlertRuleDto(string Id, string Name, string ZoneId, string Status)
+{
+    public static ZoneAlertRuleDto FromRule(ZoneAlertRule rule) => new(rule.Id, rule.Name, rule.ZoneId, rule.Status);
+}
+
+/// <summary>
+/// 409 of DELETE zone / floor plan: active alert rules watch the zone(s). Retry with ?disableRules=true to delete anyway
+/// and disable those rules.
+/// </summary>
+/// <param name="Code">Always "ZoneHasActiveAlertRules".</param>
+public sealed record ZoneInUseResponse(string Code, string Message, IReadOnlyList<ZoneAlertRuleDto> Rules)
+{
+    public const string ZoneHasActiveAlertRules = "ZoneHasActiveAlertRules";
+}
+
+/// <summary>200 of DELETE zone / floor plan when alert rules of the deleted zone(s) were disabled.</summary>
+public sealed record ZoneDeletedResponse(string Message, IReadOnlyList<ZoneAlertRuleDto> DisabledRules);
 
 // PUT /api/administration/maps/floor-plans/{floorPlanId}/plots/{kind}/{itemId}
 public sealed record SavePlotRequest(

@@ -131,6 +131,9 @@ public static class AdministrationServiceCollectionExtensions
         services.AddScoped<IMapZoneRepository>(serviceProvider => serviceProvider.GetRequiredService<MapZoneRepository>());
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<MapZoneRepository>());
 
+        // Tracking alert rules that watch drawn zones (Tracking's AlertRule collection, same database): zone delete guard
+        services.AddScoped<IZoneAlertRules, ZoneAlertRules>();
+
         // Location (site > building > floor > zone) and device ids of drawn zones / plots
         services.AddScoped<IMapLocationResolver, MapLocationResolver>();
 

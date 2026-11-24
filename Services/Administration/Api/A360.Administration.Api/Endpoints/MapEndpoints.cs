@@ -187,12 +187,19 @@ public static class MapEndpoints
         return Results.Ok(await ToResponseAsync(plan, zoneRepository, plotRepository, cancellationToken));
     }
 
+    /// <summary>
+    /// Deletes a floor plan with its zones. Same alert rule guard as deleting one zone: 409 while an Active Geofence
+    /// &amp; Alerts rule watches one of its zones, unless <paramref name="disableRules"/> is true; rules of the deleted
+    /// zones are then disabled with a reason and the response is 200 <see cref="ZoneDeletedResponse"/>, else 204.
+    /// </summary>
     private static async Task<IResult> DeleteFloorPlanAsync(
         string floorPlanId,
+        bool? disableRules,
         IFloorPlanRepository repository,
         IMapZoneRepository zoneRepository,
         IMapPlotRepository plotRepository,
         IMapLayerRepository layerRepository,
+        IZoneAlertRules zoneAlertRules,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -203,20 +210,43 @@ public static class MapEndpoints
             return Results.NotFound();
         }
 
+        var zones = (await zoneRepository.GetByFloorPlanAsync(plan.FloorPlanId, null, null, cancellationToken)).ToDictionary(zone => zone.ZoneId);
+        var rules = await zoneAlertRules.FindAsync(zones.Keys, cancellationToken);
+        var active = rules.Where(IsActive).ToList();
+        if (active.Count > 0 && disableRules != true)
+        {
+            return RulesInTheWay($"Floor plan '{plan.Name}' has zones watched by", active);
+        }
+
         // Soft delete: the record stays for the audit trail, and so do its zones, plots and layer options
         var userName = currentUserAccessor.GetCurrentUser()?.UserName ?? plan.UpdatedBy;
+        var now = DateTime.UtcNow;
         plan.IsDeleted = true;
         plan.UpdatedBy = userName;
-        plan.UpdatedAt = DateTime.UtcNow;
+        plan.UpdatedAt = now;
         await repository.UpdateAsync(plan.Id, plan, cancellationToken);
 
         await zoneRepository.SoftDeleteByFloorPlanAsync(plan.FloorPlanId, userName, cancellationToken);
         await plotRepository.SoftDeleteByFloorPlanAsync(plan.FloorPlanId, userName, cancellationToken);
         await layerRepository.SoftDeleteByFloorPlanAsync(plan.FloorPlanId, userName, cancellationToken);
 
-        await eventLogger.LogAsync(FloorPlanEntity, plan.Id, plan.Name, EventAction.Deleted, cancellationToken);
+        await DisableRulesAsync(
+            rules,
+            rule => zones.TryGetValue(rule.ZoneId, out var zone)
+                ? $"Zone {zone.Name} ({zone.Code}) was deleted with floor plan {plan.Name} on {now:yyyy-MM-dd HH:mm} UTC{By(userName)}"
+                : $"Floor plan {plan.Name} was deleted on {now:yyyy-MM-dd HH:mm} UTC{By(userName)}",
+            userName,
+            zoneAlertRules,
+            eventLogger,
+            cancellationToken);
 
-        return Results.NoContent();
+        await eventLogger.LogDetailedAsync(FloorPlanEntity, plan.Id, plan.Name, EventAction.Deleted, DisabledDetails(rules), cancellationToken);
+
+        return rules.Count == 0
+            ? Results.NoContent()
+            : Results.Ok(new ZoneDeletedResponse(
+                $"Floor plan {plan.Name} deleted; {rules.Count} alert rule(s) disabled",
+                rules.Select(ZoneAlertRuleDto.FromRule).ToList()));
     }
 
     // Publishes the plan's current version.
@@ -528,10 +558,18 @@ public static class MapEndpoints
         return Results.Ok(ZoneResponse.FromEntity(zone));
     }
 
+    /// <summary>
+    /// Deletes a zone. Geofence &amp; Alerts rules watching it would silently stop working, so: 409
+    /// <see cref="ZoneInUseResponse"/> while an Active rule watches the zone, unless <paramref name="disableRules"/> is
+    /// true. When the zone is deleted, every rule still pointing at it is set to Disabled with a reason ("Zone X was
+    /// deleted on ...") and audited; the response is then 200 <see cref="ZoneDeletedResponse"/>, else 204.
+    /// </summary>
     private static async Task<IResult> DeleteZoneAsync(
         string zoneId,
+        bool? disableRules,
         IMapZoneRepository repository,
         IMapPlotRepository plotRepository,
+        IZoneAlertRules zoneAlertRules,
         ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -542,20 +580,82 @@ public static class MapEndpoints
             return Results.NotFound();
         }
 
+        var rules = await zoneAlertRules.FindAsync([zone.ZoneId], cancellationToken);
+        var active = rules.Where(IsActive).ToList();
+        if (active.Count > 0 && disableRules != true)
+        {
+            return RulesInTheWay($"Zone '{zone.Name}' ({zone.Code}) is watched by", active);
+        }
+
         // Soft delete: the record stays for the audit trail
         var userName = currentUserAccessor.GetCurrentUser()?.UserName ?? zone.UpdatedBy;
+        var now = DateTime.UtcNow;
         zone.IsDeleted = true;
         zone.UpdatedBy = userName;
-        zone.UpdatedAt = DateTime.UtcNow;
+        zone.UpdatedAt = now;
         await repository.UpdateAsync(zone.Id, zone, cancellationToken);
 
         // Items placed in the zone stay on the plan, just no longer in a zone
         await plotRepository.ClearZoneAsync(zone.ZoneId, userName, cancellationToken);
 
-        await eventLogger.LogAsync(ZoneEntity, zone.Id, zone.Name, EventAction.Deleted, cancellationToken);
+        var reason = $"Zone {zone.Name} ({zone.Code}) was deleted on {now:yyyy-MM-dd HH:mm} UTC{By(userName)}";
+        await DisableRulesAsync(rules, _ => reason, userName, zoneAlertRules, eventLogger, cancellationToken);
 
-        return Results.NoContent();
+        await eventLogger.LogDetailedAsync(ZoneEntity, zone.Id, zone.Name, EventAction.Deleted, DisabledDetails(rules), cancellationToken);
+
+        return rules.Count == 0
+            ? Results.NoContent()
+            : Results.Ok(new ZoneDeletedResponse(
+                $"Zone {zone.Name} deleted; {rules.Count} alert rule(s) disabled",
+                rules.Select(ZoneAlertRuleDto.FromRule).ToList()));
     }
+
+    // ---- Zone alert rules (Geofence & Alerts, Tracking) ----------------------------------------------------------
+
+    private static bool IsActive(ZoneAlertRule rule) => string.Equals(rule.Status, ZoneAlertRules.Active, StringComparison.OrdinalIgnoreCase);
+
+    private static string By(string? userName) => string.IsNullOrWhiteSpace(userName) ? string.Empty : $" by {userName}";
+
+    private static IResult RulesInTheWay(string what, IReadOnlyList<ZoneAlertRule> active)
+    {
+        var names = string.Join(", ", active.Select(rule => $"'{rule.Name}'"));
+        return Results.Conflict(new ZoneInUseResponse(
+            ZoneInUseResponse.ZoneHasActiveAlertRules,
+            $"{what} {active.Count} active alert rule(s): {names}. Move or disable them in Geofence & Alerts first, "
+            + "or delete with disableRules=true to delete and disable them.",
+            active.Select(ZoneAlertRuleDto.FromRule).ToList()));
+    }
+
+    /// <summary>Rules of a deleted zone become Disabled with the reason, each change audited on the rule.</summary>
+    private static async Task DisableRulesAsync(
+        IReadOnlyList<ZoneAlertRule> rules,
+        Func<ZoneAlertRule, string> reason,
+        string? userName,
+        IZoneAlertRules zoneAlertRules,
+        IEventLogger eventLogger,
+        CancellationToken cancellationToken)
+    {
+        if (rules.Count == 0)
+        {
+            return;
+        }
+
+        await zoneAlertRules.DisableAsync(rules, reason, userName, cancellationToken);
+        foreach (var rule in rules)
+        {
+            // Same entity type / name as Tracking's own rule events, so the rule's history shows it
+            await eventLogger.LogDetailedAsync(
+                "AlertRule",
+                rule.Id,
+                $"{rule.TargetName} - {rule.Name}",
+                EventAction.Updated,
+                $"Status {rule.Status} -> {ZoneAlertRules.Disabled}: {reason(rule)}",
+                cancellationToken);
+        }
+    }
+
+    private static string? DisabledDetails(IReadOnlyList<ZoneAlertRule> rules) =>
+        rules.Count == 0 ? null : $"Disabled {rules.Count} alert rule(s): {string.Join(", ", rules.Select(rule => rule.Name))}";
 
     // ---- Plots ------------------------------------------------------------------------------------------------------
 
