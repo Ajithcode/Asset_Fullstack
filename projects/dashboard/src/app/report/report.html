@@ -25,7 +25,7 @@
       <label class="io-filter"><span>Owner</span>
         <select class="control" [(ngModel)]="owner" (ngModelChange)="onFilter()"><option value="">Select Owner</option><option *ngFor="let o of owners" [value]="o">{{ o }}</option></select></label>
       <button type="button" class="btn btn-primary" (click)="go('/report/create')"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Create Report</button>
-      <button type="button" class="btn rp-btn-outline" (click)="exportAll()"><lucide-icon [img]="icons.Upload" [size]="17"></lucide-icon>Export</button>
+      <app-export-menu [source]="exportRequest" />
     </div>
   </header>
 
@@ -161,7 +161,8 @@
                 <button type="button" class="icon-btn" (click)="toggleMenu(r.id, $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === r.id" [attr.aria-label]="'Actions for ' + r.name"><lucide-icon [img]="icons.Ellipsis" [size]="16"></lucide-icon></button>
                 <span *ngIf="menuOpen === r.id" class="menu" role="menu" (click)="$event.stopPropagation()">
                   <button type="button" role="menuitem" (click)="viewReport(r)">View Report</button>
-                  <button type="button" role="menuitem" (click)="download(r)">Download {{ r.type }}</button>
+                  <button type="button" role="menuitem" (click)="download(r, 'csv')">Download CSV</button>
+                  <button type="button" role="menuitem" (click)="download(r, 'pdf')">Download PDF</button>
                   <button type="button" role="menuitem" (click)="toggleFavorite(r); menuOpen = ''">{{ r.favorite ? 'Remove from Favorites' : 'Add to Favorites' }}</button>
                 </span></span></td>
             </tr>
@@ -215,7 +216,7 @@
           </div>
           <div class="rp-pv-btns">
             <button type="button" class="btn btn-primary" (click)="viewReport(d)"><lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon>View Report</button>
-            <button type="button" class="btn rp-btn-outline" (click)="download(d)"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Download {{ d.type }}</button>
+            <app-export-menu label="Download" [source]="previewDownload" />
           </div>
         </ng-container>
         <ng-template #noSel><p class="muted">Select a report in the library to preview it.</p></ng-template>

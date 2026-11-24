@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, HostListener, NgZone, OnDestroy, 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import * as XLSX from 'xlsx';
+import { ExportFormat, ExportMenu, ExportRequest, ExportService, PDF_LIMIT_MESSAGE } from 'shared-ui';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -62,7 +62,7 @@ const DATA_COLORS: Record<string, string> = { Fresh: '#16a34a', Stale: '#dc2626'
 @Component({
   selector: 'app-report',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, DrillDialog],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, DrillDialog, ExportMenu],
   templateUrl: './report.html',
   // header, filters, KPI cards, menus, tables and charts come from the IoT and Asset overviews
   styleUrls: ['../iot-tracking-overview/iot-tracking-overview.css', '../iot-tracking-overview/iot-tracking-overview-panels.css', '../asset-overview/asset-overview.css', './report.css'],
@@ -121,6 +121,7 @@ export class Report implements AfterViewInit, OnDestroy {
   @ViewChild('chartEl') private chartEl?: ElementRef<HTMLDivElement>;
   private chartResize?: ResizeObserver;
   private readonly router = inject(Router);
+  private readonly exporter = inject(ExportService);
   private readonly zone = inject(NgZone);
   private readonly today = new Date();
 
@@ -415,7 +416,8 @@ export class Report implements AfterViewInit, OnDestroy {
         { label: 'Favorite', value: r.favorite ? 'Yes' : 'No' }, { label: 'Shared with me', value: r.sharedWithMe ? 'Yes' : 'No' },
       ],
       actions: [
-        { label: `Download ${r.type}`, run: () => this.download(r) },
+        { label: 'Download CSV', run: () => this.download(r, 'csv') },
+        { label: 'Download PDF', run: () => this.download(r, 'pdf') },
         { label: 'Show in Preview', run: () => this.select(r) },
         { label: 'View Report', run: () => this.viewReport(r) },
       ],
@@ -588,54 +590,55 @@ export class Report implements AfterViewInit, OnDestroy {
     this.router.navigate(['/report']);
   }
 
-  /** Downloads the report's summary in its own format (PDF reports go out as a printable sheet). */
-  download(r: LibraryReport): void {
-    this.menuOpen = '';
-    const rows = [
-      { Field: 'Report ID', Value: r.id }, { Field: 'Report Name', Value: r.name }, { Field: 'Module', Value: r.module }, { Field: 'Site', Value: r.site },
-      { Field: 'Owner', Value: r.owner }, { Field: 'Last Updated', Value: this.fmtDateTime(r.updated) }, { Field: 'Views', Value: r.views },
-      ...this.previewStats(r).map((s) => ({ Field: s.label, Value: s.value })),
+  private reportSummary(r: LibraryReport): { field: string; value: string | number }[] {
+    return [
+      { field: 'Report ID', value: r.id }, { field: 'Report Name', value: r.name }, { field: 'Module', value: r.module }, { field: 'Site', value: r.site },
+      { field: 'Owner', value: r.owner }, { field: 'Last Updated', value: this.fmtDateTime(r.updated) }, { field: 'Views', value: r.views },
+      ...this.previewStats(r).map((s) => ({ field: s.label, value: s.value })),
     ];
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Report');
-    const file = r.name.replace(/[^\w]+/g, '_');
-    if (r.type === 'CSV') XLSX.writeFile(book, `${file}.csv`, { bookType: 'csv' });
-    else if (r.type === 'XLS') XLSX.writeFile(book, `${file}.xlsx`);
-    else this.printSummary(r, rows);
   }
 
-  private printSummary(r: LibraryReport, rows: { Field: string; Value: string | number }[]): void {
-    const w = window.open('', '_blank', 'width=720,height=640');
-    if (!w) {
-      this.showToast('Allow pop-ups to save the PDF.');
-      return;
-    }
-    const esc = (v: string | number) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
-    w.document.write(`<html><head><title>${esc(r.name)}</title><style>body{font-family:sans-serif;padding:24px}h1{font-size:20px;color:#1e1b6b}td{padding:6px 12px;border-bottom:1px solid #eee}td:first-child{font-weight:600}</style></head>
-      <body><h1>${esc(r.name)}</h1><table>${rows.map((x) => `<tr><td>${esc(x.Field)}</td><td>${esc(x.Value)}</td></tr>`).join('')}</table></body></html>`);
-    w.document.close();
-    w.focus();
-    w.print();
+  /** Summary of one report as CSV / PDF (the Download menu on the preview panel and the row menu). */
+  downloadRequest = (r: LibraryReport): ExportRequest => ({
+    title: r.name,
+    fileBase: r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'report',
+    columns: [{ label: 'Field', key: 'field' }, { label: 'Value', key: 'value' }],
+    rows: () => this.reportSummary(r),
+  });
+
+  /** Download of the report selected in the preview panel. */
+  previewDownload = (): ExportRequest => this.downloadRequest(this.selected!);
+
+  /** Row-menu download in one format. */
+  download(r: LibraryReport, format: ExportFormat): void {
+    this.menuOpen = '';
+    this.exporter.run(format, this.downloadRequest(r)).then(
+      (res) => { if (res.truncated) this.showToast(PDF_LIMIT_MESSAGE); },
+      (e) => this.showToast(e?.message || 'Export failed'),
+    );
   }
 
-  exportAll(): void {
-    const book = XLSX.utils.book_new();
+  /** Report page export: filtered library plus the summary KPIs and activity, as one table tagged by Section. */
+  exportRequest = (): ExportRequest => {
     const k = this.kpis;
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet([
-      { Metric: 'Period', Value: this.periodLabel },
-      { Metric: 'Filters', Value: `Module: ${this.module || 'All'}; Type: ${this.fileType || 'All'}; Site: ${this.site || 'All'}; Owner: ${this.owner || 'All'}` },
-      { Metric: 'Total Reports', Value: k.total }, { Metric: 'Scheduled Reports', Value: k.scheduled }, { Metric: 'Reports Generated', Value: k.generated },
-      { Metric: 'Most Viewed Report', Value: k.top?.name ?? '-' }, { Metric: 'Data Freshness %', Value: k.freshness }, { Metric: 'Pending Approvals', Value: k.pending },
-    ]), 'Summary');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.reports.map((r) => ({
-      'Report ID': r.id, 'Report Name': r.name, Module: r.module, Site: r.site, Owner: r.owner, Type: r.type, Views: r.views, 'Last Updated': this.fmtDateTime(r.updated),
-      Scheduled: r.scheduled ? 'Yes' : 'No', 'Pending Approval': r.pendingApproval ? 'Yes' : 'No',
-    }))), 'Report Library');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.activity.vals.map((v) => ({
-      Date: v.date, Generated: v.generated, Viewed: v.viewed, Exported: v.exported, Scheduled: v.scheduled,
-    }))), 'Activity');
-    XLSX.writeFile(book, `Reports_${isoDate(this.today)}.xlsx`);
-  }
+    type Row = { section: string; item: string; value: string | number; detail: string };
+    const kpi = (item: string, value: string | number): Row => ({ section: 'Summary', item, value, detail: '' });
+    return {
+      title: 'Reports',
+      fileBase: 'reports',
+      columns: [{ label: 'Section', key: 'section' }, { label: 'Item', key: 'item' }, { label: 'Value', key: 'value', align: 'right' }, { label: 'Detail', key: 'detail' }],
+      filters: { Period: this.periodLabel, Module: this.module || 'All', Type: this.fileType || 'All', Site: this.site || 'All', Owner: this.owner || 'All' },
+      rows: () => [
+        kpi('Total Reports', k.total), kpi('Scheduled Reports', k.scheduled), kpi('Reports Generated', k.generated), kpi('Most Viewed Report', k.top?.name ?? '-'),
+        kpi('Data Freshness %', k.freshness), kpi('Pending Approvals', k.pending),
+        ...this.reports.map((r) => ({
+          section: 'Report Library', item: `${r.id} - ${r.name}`, value: r.views,
+          detail: [r.module, r.site, r.owner, r.type, this.fmtDateTime(r.updated), r.scheduled ? 'Scheduled' : '', r.pendingApproval ? 'Pending approval' : ''].filter(Boolean).join(' | '),
+        })),
+        ...this.activity.vals.map((v) => ({ section: 'Activity', item: v.date, value: v.generated, detail: `Viewed ${v.viewed}, Exported ${v.exported}, Scheduled ${v.scheduled}` })),
+      ],
+    };
+  };
 
   // ===== Formatting =====
 

@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import L from 'leaflet';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -81,7 +81,7 @@ const HEALTH_BANDS: HealthBand[] = ['Healthy', 'Warning', 'Critical', 'Unknown']
 @Component({
   selector: 'app-iot-tracking-overview',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, DrillDialog],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, DrillDialog, ExportMenu],
   templateUrl: './iot-tracking-overview.html',
   styleUrls: ['./iot-tracking-overview.css', './iot-tracking-overview-panels.css'],
 })
@@ -1158,26 +1158,31 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
     this.router.navigate([path]);
   }
 
-  exportReport(): void {
+  private withAllSites<T>(read: () => T): T {
+    const keep = this.showAllSites;
+    this.showAllSites = true;
+    try { return read(); } finally { this.showAllSites = keep; }
+  }
+
+  /** One flat table: summary KPIs, every site and the alert list, tagged by Section. */
+  exportRequest = (): ExportRequest => {
     const k = this.kpis;
     const f = this.firmware;
-    const book = XLSX.utils.book_new();
-    const filters = `Period: ${this.periodLabel}; Site: ${this.site || 'All'}; Type: ${this.type || 'All'}; Status: ${this.status || 'All'}`;
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet([
-      { Metric: 'Filters', Value: filters },
-      { Metric: 'Connected Assets', Value: k.connected }, { Metric: 'Online Now', Value: k.online }, { Metric: 'Online %', Value: k.onlinePct },
-      { Metric: 'Alerts', Value: k.alerts }, { Metric: 'Critical Alerts', Value: k.critical }, { Metric: 'Coverage %', Value: k.coverage }, { Metric: 'Data Freshness %', Value: k.freshness },
-      { Metric: 'Devices on latest firmware', Value: f ? `${f.latest} / ${f.total}` : '' }, { Metric: 'Sensors requiring attention', Value: this.attention ?? '' },
-    ]), 'Summary');
-    const showAll = this.showAllSites;
-    this.showAllSites = true;
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.siteStats.map((s) => ({ Site: s.site.name, Assets: s.total, Online: s.online, Idle: s.idle, 'Offline / Unknown': s.offline, 'Online %': s.onlinePct }))), 'Sites');
-    this.showAllSites = showAll;
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.alertRows.map((a) => ({
-      Time: this.fmtDateTime(a.raisedAt), Asset: a.tag, 'Asset Name': a.assetName ?? '', Site: a.siteName ?? '', 'Event Type': a.eventType ?? '', Severity: a.severity ?? '', Status: a.status ?? '',
-    }))), 'Alerts');
-    XLSX.writeFile(book, `IoT_Tracking_Overview_${this.todayIso()}.xlsx`);
-  }
+    type Row = { section: string; item: string; value: string | number; detail: string };
+    const kpi = (item: string, value: string | number | null | undefined): Row => ({ section: 'Summary', item, value: value ?? '', detail: '' });
+    return {
+      title: 'IoT Tracking Overview',
+      fileBase: 'iot-tracking-overview',
+      columns: [{ label: 'Section', key: 'section' }, { label: 'Item', key: 'item' }, { label: 'Value', key: 'value', align: 'right' }, { label: 'Detail', key: 'detail' }],
+      filters: { Period: this.periodLabel, Site: this.site || 'All', Type: this.type || 'All', Status: this.status || 'All' },
+      rows: () => [
+        kpi('Connected Assets', k.connected), kpi('Online Now', k.online), kpi('Online %', k.onlinePct), kpi('Alerts', k.alerts), kpi('Critical Alerts', k.critical),
+        kpi('Coverage %', k.coverage), kpi('Data Freshness %', k.freshness), kpi('Devices on latest firmware', f ? `${f.latest} / ${f.total}` : ''), kpi('Sensors requiring attention', this.attention),
+        ...this.withAllSites(() => this.siteStats).map((s) => ({ section: 'Sites', item: s.site.name, value: s.total, detail: `Online ${s.online}, Idle ${s.idle}, Offline / Unknown ${s.offline}, Online ${s.onlinePct}%` })),
+        ...this.alertRows.map((a) => ({ section: 'Alerts', item: `${a.tag}${a.assetName ? ' - ' + a.assetName : ''}`, value: a.severity ?? '', detail: [this.fmtDateTime(a.raisedAt), a.siteName, a.eventType, a.status].filter(Boolean).join(' | ') })),
+      ],
+    };
+  };
 
   // ===== Formatting =====
 

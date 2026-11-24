@@ -20,7 +20,7 @@
         <select class="control" [(ngModel)]="type" (ngModelChange)="apply()"><option value="">Select Type</option><option *ngFor="let t of types" [value]="t">{{ t }}</option></select></label>
       <label class="io-filter"><span>Status</span>
         <select class="control" [(ngModel)]="status" (ngModelChange)="apply()"><option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select></label>
-      <button type="button" class="btn btn-primary" (click)="exportReport()"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export Report</button>
+      <app-export-menu label="Export Report" [source]="exportRequest" />
     </div>
   </header>
 

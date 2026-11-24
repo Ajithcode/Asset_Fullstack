@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import L from 'leaflet';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -127,7 +127,7 @@ const CRIT_PILLS: Record<string, string> = { Critical: '#dc2626', High: '#f59e0b
 @Component({
   selector: 'app-asset-overview',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, DrillDialog],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, DrillDialog, ExportMenu],
   templateUrl: './asset-overview.html',
   // header, filters, KPI cards, menus, tables and quick view come from the IoT overview
   styleUrls: ['../iot-tracking-overview/iot-tracking-overview.css', '../iot-tracking-overview/iot-tracking-overview-panels.css', './asset-overview.css'],
@@ -1055,28 +1055,32 @@ export class AssetOverview implements AfterViewInit, OnDestroy {
     this.router.navigate(['/assets/overview'], { queryParams: { id: a.registrationId, tag: a.tag } });
   }
 
-  exportReport(): void {
+  /** One flat table: every summary block and the current drill table, tagged by Section. */
+  exportRequest = (): ExportRequest => {
     const k = this.kpis;
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet([
-      { Metric: 'As of', Value: isoDate(this.today) },
-      { Metric: 'Filters', Value: `Site: ${this.site || 'All'}; Category: ${this.category || 'All'}; Type: ${this.type || 'All'}; Status: ${this.status || 'All'}` },
-      { Metric: `KPI window`, Value: `Last ${KPI_DAYS} days` },
-      { Metric: 'Total Assets', Value: k.total ?? '' }, { Metric: 'Active Assets', Value: k.active ?? '' },
-      { Metric: 'Assets Under Maintenance', Value: k.maintenance ?? '' }, { Metric: 'Critical Assets', Value: k.critical ?? '' },
-      { Metric: 'Avg Asset Health Score %', Value: k.health ?? '' },
-    ]), 'Summary');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byCategory.map((c) => ({ Category: c.name, Assets: c.count, '%': c.pct }))), 'By Category');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.byStatus.map((s) => ({ Status: s.status, Assets: s.count, '%': s.pct }))), 'By Status');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet((this.health?.rows ?? []).map((r) => ({ Health: r.band, Assets: r.count, '%': r.pct }))), 'By Health');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet((this.aging?.bars ?? []).map((b) => ({ Age: `${b.band} (${b.label})`, Assets: b.count, '%': b.pct }))), 'By Age');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.siteRows.map((s) => ({ Site: s.name, Assets: s.totalAssets, 'Online %': s.onlinePercent, [`Location Updates (${KPI_DAYS}d)`]: s.updates }))), 'By Site');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(this.tableRows.map((r) => ({
-      'Asset Tag': r.tag, 'Asset Name': r.name, Category: r.category ?? '', Site: r.site ?? '', Criticality: r.criticality ?? '', Status: r.status ?? '',
-      ...(r.due ? { Due: r.due.slice(0, 10) } : {}),
-    }))), this.tableTitle.slice(0, 31));
-    XLSX.writeFile(book, `Asset_Overview_${isoDate(this.today)}.xlsx`);
-  }
+    type Row = { section: string; item: string; value: string | number; pct?: string | number };
+    const kpi = (item: string, value: string | number | null | undefined): Row => ({ section: 'Summary', item, value: value ?? '' });
+    const rows: Row[] = [
+      kpi('Total Assets', k.total), kpi('Active Assets', k.active), kpi('Assets Under Maintenance', k.maintenance), kpi('Critical Assets', k.critical), kpi('Avg Asset Health Score %', k.health),
+      ...this.byCategory.map((c) => ({ section: 'By Category', item: c.name, value: c.count, pct: c.pct })),
+      ...this.byStatus.map((s) => ({ section: 'By Status', item: s.status, value: s.count, pct: s.pct })),
+      ...(this.health?.rows ?? []).map((r) => ({ section: 'By Health', item: r.band, value: r.count, pct: r.pct })),
+      ...(this.aging?.bars ?? []).map((b) => ({ section: 'By Age', item: `${b.band} (${b.label})`, value: b.count, pct: b.pct })),
+      ...this.siteRows.map((s) => ({ section: 'By Site', item: s.name, value: s.totalAssets, pct: s.onlinePercent })),
+    ];
+    return {
+      title: 'Asset Overview',
+      fileBase: 'asset-overview',
+      columns: [
+        { label: 'Section', key: 'section' }, { label: 'Item', key: 'item' }, { label: 'Value', key: 'value', align: 'right' }, { label: 'Share % / Online % / Detail', key: 'pct', align: 'right' },
+      ],
+      filters: { 'As of': isoDate(this.today), Site: this.site || 'All', Category: this.category || 'All', Type: this.type || 'All', Status: this.status || 'All', 'KPI window': `Last ${KPI_DAYS} days` },
+      rows: () => [
+        ...rows,
+        ...this.tableRows.map((r) => ({ section: this.tableTitle, item: `${r.tag} - ${r.name}`, value: r.status ?? '', pct: [r.category, r.site, r.criticality, r.due ? 'Due ' + r.due.slice(0, 10) : ''].filter(Boolean).join(' / ') })),
+      ],
+    };
+  };
 
   // ===== Formatting =====
 

@@ -1,7 +1,7 @@
 import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import * as XLSX from 'xlsx';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { LucideAngularModule, ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Download, Search, X } from 'lucide-angular';
 import { Drill, DrillColumn, DrillRow } from './drill';
 
@@ -12,7 +12,7 @@ import { Drill, DrillColumn, DrillRow } from './drill';
 @Component({
   selector: 'app-drill-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './drill-dialog.html',
   styleUrls: ['./drill-dialog.css'],
 })
@@ -88,14 +88,18 @@ export class DrillDialog {
     this.close();
   }
 
-  exportRows(): void {
-    const d = this.current;
-    if (!d?.columns) return;
-    const sheet = XLSX.utils.json_to_sheet(this.rows.map((r) => Object.fromEntries(d.columns!.map((c) => [c.label, r.cells[c.key] ?? '']))));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, 'Data');
-    XLSX.writeFile(book, `${d.title.replace(/[^\w]+/g, '_')}.xlsx`);
-  }
+  /** Export of the drill list as shown (current search and sort, every row, not just the visible page). */
+  exportRequest = (): ExportRequest => {
+    const d = this.current!;
+    const q = this.search.trim();
+    return {
+      title: d.title,
+      fileBase: d.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'export',
+      columns: (d.columns ?? []).map((c) => ({ label: c.label, value: (r: DrillRow) => r.cells[c.key] as string | number | null, align: c.num ? 'right' as const : undefined })),
+      filters: q ? { Search: q } : undefined,
+      rows: () => this.rows,
+    };
+  };
 
   @HostListener('document:keydown.escape')
   close(): void {

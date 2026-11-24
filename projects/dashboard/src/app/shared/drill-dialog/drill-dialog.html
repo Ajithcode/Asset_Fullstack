@@ -47,7 +47,7 @@
     </div>
 
     <footer *ngIf="d.actions?.length || d.columns?.length" class="dd-foot">
-      <button *ngIf="d.columns?.length && rows.length" type="button" class="dd-btn" (click)="exportRows()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
+      <app-export-menu *ngIf="d.columns?.length && rows.length" [source]="exportRequest" />
       <span class="dd-grow"></span>
       <button *ngFor="let a of d.actions" type="button" class="dd-btn dd-btn--primary" (click)="run(a)">{{ a.label }}</button>
     </footer>
