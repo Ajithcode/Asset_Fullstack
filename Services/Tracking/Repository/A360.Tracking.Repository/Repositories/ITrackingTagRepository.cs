@@ -10,6 +10,12 @@ public interface ITrackingTagRepository : IMongoRepository<TrackingTag>
     /// <summary>Tag ids are unique across all technologies, ignoring case.</summary>
     Task<bool> TagIdExistsAsync(string tagId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// A non-deleted tag (other than the one with database id <paramref name="exceptId"/>) whose tag id or value has one of
+    /// these <see cref="TagIdKey"/> keys, preferring one linked to an asset; null when there is none.
+    /// </summary>
+    Task<TrackingTag?> FindByKeysAsync(IReadOnlyCollection<string> keys, string? exceptId, CancellationToken cancellationToken = default);
+
     /// <summary>Every tag that is not deleted.</summary>
     Task<IReadOnlyList<TrackingTag>> GetActiveAsync(CancellationToken cancellationToken = default);
 

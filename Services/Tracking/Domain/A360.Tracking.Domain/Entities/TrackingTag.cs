@@ -11,11 +11,19 @@ namespace A360.Tracking.Domain.Entities;
 [BsonIgnoreExtraElements]
 public sealed class TrackingTag : BaseEntity
 {
-    /// <summary>Prefix + tag number, e.g. BLE-002952.</summary>
+    /// <summary>The tag id, e.g. C300006EB011. New tags store it normalised (<see cref="TagIdKey"/>); older ones as typed.</summary>
     [BsonElement("tag_id")]
     public string TagId { get; set; } = string.Empty;
 
-    /// <summary>The number typed in the Register form, e.g. 002952.</summary>
+    /// <summary>
+    /// <see cref="TagIdKey"/> of the tag id, set when the tag is registered (tags registered before it existed have none;
+    /// uniqueness is checked on the key computed from <see cref="TagId"/>, so it does not depend on this field).
+    /// </summary>
+    [BsonElement("tag_key")]
+    [BsonIgnoreIfNull]
+    public string? TagKey { get; set; }
+
+    /// <summary>The tag id as typed in the Register form, before normalising, e.g. ble-c3:00:00:9a:af:43.</summary>
     [BsonElement("tag_number")]
     public string TagNumber { get; set; } = string.Empty;
 

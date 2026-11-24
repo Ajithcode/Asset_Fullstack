@@ -61,6 +61,25 @@ public sealed class TrackingTagRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<TrackingTag?> FindByKeysAsync(
+        IReadOnlyCollection<string> keys,
+        string? exceptId,
+        CancellationToken cancellationToken = default)
+    {
+        if (keys.Count == 0)
+        {
+            return null;
+        }
+
+        // One row per physical tag (small), and rows registered before tag_key existed can only be matched on keys
+        // computed from tag_id / value, so the comparison is done in memory.
+        var active = await GetActiveAsync(cancellationToken);
+        return active
+            .Where(tag => tag.Id != exceptId)
+            .OrderByDescending(tag => !string.IsNullOrWhiteSpace(tag.AssetRegistrationId))
+            .FirstOrDefault(tag => TagIdKey.KeysOf(tag).Any(keys.Contains));
+    }
+
     public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
     {
         var indexes = new[]
@@ -71,6 +90,11 @@ public sealed class TrackingTagRepository
             new CreateIndexModel<TrackingTag>(
                 Builders<TrackingTag>.IndexKeys.Ascending(tag => tag.Technology).Ascending(tag => tag.Value),
                 new CreateIndexOptions { Name = "ix_tracking_tag_technology_value", Collation = CaseInsensitive }),
+            // Not unique: the shared database may already hold tags whose ids normalise to the same key (see
+            // GET /api/tag-ids/duplicates), and a unique index would fail to build. Registration enforces uniqueness.
+            new CreateIndexModel<TrackingTag>(
+                Builders<TrackingTag>.IndexKeys.Ascending(tag => tag.TagKey),
+                new CreateIndexOptions { Name = "ix_tracking_tag_tag_key", Sparse = true }),
             new CreateIndexModel<TrackingTag>(
                 Builders<TrackingTag>.IndexKeys.Ascending(tag => tag.Status),
                 new CreateIndexOptions { Name = "ix_tracking_tag_status" })
