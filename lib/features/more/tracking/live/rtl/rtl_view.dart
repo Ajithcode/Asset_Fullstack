@@ -16,6 +16,7 @@ import 'package:asset360_mobile/features/more/tracking/live/rtl/rtl_asset_sheet.
 import 'package:asset360_mobile/features/more/tracking/live/rtl/rtl_events.dart';
 import 'package:asset360_mobile/features/more/tracking/live/rtl/rtl_map.dart';
 import 'package:asset360_mobile/features/more/tracking/live/rtl/rtl_ui.dart';
+import 'package:asset360_mobile/features/more/tracking/live/floor_plan_map.dart' show frameFor;
 import 'package:asset360_mobile/features/more/tracking/live/tracking_live_ui.dart' show LivePollingScope;
 import 'package:asset360_mobile/features/more/tracking/tracking_widgets.dart' show CounterTiles;
 
@@ -27,10 +28,13 @@ enum RtlCounter { inView, moving, stationary, alerts }
 /// floor, the assets list and recent location events. The tags/live socket + overview (30 s) run while visible
 /// ([rtlProvider] through [LivePollingScope]). Contract: docs/api/MOBILE-API-HANDOFF.md section 1.
 class RealTimeLocationView extends ConsumerStatefulWidget {
-  const RealTimeLocationView({super.key, this.focusAsset});
+  const RealTimeLocationView({super.key, this.focusAsset, this.focusFloorPlan});
 
   /// View on Map: the asset (registration id) to show on its floor.
   final String? focusAsset;
+
+  /// Home's Asset Location card: open on the floor of this floor plan id.
+  final String? focusFloorPlan;
 
   @override
   ConsumerState<RealTimeLocationView> createState() => _RealTimeLocationViewState();
@@ -52,6 +56,18 @@ class _RealTimeLocationViewState extends ConsumerState<RealTimeLocationView> {
   void initState() {
     super.initState();
     if (widget.focusAsset != null) unawaited(_openDeepLink(widget.focusAsset!));
+    if (widget.focusFloorPlan != null) unawaited(_openFloorOfPlan(widget.focusFloorPlan!));
+  }
+
+  /// Show the floor that the floor plan [planId] belongs to.
+  Future<void> _openFloorOfPlan(String planId) async {
+    try {
+      final plans = await ref.read(rtlFloorPlansProvider.future);
+      final floor = plans.where((p) => p.floorPlanId == planId).firstOrNull?.locationId;
+      if (mounted && floor != null) setState(() => _floorId = floor);
+    } catch (_) {
+      // The default floor stays.
+    }
   }
 
   /// View on Map: find the asset on any floor, then show it.
@@ -190,7 +206,9 @@ class _RealTimeLocationViewState extends ConsumerState<RealTimeLocationView> {
         siteFloors.firstOrNull;
     final choice = floor == null ? null : ref.watch(rtlFloorChoiceProvider(floor.floorId)).value;
     final planId = choice is RtlPlanChoice ? choice.plan.floorPlanId : null;
-    if (rtl.siteId != _siteId || rtl.floorPlanId != planId) {
+    // Only while this screen is the one on show: Home's Asset Location card shares rtlProvider and sets its own
+    // scope while Home is visible.
+    if (TickerMode.of(context) && (rtl.siteId != _siteId || rtl.floorPlanId != planId)) {
       // Poll the scope that is on screen (after this frame: providers can't change while building).
       scheduleMicrotask(() {
         if (mounted) ref.read(rtlProvider.notifier).setScope(siteId: _siteId, floorPlanId: planId);
@@ -362,8 +380,9 @@ class _Header extends ConsumerWidget {
                 children: [
                   Icon(Icons.circle, size: 9, color: tone),
                   const SizedBox(width: 5),
-                  Text(
-                    label,
+                  _BadgeText(
+                    label: label,
+                    since: live ? state.lastFrameAt : null,
                     style: AppText.caption.copyWith(
                       fontWeight: FontWeight.w700,
                       color: tone,
@@ -417,6 +436,46 @@ class _Header extends ConsumerWidget {
 }
 
 /// "Updated 12 s ago", ticking every second while visible.
+/// "Live · 3 s ago": the badge text; with [since] (the last socket frame) it counts up every second.
+class _BadgeText extends StatefulWidget {
+  const _BadgeText({required this.label, required this.since, required this.style});
+
+  final String label;
+  final DateTime? since;
+  final TextStyle style;
+
+  @override
+  State<_BadgeText> createState() => _BadgeTextState();
+}
+
+class _BadgeTextState extends State<_BadgeText> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && widget.since != null && TickerMode.of(context)) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final since = widget.since;
+    return Text(
+      since == null ? widget.label : '${widget.label} · ${rtlAgo(since, rtlNow())}',
+      key: const ValueKey('rtl-live-text'),
+      style: widget.style,
+    );
+  }
+}
+
 class _UpdatedAgo extends StatefulWidget {
   const _UpdatedAgo({required this.at});
 
@@ -610,7 +669,13 @@ class _MapArea extends ConsumerWidget {
         final image = plan.fileUrl == null ? null : ref.watch(planImageProvider(plan.fileUrl!));
         final zones = ref.watch(rtlZonesProvider(plan.floorPlanId)).value ?? const <MapZone>[];
         final plotsAsync = ref.watch(rtlDevicePlotsProvider(plan.floorPlanId));
-        final placement = placeAssets(assets, plotsAsync.value ?? const []);
+        final zonesAsync = ref.watch(rtlZonesProvider(plan.floorPlanId));
+        final placement = placeAssets(
+          assets,
+          plotsAsync.value ?? const [],
+          zones: zones,
+          frame: frameFor(plan, image?.value),
+        );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -625,6 +690,7 @@ class _MapArea extends ConsumerWidget {
                       zones: zones,
                       placement: placement,
                       overview: overview,
+                      assets: assets,
                       layers: layers,
                       selectedAssetId: selected,
                       focusGatewayId: focusGateway,
@@ -639,14 +705,14 @@ class _MapArea extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text('The plan drawing could not be loaded', style: AppText.caption),
               ),
-            _NotOnPlan(assets: plotsAsync.hasValue ? placement.notOnPlan : const [], onTap: onAsset),
+            _NotOnPlan(assets: plotsAsync.hasValue && zonesAsync.hasValue ? placement.notOnPlan : const [], onTap: onAsset),
           ],
         );
     }
   }
 }
 
-/// "Not on this floor plan (N)": assets whose gateway isn't plotted here (never placed).
+/// "Not on this floor plan (N)": assets with no zone on this plan and no plotted gateway (never placed).
 class _NotOnPlan extends StatelessWidget {
   const _NotOnPlan({required this.assets, required this.onTap});
 

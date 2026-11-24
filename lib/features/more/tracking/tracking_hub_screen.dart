@@ -43,13 +43,14 @@ class TrackingHubScreen extends ConsumerStatefulWidget {
     this.geofence,
     this.asset,
     this.plot,
+    this.floorPlan,
   });
 
   /// HubTab name, e.g. "sensors".
   final String? initialTab;
 
   /// API mode Live Map deep link ([Routes.trackingMap]).
-  final String? view, location, zone, geofence, asset, plot;
+  final String? view, location, zone, geofence, asset, plot, floorPlan;
 
   @override
   ConsumerState<TrackingHubScreen> createState() => _TrackingHubScreenState();
@@ -139,6 +140,7 @@ class _TrackingHubScreenState extends ConsumerState<TrackingHubScreen> {
         geofence: widget.geofence,
         asset: widget.asset,
         plot: widget.plot,
+        floorPlan: widget.floorPlan,
       );
     }
     ref.watch(trackingLiveProvider);

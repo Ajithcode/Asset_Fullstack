@@ -512,6 +512,7 @@ GoRoute _moreRoute() => GoRoute(
         geofence: state.uri.queryParameters['geofence'],
         asset: state.uri.queryParameters['asset'],
         plot: state.uri.queryParameters['plot'],
+        floorPlan: state.uri.queryParameters['floorPlan'],
       ),
       routes: [
         GoRoute(

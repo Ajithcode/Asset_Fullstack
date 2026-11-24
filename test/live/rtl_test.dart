@@ -702,8 +702,9 @@ void main() {
       expect(find.text('Match'), findsOneWidget);
       await inSheet(tester, find.text('Hall A · Ground Floor'));
       expect(find.textContaining('already there'), findsOneWidget);
-      // Leaving the screen stops polling.
-      c.read(routerProvider).go(Routes.home);
+      // Leaving the screen stops polling (Home is not used here: its Asset Location card shares rtlProvider
+      // and keeps it running while Home is on show, see test/live/home_floor_test.dart).
+      c.read(routerProvider).go(Routes.more);
       await tester.pumpAndSettle();
       expect(c.read(rtlProvider).polling, isFalse);
     });

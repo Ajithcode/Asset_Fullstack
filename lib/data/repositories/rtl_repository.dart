@@ -32,6 +32,7 @@ class RtlState {
     this.fetchedAt,
     this.polling = false,
     this.socketUp = false,
+    this.lastFrameAt,
     this.siteId,
     this.floorPlanId,
   });
@@ -47,6 +48,9 @@ class RtlState {
   /// The tags/live socket is connected.
   final bool socketUp;
 
+  /// When the last frame (snapshot or update) of the tags socket arrived (header "Live · N s ago").
+  final DateTime? lastFrameAt;
+
   /// The scope sent with every poll and the socket.
   final String? siteId, floorPlanId;
 
@@ -61,6 +65,7 @@ class RtlState {
     DateTime? fetchedAt,
     bool? polling,
     bool? socketUp,
+    DateTime? lastFrameAt,
     String? siteId,
     String? floorPlanId,
     bool scope = false,
@@ -70,10 +75,92 @@ class RtlState {
     fetchedAt: fetchedAt ?? this.fetchedAt,
     polling: polling ?? this.polling,
     socketUp: socketUp ?? this.socketUp,
+    lastFrameAt: lastFrameAt ?? this.lastFrameAt,
     siteId: scope ? siteId : this.siteId,
     floorPlanId: scope ? floorPlanId : this.floorPlanId,
   );
 }
+
+/// What the Diagnostics screen shows about the tags/live socket ("Live map socket"). Never holds a token.
+class RtlSocketDiag {
+  const RtlSocketDiag({
+    this.url,
+    this.lastSnapshotAt,
+    this.lastUpdateAt,
+    this.frames = 0,
+    this.failures = 0,
+    this.closeCode,
+    this.closeReason,
+    this.lastError,
+  });
+
+  /// The socket URL without `access_token`.
+  final String? url;
+  final DateTime? lastSnapshotAt, lastUpdateAt;
+  final int frames;
+
+  /// Failed / dropped attempts since the last good connection.
+  final int failures;
+  final int? closeCode;
+  final String? closeReason, lastError;
+
+  RtlSocketDiag copyWith({
+    String? url,
+    DateTime? lastSnapshotAt,
+    DateTime? lastUpdateAt,
+    int? frames,
+    int? failures,
+    int? closeCode,
+    String? closeReason,
+    bool closed = false,
+    String? lastError,
+  }) => RtlSocketDiag(
+    url: url ?? this.url,
+    lastSnapshotAt: lastSnapshotAt ?? this.lastSnapshotAt,
+    lastUpdateAt: lastUpdateAt ?? this.lastUpdateAt,
+    frames: frames ?? this.frames,
+    failures: failures ?? this.failures,
+    closeCode: closed ? closeCode : this.closeCode,
+    closeReason: closed ? closeReason : this.closeReason,
+    lastError: lastError ?? this.lastError,
+  );
+
+  /// Live | Reconnecting (down, retrying after a drop) | Polling (down, first connect / fallback) | Paused (screen not on).
+  String stateOf(RtlState s) => !s.polling
+      ? 'Paused'
+      : s.socketUp
+      ? 'Live'
+      : failures > 0
+      ? 'Reconnecting'
+      : 'Polling';
+
+  /// Plain text for Copy report.
+  String report(RtlState s, DateTime now) {
+    String at(DateTime? t) => t == null ? 'never' : '${t.toIso8601String()} (${rtlAgo(t, now)})';
+    return [
+      'Live map socket',
+      '  state: ${stateOf(s)}',
+      '  url: ${url ?? '-'}',
+      '  last snapshot: ${at(lastSnapshotAt)}',
+      '  last update: ${at(lastUpdateAt)}',
+      '  frames received: $frames',
+      '  failed attempts: $failures',
+      '  last close: ${closeCode == null && closeReason == null ? '-' : 'code ${closeCode ?? '-'}, reason ${closeReason?.isEmpty ?? true ? '-' : closeReason}'}',
+      '  last error: ${lastError ?? '-'}',
+    ].join('\n');
+  }
+}
+
+class RtlSocketDiagNotifier extends Notifier<RtlSocketDiag> {
+  @override
+  RtlSocketDiag build() => const RtlSocketDiag();
+
+  void change(RtlSocketDiag Function(RtlSocketDiag d) f) {
+    if (ref.mounted) state = f(state);
+  }
+}
+
+final rtlSocketDiagProvider = NotifierProvider<RtlSocketDiagNotifier, RtlSocketDiag>(RtlSocketDiagNotifier.new);
 
 /// While at least one visible screen is attached (stops when hidden / backgrounded):
 /// - the tags/live WebSocket (`TagsLiveSocket`, reconnect 1 s → 30 s with a fresh token) lays the newest tag
@@ -237,8 +324,30 @@ class RtlNotifier extends Notifier<RtlState> implements LivePoller {
           TagSnapshot(:final tags) => _tags.replace(tags),
           TagUpdate() => _tags.apply(m),
         };
+        final at = _now();
+        state = state.copyWith(lastFrameAt: at);
+        ref
+            .read(rtlSocketDiagProvider.notifier)
+            .change(
+              (d) => d.copyWith(
+                frames: d.frames + 1,
+                failures: 0,
+                lastSnapshotAt: m is TagSnapshot ? at : null,
+                lastUpdateAt: m is TagUpdate ? at : null,
+              ),
+            );
         _noteMoves(moved);
         _publish();
+      },
+      onClosed: (code, reason) {
+        if (!identical(_socket, socket)) return;
+        ref
+            .read(rtlSocketDiagProvider.notifier)
+            .change((d) => d.copyWith(failures: d.failures + 1, closed: true, closeCode: code, closeReason: reason));
+      },
+      onError: (message) {
+        if (!identical(_socket, socket)) return;
+        ref.read(rtlSocketDiagProvider.notifier).change((d) => d.copyWith(lastError: message));
       },
       onConnection: (up) {
         if (!ref.mounted || !identical(_socket, socket)) return;
@@ -251,6 +360,9 @@ class RtlNotifier extends Notifier<RtlState> implements LivePoller {
         }
       },
     );
+    ref
+        .read(rtlSocketDiagProvider.notifier)
+        .change((d) => d.copyWith(url: withoutAccessToken(socket.uri).toString(), failures: 0));
     _socket = socket..start();
   }
 

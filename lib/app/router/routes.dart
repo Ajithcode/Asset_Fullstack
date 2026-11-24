@@ -164,6 +164,7 @@ abstract final class Routes {
   /// id whose published plan to show; [zone] = floor-plan zone id to highlight; [geofence] = GPS
   /// geofence id to focus.
   /// [asset] = registration id to focus (View on Map); [plot] = its plot key on the plan.
+  /// [floorPlan] = Real-Time Location opens on the floor of this floor plan id (Home's Asset Location card).
   static String trackingMap({
     String? view,
     String? location,
@@ -171,6 +172,7 @@ abstract final class Routes {
     String? geofence,
     String? asset,
     String? plot,
+    String? floorPlan,
   }) => Uri(
     path: tracking,
     queryParameters: {
@@ -181,6 +183,7 @@ abstract final class Routes {
       'geofence': ?geofence,
       'asset': ?asset,
       'plot': ?plot,
+      'floorPlan': ?floorPlan,
     },
   ).toString();
 

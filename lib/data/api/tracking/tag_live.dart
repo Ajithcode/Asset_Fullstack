@@ -33,6 +33,8 @@ class TagLocation {
     this.siteId,
     this.siteName,
     this.locationPath,
+    this.x,
+    this.y,
     this.assetId,
   });
 
@@ -44,6 +46,9 @@ class TagLocation {
   /// Online | Idle | Offline.
   final String connection;
   final double? rssi, battery;
+
+  /// The gateway's plot on the floor plan, in % of the plan (null when the gateway is not plotted).
+  final double? x, y;
   final bool plotted;
   final String? zoneId, zoneName, floorPlanId, floorName, buildingName, siteId, siteName, locationPath, assetId;
 
@@ -71,6 +76,8 @@ class TagLocation {
     siteId: siteId,
     siteName: siteName,
     locationPath: locationPath,
+    x: x,
+    y: y,
     assetId: assetId,
   );
 
@@ -98,6 +105,8 @@ class TagLocation {
       siteId: jStr(j['siteId']),
       siteName: jStr(j['siteName']),
       locationPath: jStr(j['locationPath']),
+      x: jNum(j['x']),
+      y: jNum(j['y']),
       assetId: asset is Map ? jStr(jMap(asset)['assetRegistrationId']) : null,
     );
   }
@@ -224,7 +233,8 @@ class TagLiveList {
 const movingWithin = Duration(seconds: 60);
 
 /// [base] (GET /overview) with the live tag rows laid over each asset that has a tag in [tags]:
-/// location (gateway, zone, floor, time), freshness, rssi, battery and movement. [movedAt] = when a tag
+/// location (gateway, zone, floor, time), position (x / y), freshness, rssi, battery and movement. A row older than
+/// the overview's own location time is ignored (the newer reading wins). [movedAt] = when a tag
 /// was seen changing place (by [tagKey]). Moving = changed within [movingWithin], else Stationary while
 /// Live, else Unknown. The counters are recomputed; alerts, confidence, expected location and
 /// gateways stay from [base]. Assets without a live tag row are left as they are.
@@ -238,9 +248,16 @@ RtlOverview overlayTags(RtlOverview base, TagLiveList tags, Map<String, DateTime
       assets.add(a);
       continue;
     }
-    touched = true;
     rows.sort((x, y) => (y.timestamp ?? DateTime.utc(0)).compareTo(x.timestamp ?? DateTime.utc(0)));
     final t = rows.first;
+    // The newer reading wins: an overview (refreshed every 30 s) that already knows a later location than
+    // the socket's row never moves the marker back to the older one.
+    final baseAt = a.location?.at ?? a.lastValidLocationAt;
+    if (t.timestamp != null && baseAt != null && baseAt.isAfter(t.timestamp!)) {
+      assets.add(a);
+      continue;
+    }
+    touched = true;
     final freshness = switch (t.connection) {
       'Online' => 'Live',
       'Idle' => 'Stale',
@@ -282,6 +299,9 @@ RtlOverview overlayTags(RtlOverview base, TagLiveList tags, Map<String, DateTime
         lastValidLocationAt: t.timestamp ?? a.lastValidLocationAt,
         rssi: t.rssi ?? a.rssi,
         battery: t.battery ?? a.battery,
+        x: t.plotted ? t.x : null,
+        y: t.plotted ? t.y : null,
+        positionAt: t.timestamp,
       ),
     );
   }
@@ -329,6 +349,28 @@ Uri tagsLiveUri(
   );
 }
 
+/// [text] with every access token removed: `access_token=…` query values, `Bearer …` headers and the
+/// literal [token]. Error messages of a failed upgrade can quote the URL, so they go through this.
+String redactTokens(String text, [String? token]) {
+  var out = text
+      .replaceAll(RegExp(r'access_token=[^&\s\x27")]+', caseSensitive: false), 'access_token=…')
+      .replaceAll(RegExp(r'Bearer\s+[A-Za-z0-9._~+/=-]+', caseSensitive: false), 'Bearer …');
+  if (token != null && token.length >= 6) out = out.replaceAll(token, '…');
+  return out;
+}
+
+/// [uri] without its `access_token` (safe to show / copy).
+Uri withoutAccessToken(Uri uri) {
+  final q = {...uri.queryParameters}..remove('access_token');
+  return Uri(
+    scheme: uri.scheme,
+    host: uri.host,
+    port: uri.hasPort ? uri.port : null,
+    path: uri.path,
+    queryParameters: q.isEmpty ? null : q,
+  );
+}
+
 /// The tags/live socket: connects with a fresh token every attempt (Bearer header and `?access_token=`,
 /// never logged), reports frames, and after a drop reconnects after 1 s, 2 s, 4 s … up to 30 s. A frame
 /// resets the backoff. [start] / [stop] follow the screen's visibility and the app lifecycle.
@@ -338,6 +380,8 @@ class TagsLiveSocket {
     required this.token,
     required this.onMessage,
     required this.onConnection,
+    this.onClosed,
+    this.onError,
     LiveSocketConnector? connect,
     LiveScheduler? schedule,
   }) : _connect = connect ?? ioLiveSocket,
@@ -360,12 +404,19 @@ class TagsLiveSocket {
 
   /// true = open, false = closed / failed / stopped.
   final void Function(bool connected) onConnection;
+
+  /// The connection ended: the WebSocket close code / reason when the platform reports them.
+  final void Function(int? code, String? reason)? onClosed;
+
+  /// A failed attempt or a broken stream, as text with every token removed ([redactTokens]).
+  final void Function(String message)? onError;
   final LiveSocketConnector _connect;
   final LiveScheduler _schedule;
 
   LiveSocket? _socket;
   StreamSubscription<Object?>? _sub;
   Timer? _retry;
+  String? _token;
   bool _running = false;
   bool _connected = false;
 
@@ -408,25 +459,26 @@ class TagsLiveSocket {
       t = null;
     }
     if (!_running) return;
+    _token = t;
     final LiveSocket socket;
     try {
       socket = _connect(withAccessToken(uri, t), t);
-    } catch (_) {
-      _dropped();
+    } catch (e) {
+      _dropped(null, e);
       return;
     }
     _socket = socket;
     _sub = socket.messages.listen(
       _onData,
-      onError: (Object _) => _dropped(socket),
+      onError: (Object e) => _dropped(socket, e),
       onDone: () => _dropped(socket),
       cancelOnError: true,
     );
     try {
       await socket.ready;
       if (_running && identical(_socket, socket)) _set(true);
-    } catch (_) {
-      _dropped(socket);
+    } catch (e) {
+      _dropped(socket, e);
     }
   }
 
@@ -439,8 +491,11 @@ class TagsLiveSocket {
   }
 
   /// The socket closed or failed: schedule the next attempt (once per socket).
-  void _dropped([LiveSocket? socket]) {
+  void _dropped([LiveSocket? socket, Object? error]) {
     if (socket != null && !identical(_socket, socket)) return;
+    if (error != null) onError?.call(redactTokens('$error', _token));
+    final info = socket is LiveSocketCloseInfo ? socket as LiveSocketCloseInfo : null;
+    onClosed?.call(info?.closeCode, info?.closeReason);
     unawaited(_closeSocket());
     if (!_running) return;
     failures++;

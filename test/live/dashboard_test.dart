@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show WebSocketException;
+import 'dart:typed_data';
 
 import 'package:asset360_mobile/app/app.dart';
 import 'package:asset360_mobile/app/router/app_router.dart';
@@ -17,6 +18,7 @@ import 'package:asset360_mobile/data/repositories/dashboard_repository.dart';
 import 'package:asset360_mobile/data/repositories/home_repository.dart';
 import 'package:asset360_mobile/data/repositories/maintenance_repository.dart';
 import 'package:asset360_mobile/data/repositories/session_repository.dart';
+import 'package:asset360_mobile/data/repositories/tracking_live_repository.dart' show PlanImage, planImageProvider;
 import 'package:asset360_mobile/core/widgets/app_header.dart';
 import 'package:asset360_mobile/core/widgets/chips.dart';
 import 'package:asset360_mobile/core/widgets/tiles.dart';
@@ -35,6 +37,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dashboard_samples.dart';
 import 'fake_asset_backend.dart';
+import 'rtl_samples.dart';
 
 DashboardApi _api(FakeAssetBackend b, {int offset = 240}) => DashboardApi(
   ApiClient(Dio(BaseOptions(baseUrl: 'http://dash.test:5470'))..httpClientAdapter = b, checkConfig: false),
@@ -107,7 +110,8 @@ void main() {
   late FakeAssetBackend backend;
 
   setUp(() {
-    backend = FakeAssetBackend();
+    // Tracking routes too: Home's Asset Location card is the live indoor floor plan (Real-Time Location data).
+    backend = FakeAssetBackend()..seedRtl();
     SharedPreferences.setMockInitialValues({});
   });
 
@@ -603,6 +607,8 @@ void main() {
           ...backend.overrides,
           sessionProvider.overrideWith(_SignedIn.new),
           tokenStoreProvider.overrideWithValue(MemoryTokenStore()),
+          // The floor plan drawing of Home's Asset Location card: a 1 × 1 picture.
+          planImageProvider.overrideWith((ref, url) async => PlanImage(Uint8List.fromList(base64Decode(rtlPng1x1)), 600, 400)),
         ],
       );
       await tester.pumpWidget(UncontrolledProviderScope(container: c, child: const Asset360App()));
@@ -684,7 +690,8 @@ void main() {
       expect(find.text('13K'), findsOneWidget, reason: '/cost-summary total');
       expect(find.text('Live Devices'), findsOneWidget);
       expect(find.text('12'), findsWidgets, reason: 'devices online');
-      expect(find.text('Live'), findsOneWidget, reason: 'the socket is connected');
+      expect(find.text('Live'), findsNWidgets(2), reason: 'Live Devices socket + the floor plan card socket are connected');
+      expect(find.byKey(const ValueKey('home-floor-card')), findsOneWidget, reason: 'indoor floor plan, not the outdoor map');
       expect(find.text('My Tasks'), findsOneWidget);
       expect(find.text('All (3)'), findsOneWidget, reason: '/my-tasks counts');
       expect(find.text('Replace generator air filter'), findsOneWidget);
@@ -699,7 +706,6 @@ void main() {
         DashboardApi.maintenancePerformance,
         DashboardApi.upcomingActivities,
         DashboardApi.recentAlerts,
-        DashboardApi.assetLocations,
         DashboardApi.assetHealth,
         DashboardApi.costSummary,
         DashboardApi.recentAssets,
@@ -707,6 +713,9 @@ void main() {
       ]) {
         expect(backend.calls('GET', p), isNotEmpty, reason: p);
       }
+      // Asset Location (Live) = the indoor floor plan: Tracking data, never the GPS-only dashboard coordinates.
+      expect(backend.calls('GET', DashboardApi.assetLocations), isEmpty);
+      expect(backend.calls('GET', '/api/real-time-location/overview'), isNotEmpty);
       await dispose(tester);
     });
 
@@ -717,12 +726,12 @@ void main() {
         DashboardApi.assetHealth,
         (_) => healthUp ? const FakeReply(200, dashHealthJson) : const FakeReply(500, {'message': 'boom'}),
       );
-      backend.on('GET', DashboardApi.assetLocations, (_) => const FakeReply(200, dashLocationsEmptyJson));
+      backend.on('GET', '/api/real-time-location/overview', (_) => const FakeReply(200, rtlEmptyOverviewJson));
       await pumpApp(tester);
       c.read(routerProvider).go(Routes.home);
       await tester.pumpAndSettle();
       expect(find.textContaining('The server had a problem (500)'), findsOneWidget);
-      expect(find.text('No assets on the map yet'), findsOneWidget, reason: 'empty data: a short message');
+      expect(find.text('No assets on the floor plans yet'), findsOneWidget, reason: 'empty data: a short message');
       expect(shows('High Temperature'), isTrue, reason: 'other sections still load');
 
       healthUp = true;
@@ -754,7 +763,6 @@ void main() {
         DashboardApi.maintenancePerformance,
         DashboardApi.upcomingActivities,
         DashboardApi.recentAlerts,
-        DashboardApi.assetLocations,
         DashboardApi.assetHealth,
         DashboardApi.costSummary,
         DashboardApi.recentAssets,
@@ -858,7 +866,8 @@ void main() {
       expect(find.text('Diesel Generator 500 kVA'), findsNothing);
 
       await open(Routes.assetLocation);
-      expect(find.text('1 asset on the map'), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-floor-card')), findsOneWidget, reason: 'the indoor floor plan, no outdoor map');
+      expect(find.text('Open Real-Time Location'), findsOneWidget);
 
       await open(Routes.devices);
       expect(find.text('E2801170000002089A1B'), findsOneWidget);

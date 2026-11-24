@@ -178,6 +178,9 @@ class RtlAsset {
     this.signalMarginDb,
     this.rssi,
     this.battery,
+    this.x,
+    this.y,
+    this.positionAt,
     this.activeLocationAlerts = 0,
     this.expected,
     this.comparisonStatus = 'Unknown',
@@ -212,6 +215,12 @@ class RtlAsset {
 
   /// Tag battery, only from the live tags socket (the overview does not carry it).
   final double? battery;
+
+  /// Where the newest live tag row puts the asset on its floor plan (% of the plan, x right, y down: the
+  /// plot of the gateway that hears the tag, `TagLocation.X / Y`) and when that row was read. Null until
+  /// the tags socket / GET /tags has a row for it; the overview alone has no x / y.
+  final double? x, y;
+  final DateTime? positionAt;
   final int activeLocationAlerts;
   final RtlExpected? expected;
 
@@ -228,6 +237,9 @@ class RtlAsset {
     DateTime? lastValidLocationAt,
     double? rssi,
     double? battery,
+    double? x,
+    double? y,
+    DateTime? positionAt,
   }) => RtlAsset(
     assetId: assetId,
     assetTag: assetTag,
@@ -250,6 +262,9 @@ class RtlAsset {
     signalMarginDb: signalMarginDb,
     rssi: rssi ?? this.rssi,
     battery: battery ?? this.battery,
+    x: x ?? this.x,
+    y: y ?? this.y,
+    positionAt: positionAt ?? this.positionAt,
     activeLocationAlerts: activeLocationAlerts,
     expected: expected,
     comparisonStatus: comparisonStatus,

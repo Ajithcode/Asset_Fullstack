@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:latlong2/latlong.dart';
+
 import 'package:asset360_mobile/data/api/admin/map_models.dart';
 import 'package:asset360_mobile/data/api/master_data/master_data_models.dart';
 import 'package:asset360_mobile/data/api/tracking/rtl_models.dart';
@@ -91,6 +93,30 @@ RtlFloorPlanChoice chooseFloorPlan(List<MapFloorPlan> plans, MdSpace floor, {req
   return const RtlNoPlan();
 }
 
+/// The floor plan with the most located assets (Home's Asset Location card): assets are counted per
+/// `location.floorPlanId`; only plans the Real-Time Location map can draw count (not archived, an image
+/// file, Published — or Draft in [dev] builds). Ties go to a Published plan, then the newest.
+/// Null = nothing is located on a drawable plan.
+({MapFloorPlan plan, int assets})? busiestFloorPlan(List<RtlAsset> assets, List<MapFloorPlan> plans, {required bool dev}) {
+  final counts = <String, int>{};
+  for (final a in assets) {
+    final id = a.location?.floorPlanId?.trim().toLowerCase();
+    if (id != null && id.isNotEmpty) counts[id] = (counts[id] ?? 0) + 1;
+  }
+  final candidates = [
+    for (final p in plans)
+      if (!p.isArchived && (p.fileUrl?.isNotEmpty ?? false) && p.isImage && (dev || !p.isDraft) && (counts[p.floorPlanId.toLowerCase()] ?? 0) > 0) p,
+  ]..sort((a, b) {
+      final c = counts[b.floorPlanId.toLowerCase()]!.compareTo(counts[a.floorPlanId.toLowerCase()]!);
+      if (c != 0) return c;
+      final s = (a.isPublished ? 0 : 1).compareTo(b.isPublished ? 0 : 1);
+      return s != 0 ? s : _newest(b).compareTo(_newest(a));
+    });
+  if (candidates.isEmpty) return null;
+  final best = candidates.first;
+  return (plan: best, assets: counts[best.floorPlanId.toLowerCase()]!);
+}
+
 // ------------------------------------------------------------------ marker status
 
 /// Marker colour classes (legend order).
@@ -126,16 +152,35 @@ String rtlMovementLabel(RtlAsset a) => switch (a.movement.toLowerCase()) {
 
 /// Where the overview's assets go on one floor plan.
 class RtlPlacement {
-  const RtlPlacement({this.byGateway = const {}, this.gatewayPlots = const {}, this.notOnPlan = const []});
+  const RtlPlacement({
+    this.byGateway = const {},
+    this.gatewayPlots = const {},
+    this.notOnPlan = const [],
+    this.zoneSpots = const {},
+  });
 
-  /// Device plot itemId → the assets heard strongest by that gateway (they share its point).
+  /// Device plot itemId → the assets WITHOUT a zone spot that the gateway hears strongest (they share its point).
   final Map<String, List<RtlAsset>> byGateway;
 
   /// Device plot itemId → the plot.
   final Map<String, MapPlot> gatewayPlots;
 
-  /// Assets whose gateway is not plotted on this plan ("Not on this floor plan").
+  /// Assets with neither a zone on this plan nor a plotted gateway ("Not on this floor plan").
   final List<RtlAsset> notOnPlan;
+
+  /// Asset id → its spot inside its zone, in map units ([zoneSpotsFor]; the web's `zoneSpots()` layout).
+  /// ZONE PRESENCE, not a measured position.
+  final Map<String, LatLng> zoneSpots;
+
+  /// Where [asset] is drawn when it has no zone spot, in % of the plan: the x / y of its newest live tag row
+  /// (the web's `TagLocation` X / Y = the plot of the gateway hearing the tag), else the plot of its gateway
+  /// from the overview. Null = no gateway plot (never invented).
+  ({double x, double y})? pointOf(RtlAsset asset) {
+    final plot = plotOf(asset);
+    if (plot == null) return null;
+    final x = asset.x, y = asset.y;
+    return x != null && y != null ? (x: x, y: y) : (x: plot.x, y: plot.y);
+  }
 
   /// The device plot [asset] sits on, or null.
   MapPlot? plotOf(RtlAsset asset) {
@@ -146,9 +191,13 @@ class RtlPlacement {
   }
 }
 
-/// Puts each asset at its `location.gatewayId`'s DEVICE plot (itemId or code, case-insensitive).
-/// Never invents a position: no gateway / unplotted gateway / plot without x,y → [RtlPlacement.notOnPlan].
-RtlPlacement placeAssets(List<RtlAsset> assets, List<MapPlot> plots) {
+/// Puts each asset on one floor plan, like the web's `updateAssets()`:
+/// 1. an asset whose `location.zoneId` is a zone of this plan sits at its ZONE SPOT (a stable grid inside the
+///    zone, assets sorted by id: [zoneSpotsFor]);
+/// 2. else at its `location.gatewayId`'s DEVICE plot (itemId / code / deviceId, case-insensitive);
+/// 3. else [RtlPlacement.notOnPlan]. Exact positions are never invented.
+/// [zones] and [frame] are needed for step 1 (without them every asset uses its gateway).
+RtlPlacement placeAssets(List<RtlAsset> assets, List<MapPlot> plots, {List<MapZone> zones = const [], PlanFrame? frame}) {
   final byKey = <String, MapPlot>{};
   for (final p in plots) {
     if (!p.isDevice) continue;
@@ -157,9 +206,20 @@ RtlPlacement placeAssets(List<RtlAsset> assets, List<MapPlot> plots) {
       if (key != null && key.isNotEmpty) byKey.putIfAbsent(key, () => p);
     }
   }
+  final zoneById = {
+    if (frame != null)
+      for (final z in zones)
+        if (z.active) z.zoneId.toLowerCase(): z,
+  };
+  final inZone = <String, List<RtlAsset>>{};
   final byGateway = <String, List<RtlAsset>>{};
   final notOnPlan = <RtlAsset>[];
   for (final a in assets) {
+    final zone = zoneById[a.location?.zoneId?.trim().toLowerCase() ?? ''];
+    if (zone != null) {
+      (inZone[zone.zoneId.toLowerCase()] ??= []).add(a);
+      continue;
+    }
     final plot = byKey[a.location?.gatewayId.trim().toLowerCase() ?? ''];
     if (plot == null) {
       notOnPlan.add(a);
@@ -167,11 +227,110 @@ RtlPlacement placeAssets(List<RtlAsset> assets, List<MapPlot> plots) {
       (byGateway[plot.itemId] ??= []).add(a);
     }
   }
+  final spots = <String, LatLng>{};
+  for (final e in inZone.entries) {
+    final list = [...e.value]..sort((x, y) => compareAssetIds(x.assetId, y.assetId));
+    final points = zoneSpotsFor(zoneById[e.key]!, list.length, frame!);
+    for (final (i, a) in list.indexed) {
+      spots[a.assetId] = points[i];
+    }
+  }
   return RtlPlacement(
     byGateway: byGateway,
     gatewayPlots: {for (final p in plots) if (p.isDevice) p.itemId: p},
     notOnPlan: notOnPlan,
+    zoneSpots: spots,
   );
+}
+
+/// Order of asset ids inside a zone: the web sorts with `localeCompare` (case-insensitive first, lower case
+/// before upper case on a tie).
+int compareAssetIds(String a, String b) {
+  final c = a.toLowerCase().compareTo(b.toLowerCase());
+  return c != 0 ? c : b.compareTo(a);
+}
+
+/// A zone as the web's `zoneGeom()` sees it, in map units (lat = y axis, lng = x axis).
+class ZoneGeom {
+  const ZoneGeom({this.pts, this.center, this.radius = 0, required this.south, required this.north, required this.west, required this.east});
+
+  /// Polygon / rectangle corners (null for a circle).
+  final List<LatLng>? pts;
+
+  /// Circle centre and radius (null centre for other shapes).
+  final LatLng? center;
+  final double radius;
+  final double south, north, west, east;
+}
+
+ZoneGeom zoneGeom(MapZone z, PlanFrame f) {
+  List<LatLng>? pts;
+  LatLng? c;
+  var r = 0.0;
+  final shape = z.shape.toLowerCase();
+  if (shape == 'circle') {
+    final ctr = z.center;
+    c = f.toLatLng(ctr.x, ctr.y);
+    // Radius = % of the plan WIDTH (as the web: radius / 100 · W).
+    r = ((z.radius ?? z.w / 2) / 100) * f.width;
+  } else if ((shape == 'polygon' || shape == 'custom') && z.points.length >= 3) {
+    pts = [for (final p in z.points) f.toLatLng(p.x, p.y)];
+  } else {
+    pts = [f.toLatLng(z.x, z.y), f.toLatLng(z.x + z.w, z.y), f.toLatLng(z.x + z.w, z.y + z.h), f.toLatLng(z.x, z.y + z.h)];
+  }
+  final lat = pts != null ? [for (final p in pts) p.latitude] : [c!.latitude - r, c.latitude + r];
+  final lng = pts != null ? [for (final p in pts) p.longitude] : [c!.longitude - r, c.longitude + r];
+  return ZoneGeom(
+    pts: pts,
+    center: c,
+    radius: r,
+    south: lat.reduce(math.min),
+    north: lat.reduce(math.max),
+    west: lng.reduce(math.min),
+    east: lng.reduce(math.max),
+  );
+}
+
+/// Stable spots for [n] assets inside zone [z] — a port of the web's `zoneSpots()` (floor-plan-map.ts): a grid over
+/// the zone's bounding box inset by 10 % on each side, cells outside a polygon / circle (92 % of its radius)
+/// skipped, filled in row order from the top-left. The cell size starts at sqrt(area / n) and shrinks by 15 %
+/// (up to 40 times) until at least [n] cells fit. Returns ALL cells; the i-th asset (sorted by id) takes the
+/// i-th. The same zone and asset ids always give the same spots, so markers never jump between refreshes.
+List<LatLng> zoneSpotsFor(MapZone z, int n, PlanFrame f) {
+  final g = zoneGeom(z, f);
+  bool inside(double lat, double lng) {
+    final c = g.center;
+    if (c != null) return math.sqrt(math.pow(lat - c.latitude, 2) + math.pow(lng - c.longitude, 2)) <= g.radius * 0.92;
+    final p = g.pts!;
+    var on = false;
+    for (var i = 0, j = p.length - 1; i < p.length; j = i++) {
+      if ((p[i].latitude > lat) != (p[j].latitude > lat) &&
+          lng < ((p[j].longitude - p[i].longitude) * (lat - p[i].latitude)) / (p[j].latitude - p[i].latitude) + p[i].longitude) {
+        on = !on;
+      }
+    }
+    return on;
+  }
+
+  final padY = (g.north - g.south) * 0.1;
+  final padX = (g.east - g.west) * 0.1;
+  final s = g.south + padY, n2 = g.north - padY, w = g.west + padX, e = g.east - padX;
+  var d = math.sqrt(((n2 - s) * (e - w)) / math.max(1, n));
+  for (var tries = 0; tries < 40; tries++) {
+    final cells = <LatLng>[];
+    final rows = math.max(1, ((n2 - s) / d).floor());
+    final cols = math.max(1, ((e - w) / d).floor());
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        final lat = n2 - ((r + 0.5) * (n2 - s)) / rows;
+        final lng = w + ((c + 0.5) * (e - w)) / cols;
+        if (inside(lat, lng)) cells.add(LatLng(lat, lng));
+      }
+    }
+    if (cells.length >= n) return cells;
+    d *= 0.85;
+  }
+  return List.filled(n, LatLng((g.south + g.north) / 2, (g.west + g.east) / 2));
 }
 
 /// More assets than this on one gateway show a count bubble (tap → list) instead of a fan.

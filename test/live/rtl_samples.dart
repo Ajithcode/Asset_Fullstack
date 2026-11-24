@@ -341,6 +341,8 @@ Map<String, Object?> rtlTagRow(
   double battery = 80,
   String timestamp = '2026-11-19T10:14:52Z',
   String? assetId,
+  double? x,
+  double? y,
 }) => {
   'tagId': tagId,
   'gatewayId': gatewayId,
@@ -360,6 +362,8 @@ Map<String, Object?> rtlTagRow(
   'siteId': 'site-1',
   'siteName': 'Head Office',
   'locationPath': 'Head Office › Block 1 › Ground Floor › $zoneName',
+  'x': ?x,
+  'y': ?y,
   if (assetId != null) 'asset': {'assetRegistrationId': assetId},
   'matchIssues': <String>[],
 };

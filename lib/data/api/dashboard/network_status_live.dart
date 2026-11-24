@@ -18,6 +18,12 @@ abstract class LiveSocket {
   Future<void> close();
 }
 
+/// Optional extra of a [LiveSocket]: how the connection ended (the diagnostics show it).
+abstract interface class LiveSocketCloseInfo {
+  int? get closeCode;
+  String? get closeReason;
+}
+
 /// Opens [uri] (Bearer [token] in the upgrade request when there is one; [uri] already carries it as
 /// `?access_token=`, see [withAccessToken]).
 typedef LiveSocketConnector = LiveSocket Function(Uri uri, String? token);
@@ -48,7 +54,7 @@ LiveSocket ioLiveSocket(Uri uri, String? token) => _IoLiveSocket(
   ),
 );
 
-class _IoLiveSocket implements LiveSocket {
+class _IoLiveSocket implements LiveSocket, LiveSocketCloseInfo {
   _IoLiveSocket(this.channel);
 
   final IOWebSocketChannel channel;
@@ -61,6 +67,12 @@ class _IoLiveSocket implements LiveSocket {
 
   @override
   Future<void> close() => channel.sink.close();
+
+  @override
+  int? get closeCode => channel.closeCode;
+
+  @override
+  String? get closeReason => channel.closeReason;
 }
 
 /// Connection state of the live devices counter.

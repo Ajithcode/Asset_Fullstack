@@ -32,6 +32,7 @@ class LiveTrackingHubScreen extends ConsumerStatefulWidget {
     this.geofence,
     this.asset,
     this.plot,
+    this.floorPlan,
   });
 
   final String? initialTab;
@@ -41,6 +42,9 @@ class LiveTrackingHubScreen extends ConsumerStatefulWidget {
 
   /// View on Map: the asset to focus and its plot key on the plan.
   final String? asset, plot;
+
+  /// Real-Time Location opens on the floor of this floor plan (Home's Asset Location card).
+  final String? floorPlan;
 
   @override
   ConsumerState<LiveTrackingHubScreen> createState() => _LiveTrackingHubScreenState();
@@ -162,8 +166,9 @@ class _LiveTrackingHubScreenState extends ConsumerState<LiveTrackingHubScreen> {
               ],
               if ((_tab == HubTab.map || _tab == HubTab.zones) && _realTime)
                 RealTimeLocationView(
-                  key: ValueKey('rtl-${widget.asset}'),
+                  key: ValueKey('rtl-${widget.asset}-${widget.floorPlan}'),
                   focusAsset: widget.view == 'rtl' ? widget.asset : null,
+                  focusFloorPlan: widget.view == 'rtl' ? widget.floorPlan : null,
                 )
               else if (_tab != HubTab.sensors) ...[
                 if (_tab != HubTab.list) ...[

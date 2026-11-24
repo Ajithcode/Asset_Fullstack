@@ -119,7 +119,7 @@ Defined in code but **not called** by any screen: `/api/master-data-items/type/{
 | R | GET | `/api/dashboards/mobile/upcoming-activities` | `utcOffsetMinutes`; when set `from`, `to` (yyyy-MM-dd), `type`, `site` | Home → Upcoming Activities card + Activities drill-down (list / calendar) |
 | R | GET | `/api/dashboards/mobile/my-tasks` | `utcOffsetMinutes`; when set `type`, `site` | Home → My Tasks card + My Tasks screen |
 | R | GET | `/api/dashboards/mobile/recent-alerts` | `page`, `pageSize` (20), `days`; when set `severity`, `site` | Home → Recent Alerts card + drill-down |
-| R | GET | `/api/dashboards/mobile/asset-locations` | when set `status`, `search`, `site` | Home → Asset Location card + drill-down; Tracking → Live Map outdoor pins |
+| R | GET | `/api/dashboards/mobile/asset-locations` | when set `status`, `search`, `site` | Tracking → Live Map outdoor pins (Home's Asset Location card + drill-down no longer call it: they show the indoor floor plan from `/api/real-time-location/overview` + the tags socket) |
 | R | GET | `/api/dashboards/mobile/asset-health` | `top`; `site` when set | Home → Asset Health card + drill-down |
 | R | GET | `/api/dashboards/mobile/cost-summary` | when set `period`, `year`, `site` | Home → Cost Summary card + drill-down |
 | R | GET | `/api/dashboards/mobile/recent-assets` | `page`, `pageSize` (20); when set `status`, `search`, `assetType`, `site` | Home → Recent Assets card + drill-down |

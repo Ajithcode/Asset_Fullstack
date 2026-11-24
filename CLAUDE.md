@@ -213,7 +213,15 @@
   = shimmer / error + Retry / empty message; /mobile/home = greeting + 4 counters only), `sections/live_devices_card.dart`
   (socket only while Home is visible (`TickerMode`) and the app is resumed), `features/home/devices_screen.dart`
   (`/home/devices`), drill-downs in `drilldowns/live/` (each mock drill-down returns its live screen in API mode;
-  Recent Assets takes `?status=&type=&site=`, Recent Alerts `?severity=`), map = `dash_map.dart` (flutter_map + OSM),
+  Recent Assets takes `?status=&type=&site=`, Recent Alerts `?severity=`), outdoor pins = `dash_map.dart` (flutter_map + OSM; only the Tracking Live Map outdoor view uses it now),
+  ASSET LOCATION card + `/home/asset-location` drill-down (API mode) = the live INDOOR floor plan, NOT the GPS map and NOT
+  the Dashboard `/mobile/asset-locations` call: `sections/live_floor_preview.dart` (`LiveFloorPreview`; floor plan with the most
+  located assets = `homeFloorProvider` (data/repositories/home_floor_repository.dart: `busiestFloorPlan` over GET /overview),
+  `RtlFloorMap(preview: true)` + `RtlAnimatedMarkerLayer`, header floor name / "N assets · M online" / Live dot, same `rtlProvider`
+  = ONE tags socket (scope set while Home is on show; RealTimeLocationView only sets its scope while ITS tab is on show,
+  `TickerMode`), `LivePollingScope` stops it when Home is hidden; tap / View Map = `openRealTimeLocation` =
+  `Routes.trackingMap(view: 'rtl', floorPlan:)` → RTL opens on that floor; Tracking not licensed = lock tile, licence sheet,
+  no Tracking call; nothing located = "No assets on the floor plans yet"). Tests `test/live/home_floor_test.dart`,
   shared bits `dash_ui.dart`. Tests: `test/live/dashboard_test.dart` (samples in
   `dashboard_samples.dart`; `flutter_test_config.dart` gives every test an idle fake socket). Report:
   `docs/home_dashboard_report.md`.
@@ -269,12 +277,23 @@
   (`RtlOverview`, `RtlAsset`, `RtlEventPage`, `RtlTrail`, `LocateCommandRecord`), `rtl_repository.dart` (`rtlProvider` =
   tags/live WebSocket (`data/api/tracking/tag_live.dart`: `TagsLiveSocket` backoff 1 → 30 s + fresh token, `TagLiveList`,
   `overlayTags` lays tag rows over the overview: location / freshness / rssi / battery, Moving = gateway or zone change
-  seen < 60 s else Stationary while Live, counters recomputed; header "Live" / "Polling" / "Paused") + overview every 30 s +
+  seen < 60 s else Stationary while Live, counters recomputed; the NEWER reading wins (a row older than the overview's
+  `location.at` is ignored, so the 30 s refresh never moves a marker back); `RtlAsset.x/y/positionAt` = the row's gateway plot in % of
+  the plan. PLACEMENT (`placeAssets(assets, plots, zones:, frame:)`): an asset whose `location.zoneId` is a zone of the
+  shown plan sits at its ZONE SPOT = the web's `zoneSpots()` ported 1:1 (`zoneSpotsFor` in rtl_logic.dart: grid over the zone's
+  box inset 10 %, cells outside a polygon / 92 % of a circle skipped, cell size sqrt(area / n) shrinking 15 % until n fit, assets
+  sorted by id (`compareAssetIds`), so spots are stable and never overlap); else the plot of its gateway (`pointOf` = newest row
+  x/y else the plot; fanned / count bubble); else "Not on this floor plan". A zone-level layout identical to the web's is
+  allowed (it shows ZONE PRESENCE, not a precise position); exact positions are still never invented. Markers glide 1.2 s to a
+  new spot and a Moving asset that changed zone leaves the web's fading trail (dashed green, 8 s) —
+  `rtl_animated_markers.dart` `RtlAnimatedMarkerLayer`, keyed by asset id; the Locate focus stays on the gateway's plot; header "Live · N s ago" (last frame) / "Polling" /
+  "Paused"; Auth diagnostics → "Live map socket" card = `rtlSocketDiagProvider`, URL without the token, errors via
+  `redactTokens`) + overview every 30 s +
   GET /tags every 10 s while the socket is down, via `LivePollingScope(poller:)` (closed when hidden), `setScope(siteId, floorPlanId)`; `rtlAssetProvider(id)`,
   `rtlAllAssetsProvider(site)`, events / trail / floors / plans / zones / device plots, `locateSessionFactoryProvider`,
   `locateConnectorProvider`). Pure rules `data/tracking/rtl_logic.dart` (`chooseFloorPlan`, `placeAssets` = asset at its
   `location.gatewayId`'s DEVICE plot (itemId / code / deviceId, case-insensitive), `fanOffsets` / `rtlFanLimit` 6 then a
-  count bubble, `rtlStatusOf`, `isRestrictedZone`, `rtlFloorOptions`). Never invent positions: unplotted → "Not on this
+  count bubble, `rtlStatusOf`, `isRestrictedZone`, `rtlFloorOptions`). Never invent exact positions (zone spots = zone presence, see above): no zone and no plotted gateway → "Not on this
   floor plan". Map = `RtlFloorMap` (rtl_map.dart), card = `showRtlAssetSheet`, events = rtl_events.dart (+ `/more/tracking/
   location-events`), Locate = locate_panel.dart (`showLocateAssetSheet`, `showLocatePanel`). LED / buzzer rules + exact
   frames `data/tracking/locate_commands.dart`; socket `data/tracking/locate_session.dart` (`/ws/locate`, Bearer header,

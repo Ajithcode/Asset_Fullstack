@@ -5,13 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_text.dart';
-import 'package:asset360_mobile/app/theme/app_theme.dart';
 import 'package:asset360_mobile/core/demo_clock.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/repositories/dashboard_repository.dart';
-import 'package:asset360_mobile/features/home/dash_map.dart';
+import 'package:asset360_mobile/data/repositories/home_floor_repository.dart';
 import 'package:asset360_mobile/features/home/dash_ui.dart';
 import 'package:asset360_mobile/features/home/home_style.dart';
+import 'package:asset360_mobile/features/home/sections/live_floor_preview.dart';
 import 'package:asset360_mobile/features/home/sections/maintenance_performance_card.dart';
 import 'package:asset360_mobile/features/home/sections/upcoming_activities_card.dart';
 
@@ -292,91 +292,13 @@ class LiveAssetLocationCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final DashLocationsQuery query = (status: null, search: null, site: ref.watch(dashSiteProvider));
-    final open = LicenceGuard.push(context, Routes.assetLocation);
+    // INDOOR only: the live floor plan with the most located assets. No GPS / outdoor map, and no Dashboard
+    // /mobile/asset-locations call (Tracking calls only when Tracking is licensed: see LiveFloorPreview).
     return SectionCard(
       title: 'Asset Location (Live)',
       actionLabel: 'View Map',
-      onAction: open,
-      child: DashSection<DashAssetLocations>(
-        provider: dashAssetLocationsProvider(query),
-        onRetry: (ref) => ref.invalidate(dashAssetLocationsProvider(query)),
-        isEmpty: (l) => l.assets.isEmpty,
-        emptyIcon: Icons.location_off_outlined,
-        emptyTitle: 'No assets on the map yet',
-        emptyMessage: 'Assets appear here once their location has latitude and longitude.',
-        builder: (l) => Row(
-          children: [
-            Expanded(
-              flex: 11,
-              child: SizedBox(
-                height: 128,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: DashAssetMap(assets: l.assets, center: l.center, interactive: false, onMapTap: open),
-                      ),
-                      Positioned(
-                        right: 4,
-                        bottom: 4,
-                        child: Tooltip(
-                          message: 'Open map',
-                          child: InkWell(
-                            onTap: open,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: AppShadows.card,
-                              ),
-                              child: Icon(Icons.open_in_full_rounded, size: 16, color: AppColors.text),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              flex: 8,
-              child: Column(
-                children: [
-                  for (final s in l.byStatus)
-                    InkWell(
-                      onTap: open,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 5),
-                        child: Row(
-                          children: [
-                            Icon(Icons.location_on_rounded, size: 17, color: dashStatusColor(s.key)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                s.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppText.body.copyWith(fontSize: 12.5),
-                              ),
-                            ),
-                            Text('${s.count}', style: AppText.bodyStrong.copyWith(fontSize: 12.5)),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      onAction: () => openRealTimeLocation(context, floorPlanId: ref.read(homeFloorProvider).value?.plan.floorPlanId),
+      child: const LiveFloorPreview(),
     );
   }
 }

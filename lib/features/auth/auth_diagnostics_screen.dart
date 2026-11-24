@@ -12,6 +12,7 @@ import 'package:asset360_mobile/core/widgets/server_switcher.dart';
 import 'package:asset360_mobile/core/widgets/widgets.dart';
 import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/auth_diagnostics.dart';
+import 'package:asset360_mobile/data/repositories/rtl_repository.dart' show RtlSocketDiag, rtlAgo, rtlProvider, rtlSocketDiagProvider;
 
 /// Auth diagnostics (release builds too): the last call of each login-service endpoint as
 /// received, secrets shortened, with Copy for the whole report. Opened from Login (outside the
@@ -26,7 +27,10 @@ class AuthDiagnosticsScreen extends ConsumerWidget {
     final calls = ref.watch(authDiagnosticsProvider);
     final notifier = ref.read(authDiagnosticsProvider.notifier);
     void copy() {
-      Clipboard.setData(ClipboardData(text: notifier.report()));
+      final socket = apiMode
+          ? '\n\n${ref.read(rtlSocketDiagProvider).report(ref.read(rtlProvider), DateTime.now().toUtc())}'
+          : '';
+      Clipboard.setData(ClipboardData(text: '${notifier.report()}$socket'));
       context.showSnack('Report copied – paste it to your developer');
     }
 
@@ -49,6 +53,7 @@ class AuthDiagnosticsScreen extends ConsumerWidget {
             ],
           ),
         ),
+        if (apiMode) ...[const SizedBox(height: 10), const _LiveMapSocketCard()],
         if (showServerSwitcher) ...[
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -97,6 +102,38 @@ class AuthDiagnosticsScreen extends ConsumerWidget {
         ),
       ),
       body: SafeArea(top: false, child: body),
+    );
+  }
+}
+
+/// "Live map socket": the Live Map's tags/live WebSocket (state, URL without the token, last snapshot / update,
+/// frames, last close, last error). Never shows a token.
+class _LiveMapSocketCard extends ConsumerWidget {
+  const _LiveMapSocketCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(rtlProvider);
+    final RtlSocketDiag d = ref.watch(rtlSocketDiagProvider);
+    final now = DateTime.now().toUtc();
+    String at(DateTime? t) => t == null ? 'Never' : '${t.toLocal().toIso8601String().split('.').first} (${rtlAgo(t, now)})';
+    final close = d.closeCode == null && (d.closeReason?.isEmpty ?? true)
+        ? 'None yet'
+        : 'Code ${d.closeCode ?? '-'}${d.closeReason?.isNotEmpty ?? false ? ' · ${d.closeReason}' : ''}';
+    return SectionCard(
+      title: 'Live map socket',
+      child: Column(
+        key: const ValueKey('diag-live-socket'),
+        children: [
+          InfoRow(label: 'State', value: d.stateOf(state), labelWidth: 168),
+          InfoRow(label: 'Socket URL', value: d.url ?? 'Not opened yet', labelWidth: 168),
+          InfoRow(label: 'Last snapshot', value: at(d.lastSnapshotAt), labelWidth: 168),
+          InfoRow(label: 'Last update', value: at(d.lastUpdateAt), labelWidth: 168),
+          InfoRow(label: 'Frames received', value: '${d.frames}', labelWidth: 168),
+          InfoRow(label: 'Last close', value: close, labelWidth: 168),
+          InfoRow(label: 'Last error', value: d.lastError ?? 'None', labelWidth: 168),
+        ],
+      ),
     );
   }
 }
