@@ -1,0 +1,27 @@
+/* Asset Relationships: diagram view (SVG network of the filtered relationships). */
+
+.rd-wrap { position: relative; border: 1px solid var(--sc-border); border-radius: 10px; background: #fbfbfe; }
+.rd-svg { display: block; width: 100%; height: 520px; cursor: grab; touch-action: none; user-select: none; }
+.rd-svg:active { cursor: grabbing; }
+.rd-tools {
+  position: absolute; top: 10px; right: 10px; z-index: 1; display: flex; gap: 4px; padding: 4px;
+  border: 1px solid var(--sc-border); border-radius: 8px; background: #fff;
+}
+.rd-hint { margin: 0; padding: 8px 12px; border-top: 1px solid var(--sc-border); font-size: 0.75rem; }
+.rd-empty { padding: 72px 16px; text-align: center; }
+
+.rd-edge path { fill: none; stroke: #c4c7d4; stroke-width: 1.6; }
+.rd-edge text { fill: #6b7280; font-size: 0.688rem; font-weight: 600; paint-order: stroke; stroke: #fbfbfe; stroke-width: 4px; }
+.rd-arrow-head { fill: #9ca3af; }
+.rd-edge.is-hit path { stroke: #d97706; stroke-width: 2.2; }
+.rd-edge.is-hit text { fill: #b45309; }
+
+.rd-node { cursor: pointer; outline: none; }
+.rd-node rect { fill: #fff; stroke: #d6d9e3; stroke-width: 1.4; }
+.rd-node:hover rect, .rd-node:focus-visible rect { stroke: var(--sc-accent); }
+.rd-node.is-critical rect { stroke: #f59e0b; }
+.rd-node.is-start rect { fill: var(--sc-accent); stroke: var(--sc-accent); }
+.rd-node.is-start text { fill: #fff; }
+.rd-node.is-hit rect { fill: #fff7ed; stroke: #d97706; stroke-width: 2; }
+.rd-name { fill: #111827; font-size: 0.813rem; font-weight: 700; }
+.rd-meta { fill: #6b7280; font-size: 0.688rem; }

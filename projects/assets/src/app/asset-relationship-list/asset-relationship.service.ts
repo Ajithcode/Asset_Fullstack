@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Observable, catchError, map, of, throwError } from 'rxjs';
+import { Observable, catchError, forkJoin, map, of, switchMap, throwError } from 'rxjs';
 import { AuthService } from 'shared-ui';
 import { ASSET_API, TENANT } from '../services/asset-api';
 
@@ -76,6 +76,10 @@ export interface RegisteredAsset {
   category: string;
   assetType: string;
   location: string;
+  /** Site from the asset's location assignment (empty when it has none). */
+  site: string;
+  /** Department from the asset's assignment (empty when it has none). */
+  department: string;
   status: string;
   criticality: string;
   manufacturer: string;
@@ -91,6 +95,8 @@ interface AssetListItemDto {
   category: string | null;
   assetType: string | null;
   locationPath: string | null;
+  siteName?: string | null;
+  department?: string | null;
   status: string | null;
   criticality: string | null;
   manufacturer: string | null;
@@ -134,6 +140,8 @@ function toRegisteredAsset(dto: AssetListItemDto): RegisteredAsset {
     category: dto.category ?? '',
     assetType: dto.assetType ?? '',
     location: dto.locationPath ?? '',
+    site: dto.siteName ?? '',
+    department: dto.department ?? '',
     status: dto.status ?? '',
     criticality: dto.criticality ?? '',
     manufacturer: dto.manufacturer ?? '',
@@ -239,6 +247,42 @@ export class AssetRelationshipService {
     return this.http.get<AssetRelationshipListDto>(this.url, { params }).pipe(map((res) => res.items ?? []));
   }
 
+  /** Every saved relationship record, all pages (GET /api/asset-relationships, 200 per page). */
+  getAllRelationships(): Observable<AssetRelationshipDto[]> {
+    const page = (n: number) =>
+      this.http.get<AssetRelationshipListDto>(this.url, { params: new HttpParams().set('page', n).set('pageSize', MAX_PAGE_SIZE) });
+    return page(1).pipe(
+      switchMap((first) => {
+        const pages = Math.ceil((first.totalCount ?? 0) / MAX_PAGE_SIZE);
+        if (pages <= 1) return of(first.items ?? []);
+        const rest = Array.from({ length: pages - 1 }, (_, i) => page(i + 2).pipe(map((r) => r.items ?? [])));
+        return forkJoin(rest).pipe(map((more) => [...(first.items ?? []), ...more.flat()]));
+      }),
+    );
+  }
+
+  /** Relationship types the API accepts (GET /api/asset-relationships/types). */
+  getTypes(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.url}/types`);
+  }
+
+  /** Every registered asset, all pages (GET /api/asset-registrations, 200 per page). */
+  getAllAssets(): Observable<RegisteredAsset[]> {
+    const page = (n: number) =>
+      this.http.get<AssetRegistrationListDto>(`${ASSET_API}asset-registrations`, {
+        params: new HttpParams().set('page', n).set('pageSize', MAX_PAGE_SIZE),
+      });
+    return page(1).pipe(
+      switchMap((first) => {
+        const pages = Math.ceil((first.totalCount ?? 0) / MAX_PAGE_SIZE);
+        if (pages <= 1) return of(first.items ?? []);
+        const rest = Array.from({ length: pages - 1 }, (_, i) => page(i + 2).pipe(map((r) => r.items ?? [])));
+        return forkJoin(rest).pipe(map((more) => [...(first.items ?? []), ...more.flat()]));
+      }),
+      map((items) => items.map(toRegisteredAsset)),
+    );
+  }
+
   /** The saved relationship whose main asset is this one, or null when it has none. */
   getByMainAsset(assetRegistrationId: string): Observable<AssetRelationshipDto | null> {
     return this.getRelationships(assetRegistrationId).pipe(
@@ -335,6 +379,8 @@ export class AssetRelationshipService {
       category: dto.classification?.category ?? '',
       assetType: dto.classification?.assetType ?? '',
       location: dto.locationAssignment?.location?.locationPath ?? '',
+      site: '',
+      department: '',
       status: basic?.status ?? '',
       criticality: basic?.criticality || dto.classification?.criticality || '',
       manufacturer: basic?.manufacturer ?? '',

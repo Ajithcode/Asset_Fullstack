@@ -858,7 +858,7 @@ export class AssetRelationship {
 
   // ===== Misc =====
   tabClick(tab: AssetTabLink): void {
-    if (!tab.path && !tab.active) this.showToast(`${tab.label} is not available in this demo.`);
+    if (!tab.path && !tab.active) this.showToast(`${tab.label} is not available yet.`);
   }
 
   exportCsv(): void {

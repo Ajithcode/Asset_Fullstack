@@ -1,244 +1,284 @@
-<section class="sc-page">
+<section class="sc-page ar-page">
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a routerLink="/assets/list">Assets</a>
     <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
-    <span class="breadcrumb-current">Asset Relationship</span>
+    <span class="breadcrumb-current">Asset Relationships</span>
   </nav>
 
+  <header class="ar-head">
+    <div class="grow">
+      <h1 class="ar-title">Asset Relationships</h1>
+      <p class="muted ar-sub">Manage asset dependencies, connections and operational relationships</p>
+    </div>
+    <button type="button" class="btn btn-outline" (click)="exportCsv()" [disabled]="!filtered.length">
+      <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export
+    </button>
+    <button type="button" class="btn btn-primary" (click)="openAdd()" [disabled]="loading || !!loadError">
+      <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon> Add Relationship
+    </button>
+  </header>
+
   <p *ngIf="loadError" class="form-error" role="alert">
-    {{ loadError }}
-    <button type="button" class="link-btn" (click)="retry()">Retry</button>
+    {{ loadError }} <button type="button" class="link-btn" (click)="load()">Retry</button>
   </p>
 
-  <!-- Step 1: pick the main assets (name and ID) -->
-  <section class="card panel" aria-labelledby="ar-main-title">
-    <header class="card-head">
-      <lucide-icon class="head-icon" [img]="icons.Network" [size]="20"></lucide-icon>
-      <h3 id="ar-main-title" class="grow">Assets <span class="count-note">Tick one or more to see their sub assets</span></h3>
-      <label class="search">
-        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
-        <input type="search" [(ngModel)]="mainSearch" placeholder="Search by asset name or ID" aria-label="Search main assets" />
-      </label>
-    </header>
-    <div class="table-wrap main-wrap">
-      <table class="data-table ar-table main-table">
-        <thead>
-          <tr>
-            <th class="col-check"><input type="checkbox" [checked]="allMainsChecked" (change)="toggleAllMains($any($event.target).checked)" aria-label="Select all listed assets" /></th>
-            <th class="col-num">#</th><th>Asset Name</th><th>Asset ID</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let a of mainList; let i = index" [class.is-picked]="isMain(a.tag)" (click)="toggleMain(a)">
-            <td class="col-check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="isMain(a.tag)" (change)="toggleMain(a)" [attr.aria-label]="'Main asset ' + a.name" /></td>
-            <td class="col-num">{{ i + 1 }}</td>
-            <td>{{ a.name }}</td>
-            <td class="nowrap">{{ a.tag }}</td>
-          </tr>
-          <tr *ngIf="loadingAssets && !assets.length"><td colspan="4" class="empty-line">Loading assets…</td></tr>
-          <tr *ngIf="!loadingAssets && !assets.length"><td colspan="4" class="empty-line">No assets in the register yet.</td></tr>
-          <tr *ngIf="assets.length && !mainList.length"><td colspan="4" class="empty-line">No assets match "{{ mainSearch }}".</td></tr>
-        </tbody>
-      </table>
+  <!-- KPIs, all computed from the saved relationships and the asset register -->
+  <div class="kpis ar-kpis">
+    <div class="card kpi">
+      <span class="kpi-icon"><lucide-icon [img]="icons.Link2" [size]="20"></lucide-icon></span>
+      <div class="kpi-body"><span class="kpi-value">{{ loading ? '…' : totalRelationships }}</span><span class="muted">Total Relationships</span></div>
     </div>
-    <footer class="main-foot">
-      <span class="muted grow">{{ selectedMains.length }} selected</span>
-      <button *ngIf="selectedMains.length" type="button" class="btn btn-outline" (click)="clearMains()">Clear</button>
-      <button type="button" class="btn btn-primary" [disabled]="!selectedMains.length" (click)="nextToSubs()">Next</button>
-    </footer>
-  </section>
-
-  <!-- Relationships made by users -->
-  <section *ngIf="rels.length" class="card panel" aria-labelledby="ar-title">
-    <header class="card-head">
-      <lucide-icon class="head-icon" [img]="icons.Network" [size]="20"></lucide-icon>
-      <h3 id="ar-title" class="grow">Asset Relationships <span class="count-note">{{ groups.length }} main asset{{ groups.length === 1 ? '' : 's' }} · {{ linkCount }} sub asset link{{ linkCount === 1 ? '' : 's' }}</span></h3>
-      <label class="search">
-        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
-        <input type="search" [(ngModel)]="search" placeholder="Search assets..." aria-label="Search relationships" />
-      </label>
-    </header>
-    <div class="table-wrap">
-      <table class="data-table ar-table">
-        <thead>
-          <tr><th class="col-toggle"></th><th>#</th><th>Main Asset</th><th>Main Asset ID</th><th>Sub Assets</th><th>Created By</th><th>Last Updated</th><th class="col-actions">Actions</th></tr>
-        </thead>
-        <tbody>
-          <ng-container *ngFor="let g of groups; let i = index">
-            <tr class="main-row" [class.is-open]="expanded.has(g.mainTag)">
-              <td class="col-toggle">
-                <button type="button" class="icon-btn" (click)="toggleExpand(g.mainTag)" [attr.aria-expanded]="expanded.has(g.mainTag)"
-                  [attr.aria-label]="(expanded.has(g.mainTag) ? 'Hide' : 'Show') + ' sub assets of ' + g.mainTag">
-                  <lucide-icon [img]="expanded.has(g.mainTag) ? icons.ChevronDown : icons.ChevronRight" [size]="16"></lucide-icon>
-                </button>
-              </td>
-              <td>{{ i + 1 }}</td>
-              <td><a class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: g.mainTag, from: fromRelationships }">{{ g.mainName }}</a></td>
-              <td class="nowrap">{{ g.mainTag }}</td>
-              <td>
-                <span class="subs">
-                  <span class="sub-count">{{ g.links.length }}</span>
-                  <span *ngFor="let l of g.links.slice(0, previewCount)" class="sub-chip" [title]="l.subName + ' (' + l.subTag + ')'">{{ l.subName }}</span>
-                  <button *ngIf="g.links.length > previewCount" type="button" class="more-btn" (click)="expanded.add(g.mainTag)">+{{ g.links.length - previewCount }} more</button>
-                </span>
-              </td>
-              <td>{{ g.createdBy }}</td>
-              <td class="nowrap">{{ g.updatedAt | date: 'dd MMM yyyy, HH:mm' }}</td>
-              <td class="col-actions nowrap">
-                <button type="button" class="icon-btn" (click)="addSubsTo(g.mainTag)" [attr.aria-label]="'Add sub assets to ' + g.mainTag" title="Add sub assets"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon></button>
-                <button type="button" class="icon-btn danger" (click)="deleteMain = g.mainTag" [attr.aria-label]="'Unlink all sub assets from ' + g.mainTag" title="Unlink all"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button>
-              </td>
-            </tr>
-            <tr *ngIf="expanded.has(g.mainTag)" class="detail-row">
-              <td></td>
-              <td colspan="7">
-                <table class="sub-table">
-                  <thead><tr><th>Sub Asset</th><th>Sub Asset ID</th><th>Category</th><th>Linked By</th><th>Linked On</th><th class="col-actions"></th></tr></thead>
-                  <tbody>
-                    <tr *ngFor="let l of g.links">
-                      <td>
-                        <a *ngIf="l.isAsset; else componentName" class="asset-link" routerLink="/assets/relationships" [queryParams]="{ tag: l.subTag, from: fromRelationships }">{{ l.subName }}</a>
-                        <ng-template #componentName>{{ l.subName }}</ng-template>
-                      </td>
-                      <td class="nowrap">{{ l.subTag }}</td>
-                      <td>{{ l.category }}</td>
-                      <td>{{ l.createdBy }}</td>
-                      <td class="nowrap">{{ l.createdAt | date: 'dd MMM yyyy, HH:mm' }}</td>
-                      <td class="col-actions">
-                        <button type="button" class="icon-btn danger" (click)="deleteId = { mainTag: g.mainTag, key: l.key }" [attr.aria-label]="'Unlink ' + l.subTag + ' from ' + g.mainTag"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon></button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </td>
-            </tr>
-          </ng-container>
-          <tr *ngIf="!groups.length"><td colspan="8" class="empty-line">No relationships match "{{ search }}".</td></tr>
-        </tbody>
-      </table>
+    <div class="card kpi">
+      <span class="kpi-icon"><lucide-icon [img]="icons.Network" [size]="20"></lucide-icon></span>
+      <div class="kpi-body"><span class="kpi-value">{{ loading ? '…' : connectedAssets }}</span><span class="muted">Connected Assets</span></div>
     </div>
-  </section>
-</section>
-
-<!-- ===== Review: what is related to the selected assets ===== -->
-<div *ngIf="previews as list" class="overlay" (click)="closePreview()">
-  <div class="modal modal--picker" role="dialog" aria-modal="true" aria-labelledby="ar-prev-title" (click)="$event.stopPropagation()">
-    <div class="modal-head">
-      <h2 id="ar-prev-title">Related Assets</h2>
-      <button type="button" class="icon-btn" (click)="closePreview()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+    <div class="card kpi" title="Relationships where either asset has High or Critical criticality">
+      <span class="kpi-icon kpi-icon--warn"><lucide-icon [img]="icons.AlertTriangle" [size]="20"></lucide-icon></span>
+      <div class="kpi-body"><span class="kpi-value">{{ loading ? '…' : criticalDependencies }}</span><span class="muted">Critical Dependencies</span></div>
     </div>
-    <div class="modal-body prev-body">
-      <section *ngFor="let p of list" class="prev-block">
-        <header class="prev-head">
-          <div class="grow">
-            <strong>{{ p.asset.name }}</strong> <span class="muted">({{ p.asset.tag }})</span>
-            <span class="prev-meta">{{ p.asset.category }} · {{ location(p.asset) }} · {{ p.asset.status }}</span>
-          </div>
-          <span class="sub-count">{{ p.loading ? '…' : p.subs.length }}</span>
-        </header>
-        <p *ngIf="p.loading" class="empty-line">Loading related assets…</p>
-        <div *ngIf="!p.loading" class="table-wrap">
-          <table class="sub-table">
-            <thead><tr><th>Sub Asset</th><th>Asset ID</th><th>Relationship</th><th>Category</th><th>Location</th></tr></thead>
-            <tbody>
-              <tr *ngFor="let s of p.subs">
-                <td>{{ s.name }}</td>
-                <td class="nowrap">{{ s.tag }}</td>
-                <td class="nowrap">{{ s.relation }}</td>
-                <td>{{ s.category }}</td>
-                <td>{{ s.location }}</td>
-              </tr>
-              <tr *ngIf="!p.subs.length"><td colspan="5" class="empty-line">No sub assets recorded for this asset.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
-    <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
-    <div class="modal-foot">
-      <span class="muted grow">Submit opens {{ list[list.length - 1].asset.name }} ({{ list[list.length - 1].asset.tag }}).</span>
-      <button type="button" class="btn btn-outline" (click)="closePreview()">Cancel</button>
-      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="submitPreview()">{{ saving ? 'Saving…' : 'Submit' }}</button>
+    <div class="card kpi" title="Registered assets that are not in any relationship yet">
+      <span class="kpi-icon kpi-icon--muted"><lucide-icon [img]="icons.Unlink" [size]="20"></lucide-icon></span>
+      <div class="kpi-body"><span class="kpi-value">{{ loading ? '…' : unrelatedAssets }}</span><span class="muted">Assets Without Relationships</span></div>
     </div>
   </div>
-</div>
 
-<!-- ===== Main / sub asset picker ===== -->
-<div *ngIf="step" class="overlay" (click)="closePicker()">
-  <div class="modal modal--picker" role="dialog" aria-modal="true" aria-labelledby="ar-picker-title" (click)="$event.stopPropagation()">
-    <div class="modal-head">
-      <h2 id="ar-picker-title">Sub Asset</h2>
-      <button type="button" class="icon-btn" (click)="closePicker()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
-    </div>
-    <div class="modal-body">
-      <p *ngIf="step === 'sub'" class="picked">
-        <span>Main asset{{ mainTags.length === 1 ? '' : 's' }}:</span>
-        <span *ngFor="let t of mainTags" class="main-chip">{{ nameOf(t) }} <small>({{ t }})</small></span>
-        <button type="button" class="link-btn" (click)="backToMain()"><lucide-icon [img]="icons.ArrowLeft" [size]="14"></lucide-icon>Change</button>
-      </p>
-      <label class="search search--full">
+  <section class="card panel" aria-labelledby="ar-records-title">
+    <header class="card-head ar-toolbar">
+      <h3 id="ar-records-title" class="grow">Relationship Records <span class="count-note">({{ filtered.length }})</span></h3>
+      <div class="ar-switch" role="tablist" aria-label="View">
+        <button type="button" role="tab" [attr.aria-selected]="view === 'list'" [class.is-on]="view === 'list'" (click)="setView('list')">
+          <lucide-icon [img]="icons.LayoutList" [size]="16"></lucide-icon> List
+        </button>
+        <button type="button" role="tab" [attr.aria-selected]="view === 'diagram'" [class.is-on]="view === 'diagram'" (click)="setView('diagram')">
+          <lucide-icon [img]="icons.GitBranch" [size]="16"></lucide-icon> Diagram
+        </button>
+      </div>
+    </header>
+
+    <div class="ar-filters">
+      <label class="search ar-search">
         <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
-        <input type="search" [(ngModel)]="pickerSearch" placeholder="Search by asset name or ID" aria-label="Search assets" />
+        <input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" placeholder="Search asset name, tag or ID" aria-label="Search relationships" />
       </label>
-      <div class="picker">
-        <!-- Sub assets with their category and location -->
-        <ng-container *ngIf="step === 'sub'">
-          <label class="picker-head picker-head--sub">
-            <input type="checkbox" [checked]="allSelected" (change)="toggleAll($any($event.target).checked)" aria-label="Select all listed assets" />
-            <span>Sub Asset</span><span>Asset ID</span><span>Category</span><span>Location</span>
-          </label>
-          <label *ngFor="let a of pickerAssets" class="picker-row picker-row--sub" [class.is-disabled]="isLinked(a.tag)" [class.is-on]="selectedSubs.has(a.tag)">
-            <input type="checkbox" [checked]="selectedSubs.has(a.tag) || isLinked(a.tag)" [disabled]="isLinked(a.tag)" (change)="toggleSub(a)" [attr.aria-label]="'Sub asset ' + a.name" />
-            <span>{{ a.name }}<small *ngIf="linkedMains(a.tag).length" class="linked-note">{{ isLinked(a.tag) ? 'already linked' : 'linked to ' + linkedMains(a.tag).join(', ') }}</small></span>
-            <span class="nowrap">{{ a.tag }}</span>
-            <span>{{ a.category }}</span>
-            <span>{{ location(a) }}</span>
-          </label>
+      <select class="control" [(ngModel)]="typeFilter" (ngModelChange)="onFilter()" aria-label="Relationship type">
+        <option value="">All Relationship Types</option>
+        <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+      </select>
+      <select class="control" [(ngModel)]="siteFilter" (ngModelChange)="onFilter()" aria-label="Site">
+        <option value="">All Sites</option>
+        <option *ngFor="let s of sites" [value]="s">{{ s }}</option>
+      </select>
+      <select class="control" [(ngModel)]="criticalityFilter" (ngModelChange)="onFilter()" aria-label="Criticality">
+        <option value="">All Criticality</option>
+        <option *ngFor="let c of criticalities" [value]="c">{{ c }}</option>
+      </select>
+      <button *ngIf="hasFilters" type="button" class="link-btn" (click)="clearFilters()">Clear filters</button>
+    </div>
+    <p *ngIf="assetFilter" class="ar-chip-row">
+      <span class="chip">Asset: {{ assetFilterName }}
+        <button type="button" class="icon-btn" (click)="assetFilter = ''; onFilter()" aria-label="Show all assets"><lucide-icon [img]="icons.X" [size]="14"></lucide-icon></button>
+      </span>
+    </p>
+
+    <div class="ar-body" [class.has-panel]="selected || (view === 'diagram' && impactKey)">
+      <div class="ar-main">
+        <!-- List view -->
+        <ng-container *ngIf="view === 'list'">
+          <div class="table-wrap">
+            <table class="data-table ar-table">
+              <thead>
+                <tr>
+                  <th>Source Asset</th><th>Relationship Type</th><th>Target Asset</th><th>Site</th><th>Criticality</th>
+                  <th>Created By</th><th>Last Updated</th><th class="col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of pageRows; trackBy: trackRow" [class.is-picked]="selected?.id === r.id" (click)="select(r)">
+                  <td><span class="ar-asset">{{ r.source.name }}</span><span class="muted ar-tag">{{ r.source.tag || r.source.assetId }}</span></td>
+                  <td><span class="ar-type"><lucide-icon [img]="icons.ArrowRight" [size]="14"></lucide-icon>{{ r.type }}</span></td>
+                  <td>
+                    <span class="ar-asset">{{ r.target.name }}</span>
+                    <span class="muted ar-tag">{{ r.target.isComponent ? 'Component' : '' }} {{ r.target.tag || r.target.assetId }}</span>
+                  </td>
+                  <td>{{ r.site || '—' }}</td>
+                  <td>
+                    <span *ngIf="r.criticality; else noCrit" class="pill pill--xs" [ngClass]="criticalityClass(r.criticality)">{{ r.criticality }}</span>
+                    <ng-template #noCrit><span class="muted">—</span></ng-template>
+                  </td>
+                  <td class="nowrap">{{ r.createdBy || '—' }}</td>
+                  <td class="nowrap">{{ r.updatedAt ? (r.updatedAt | date: 'dd MMM yyyy, HH:mm') : '—' }}</td>
+                  <td class="col-actions" (click)="$event.stopPropagation()">
+                    <div class="row-actions">
+                      <button type="button" class="icon-btn" (click)="select(r)" [attr.aria-label]="'View ' + r.source.name + ' to ' + r.target.name"><lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon></button>
+                      <button type="button" class="icon-btn" (click)="openEdit(r)" aria-label="Edit relationship"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon></button>
+                      <button type="button" class="icon-btn" (click)="openDiagramFor(r)" aria-label="View diagram"><lucide-icon [img]="icons.GitBranch" [size]="16"></lucide-icon></button>
+                      <button type="button" class="icon-btn text-danger" (click)="askDelete(r)" aria-label="Delete relationship"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button>
+                    </div>
+                  </td>
+                </tr>
+                <tr *ngIf="loading && !rows.length"><td colspan="8" class="empty-line">Loading relationships…</td></tr>
+                <tr *ngIf="!loading && !loadError && !rows.length">
+                  <td colspan="8" class="empty-line">No relationships yet. <button type="button" class="link-btn" (click)="openAdd()">Add the first relationship</button></td>
+                </tr>
+                <tr *ngIf="rows.length && !filtered.length">
+                  <td colspan="8" class="empty-line">No relationships match these filters. <button type="button" class="link-btn" (click)="clearFilters()">Clear filters</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <footer *ngIf="filtered.length > pageSize" class="ar-pager">
+            <span class="muted grow">Showing {{ (page - 1) * pageSize + 1 }}–{{ (page - 1) * pageSize + pageRows.length }} of {{ filtered.length }}</span>
+            <button type="button" class="btn btn-outline btn-sm" [disabled]="page <= 1" (click)="setPage(page - 1)">Previous</button>
+            <span class="ar-page-no">{{ page }} / {{ pageCount }}</span>
+            <button type="button" class="btn btn-outline btn-sm" [disabled]="page >= pageCount" (click)="setPage(page + 1)">Next</button>
+          </footer>
         </ng-container>
-        <p *ngIf="!pickerAssets.length" class="empty-line">No assets match "{{ pickerSearch }}".</p>
+
+        <!-- Diagram view: the filtered relationships as a directional network -->
+        <div *ngIf="view === 'diagram'" class="rd-wrap">
+          <div class="rd-tools">
+            <button type="button" class="icon-btn" (click)="zoomBy(1.2)" aria-label="Zoom in"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon></button>
+            <button type="button" class="icon-btn" (click)="zoomBy(1 / 1.2)" aria-label="Zoom out"><lucide-icon [img]="icons.Minus" [size]="16"></lucide-icon></button>
+            <button type="button" class="icon-btn" (click)="fit()" aria-label="Reset view"><lucide-icon [img]="icons.Maximize" [size]="16"></lucide-icon></button>
+          </div>
+          <p *ngIf="!filtered.length" class="empty-line rd-empty">{{ rows.length ? 'No relationships match these filters.' : 'No relationships yet.' }}</p>
+          <svg *ngIf="filtered.length" class="rd-svg" [attr.viewBox]="viewBox" role="img" aria-label="Relationship diagram"
+               (wheel)="onWheel($event)" (pointerdown)="startPan($event)" (pointermove)="movePan($event)" (pointerup)="endPan()" (pointerleave)="endPan()">
+            <defs>
+              <marker id="rd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" class="rd-arrow-head"></path>
+              </marker>
+            </defs>
+            <g [attr.transform]="transform">
+              <g *ngFor="let e of edges" class="rd-edge" [class.is-hit]="impactKey && (e.row.source.key === impactKey || impactKeys.has(e.row.source.key)) && impactKeys.has(e.row.target.key)">
+                <path [attr.d]="edgePath(e)" marker-end="url(#rd-arrow)"></path>
+                <text [attr.x]="edgeLabel(e).x" [attr.y]="edgeLabel(e).y" text-anchor="middle">{{ e.row.type }}</text>
+              </g>
+              <g *ngFor="let n of nodes" class="rd-node" [class.is-start]="impactKey === n.end.key" [class.is-hit]="impactKeys.has(n.end.key)"
+                 [class.is-critical]="criticalityRank(n.end.criticality) >= 2" [attr.transform]="'translate(' + n.x + ' ' + n.y + ')'"
+                 (click)="pickNode(n)" tabindex="0" (keydown.enter)="pickNode(n)" [attr.aria-label]="label(n.end)">
+                <rect [attr.width]="nodeW" [attr.height]="nodeH" rx="10"></rect>
+                <text x="12" y="21" class="rd-name">{{ short(n.end.name) }}</text>
+                <text x="12" y="38" class="rd-meta">{{ short((n.end.isComponent ? 'Component · ' : '') + (n.end.tag || n.end.assetId || ''), 26) }}</text>
+              </g>
+            </g>
+          </svg>
+          <p class="muted rd-hint">Drag to pan, scroll to zoom. Click an asset to see what its failure may affect.</p>
+        </div>
+      </div>
+
+      <!-- Details panel: selected relationship, or the picked asset's impact -->
+      <aside *ngIf="selected || (view === 'diagram' && impactKey)" class="ar-panel card" aria-label="Relationship details">
+        <ng-container *ngIf="selected as r">
+          <header class="ar-panel-head">
+            <h4 class="grow">Relationship</h4>
+            <button type="button" class="icon-btn" (click)="closeDetails()" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+          </header>
+          <div class="ar-flow">
+            <div class="ar-end"><span class="ar-asset">{{ r.source.name }}</span><span class="muted">{{ r.source.tag || r.source.assetId }}</span></div>
+            <span class="ar-flow-type"><lucide-icon [img]="icons.ArrowRight" [size]="14"></lucide-icon> {{ r.type }}</span>
+            <div class="ar-end"><span class="ar-asset">{{ r.target.name }}</span><span class="muted">{{ r.target.isComponent ? 'Component · ' : '' }}{{ r.target.tag || r.target.assetId }}</span></div>
+          </div>
+          <dl class="ar-facts">
+            <dt>Relationship ID</dt><dd class="ar-id">{{ r.id }}</dd>
+            <dt>Site</dt><dd>{{ r.site || '—' }}</dd>
+            <dt>Criticality</dt><dd>{{ r.criticality || '—' }}<span *ngIf="isCritical(r)" class="muted"> · critical dependency</span></dd>
+            <dt>Created By</dt><dd>{{ r.createdBy || '—' }}</dd>
+            <dt>Created</dt><dd>{{ r.createdAt ? (r.createdAt | date: 'dd MMM yyyy, HH:mm') : '—' }}</dd>
+            <dt>Last Updated</dt><dd>{{ r.updatedAt ? (r.updatedAt | date: 'dd MMM yyyy, HH:mm') : '—' }}</dd>
+          </dl>
+          <div class="ar-panel-actions">
+            <button type="button" class="btn btn-outline btn-sm" (click)="openEdit(r)"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon> Edit</button>
+            <button type="button" class="btn btn-outline btn-sm" (click)="openDiagramFor(r)"><lucide-icon [img]="icons.GitBranch" [size]="14"></lucide-icon> View Diagram</button>
+            <button type="button" class="btn btn-outline btn-sm text-danger" (click)="askDelete(r)"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon> Delete</button>
+          </div>
+          <p class="ar-links">
+            <button type="button" class="link-btn" (click)="showAsset(r.source.key)">All relationships of {{ r.source.name }}</button>
+            <a *ngIf="r.source.assetId" class="link-btn" routerLink="/assets/relationships" [queryParams]="{ tag: r.source.assetId, from: fromRelationships }">Open asset relationships</a>
+          </p>
+        </ng-container>
+
+        <section *ngIf="impactKey" class="ar-impact">
+          <h4>If {{ impactName }} fails</h4>
+          <p class="muted ar-impact-note">Potentially affected assets, following the relationships downstream.</p>
+          <ul *ngIf="impact.length; else noImpact" class="ar-impact-list">
+            <li *ngFor="let h of impact">
+              <span class="ar-asset">{{ label(h.end) }}</span>
+              <span class="muted">{{ h.depth === 1 ? h.via.type + ' of ' + h.via.source.name : 'via ' + h.path.slice(1, -1).join(' → ') }}</span>
+              <span *ngIf="h.end.criticality" class="pill pill--xs" [ngClass]="criticalityClass(h.end.criticality)">{{ h.end.criticality }}</span>
+            </li>
+          </ul>
+          <ng-template #noImpact><p class="muted">No assets depend on it through the saved relationships.</p></ng-template>
+          <p class="muted ar-impact-note">Actual impact depends on redundancy and current operating conditions.</p>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Add / Edit Relationship -->
+  <div *ngIf="form as f" class="overlay" (click)="closeForm()">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ar-form-title" (click)="$event.stopPropagation(); pickerOpen = ''">
+      <header class="modal-head">
+        <h3 id="ar-form-title" class="grow">{{ f.editing ? 'Edit Relationship' : 'Add Relationship' }}</h3>
+        <button type="button" class="icon-btn" (click)="closeForm()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </header>
+      <form class="modal-body ar-form" (ngSubmit)="save()">
+        <label class="field ar-pick" (click)="$event.stopPropagation()">
+          <span class="field-label">Source Asset <em>*</em></span>
+          <input class="control" name="source" [(ngModel)]="sourceQuery" (ngModelChange)="typed('source')" (focus)="pickerOpen = 'source'"
+                 [disabled]="editingComponent" placeholder="Search by asset name, tag or ID" autocomplete="off" />
+          <ul *ngIf="pickerOpen === 'source'" class="ar-options" role="listbox">
+            <li *ngFor="let a of matches(sourceQuery, f.targetId)" role="option" (click)="pickSource(a)">
+              <span>{{ a.name }}</span><span class="muted">{{ a.assetTag || a.id }}{{ a.site ? ' · ' + a.site : '' }}</span>
+            </li>
+            <li *ngIf="!matches(sourceQuery, f.targetId).length" class="muted">No registered assets match.</li>
+          </ul>
+        </label>
+        <label class="field">
+          <span class="field-label">Relationship Type <em>*</em></span>
+          <select class="control" name="type" [(ngModel)]="f.type">
+            <option value="" disabled>Select relationship type</option>
+            <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+          </select>
+        </label>
+        <label class="field ar-pick" (click)="$event.stopPropagation()">
+          <span class="field-label">Target Asset <em>*</em></span>
+          <input class="control" name="target" [(ngModel)]="targetQuery" (ngModelChange)="typed('target')" (focus)="pickerOpen = 'target'"
+                 [disabled]="editingComponent" placeholder="Search by asset name, tag or ID" autocomplete="off" />
+          <ul *ngIf="pickerOpen === 'target'" class="ar-options" role="listbox">
+            <li *ngFor="let a of matches(targetQuery, f.sourceId)" role="option" (click)="pickTarget(a)">
+              <span>{{ a.name }}</span><span class="muted">{{ a.assetTag || a.id }}{{ a.site ? ' · ' + a.site : '' }}</span>
+            </li>
+            <li *ngIf="!matches(targetQuery, f.sourceId).length" class="muted">No registered assets match.</li>
+          </ul>
+        </label>
+        <p *ngIf="editingComponent" class="muted">This relationship links a component of the source asset; only its type can be changed.</p>
+        <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : f.editing ? 'Save changes' : 'Add Relationship' }}</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete confirmation -->
+  <div *ngIf="deleting as d" class="overlay" (click)="deleting = null">
+    <div class="modal modal--sm" role="alertdialog" aria-modal="true" aria-labelledby="ar-del-title" (click)="$event.stopPropagation()">
+      <header class="modal-head">
+        <h3 id="ar-del-title" class="grow">Delete relationship?</h3>
+        <button type="button" class="icon-btn" (click)="deleting = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </header>
+      <div class="modal-body">
+        <p>{{ label(d.source) }} <strong>{{ d.type }}</strong> {{ label(d.target) }} will be removed. The assets themselves are not changed.</p>
+        <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-outline" (click)="deleting = null">Cancel</button>
+          <button type="button" class="btn btn-primary btn-danger" [disabled]="saving" (click)="confirmDelete()">{{ saving ? 'Deleting…' : 'Delete' }}</button>
+        </footer>
       </div>
     </div>
-    <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
-    <div *ngIf="step === 'sub'" class="modal-foot">
-      <span class="muted grow">{{ selectedSubs.size }} selected</span>
-      <button type="button" class="btn btn-outline" (click)="closePicker()">Cancel</button>
-      <button type="button" class="btn btn-primary" [disabled]="!selectedSubs.size || saving" (click)="addSubs()">
-        {{ saving ? 'Saving…' : 'Submit' }}
-      </button>
-    </div>
   </div>
-</div>
 
-<!-- ===== Unlink all sub assets of a main asset ===== -->
-<div *ngIf="deletingMain as m" class="overlay" (click)="deleteMain = null">
-  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="ar-delm-title" (click)="$event.stopPropagation()">
-    <div class="modal-head">
-      <h2 id="ar-delm-title">Unlink all sub assets?</h2>
-      <button type="button" class="icon-btn" (click)="deleteMain = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
-    </div>
-    <div class="modal-body"><p>{{ m.mainName }} ({{ m.mainTag }}) will no longer have its {{ m.links.length }} sub asset{{ m.links.length === 1 ? '' : 's' }}. The assets themselves are not deleted.</p></div>
-    <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
-    <div class="modal-foot">
-      <button type="button" class="btn btn-outline" (click)="deleteMain = null; popupError = ''">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDeleteMain()">Unlink All</button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== Remove confirmation ===== -->
-<div *ngIf="deleting as d" class="overlay" (click)="deleteId = null">
-  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="ar-del-title" (click)="$event.stopPropagation()">
-    <div class="modal-head">
-      <h2 id="ar-del-title">Remove relationship?</h2>
-      <button type="button" class="icon-btn" (click)="deleteId = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
-    </div>
-    <div class="modal-body"><p>{{ d.group.mainName }} ({{ d.group.mainTag }}) will no longer be linked to {{ d.link.subName }} ({{ d.link.subTag }}).</p></div>
-    <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
-    <div class="modal-foot">
-      <button type="button" class="btn btn-outline" (click)="deleteId = null; popupError = ''">Cancel</button>
-      <button type="button" class="btn btn-danger" [disabled]="saving" (click)="confirmDelete()">Remove</button>
-    </div>
-  </div>
-</div>
-
-<div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
+  <div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
+</section>
