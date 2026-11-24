@@ -59,9 +59,9 @@ import { GeofenceEventQuery, GeofenceKpis, GeofenceSummaryApi, GeofenceTarget } 
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone, ZoneOption } from './floor-map-api.service';
 import { FloorPlanMap } from './floor-plan-map';
 import { RtlApi, RtlEvent } from '../real-time-location/rtl-api';
-import { DesktopAlertsService } from 'shared-ui';
+import { AlertFeedService, DesktopAlertsService } from 'shared-ui';
 
-type Tab = 'geofences' | 'rules' | 'history';
+type Tab = 'geofences' | 'rules' | 'alerts' | 'history';
 type RuleForm = Omit<Rule, 'id' | 'name' | 'zoneId' | 'enabled'>;
 interface RuleDialog extends RuleForm { id: string; name: string; zoneId: string; enabled: boolean }
 interface ZoneForm { id: string; name: string; type: ZoneType; category: string; site: string; color: string; groups: string[]; schedule: string; monitorEntry: boolean; monitorExit: boolean; shape: ZoneShape | ''; points: number; drawn?: LL[] }
@@ -75,7 +75,7 @@ const TYPE_COLOR: Record<ZoneType, string> = { Allowed: '#2563EB', Warning: '#F5
 const DEFAULT_RULE: RuleForm = {
   trigger: '' as Trigger, dwellMin: 5, severity: '' as Severity, group: '', condition: '',
   createAlert: true, notify: false, team: '', workflow: false, workflowName: '',
-  inApp: true, email: true, push: true,
+  inApp: true, email: false, push: true,
   notifyEvery: 5, notifyRepeat: 1, notifySound: true,
   status: 'Active', description: '', assetIds: [], authorizedGroups: [], scheduleDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], scheduleFrom: '08:00', scheduleTo: '18:00',
   debounceSec: 30, cooldownMin: 5, escalateAfterMin: 0, escalateTo: '', autoResolve: false, effectiveFrom: '', effectiveTo: '',
@@ -255,7 +255,19 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     }
   }
 
+  private readonly alertFeed = inject(AlertFeedService);
+  /** Email can be delivered only when the server has the Smtp__* settings. */
+  emailConfigured = false;
+  emailMissing: string[] = [];
+  /** Bell + Active alerts: unacknowledged count. */
+  get activeCount(): number {
+    return this.alertFeed.unacknowledged;
+  }
+
   ngOnInit(): void {
+    this.alertFeed.channels().then((c) => { this.emailConfigured = c.email.available; this.emailMissing = c.email.missing; }).catch(() => undefined);
+    const wanted = this.route.snapshot.queryParamMap.get('tab');
+    if (wanted === 'alerts' || wanted === 'history' || wanted === 'rules') queueMicrotask(() => this.setTab(wanted));
     this.load();
     this.loadFloors();
     this.pollTimer = setInterval(() => this.refreshLive(), POLL_MS);
@@ -482,7 +494,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   refreshLive(): void {
     this.loadSummary();
     this.loadRecent();
-    if (this.tab === 'history') this.loadHistory(true);
+    if (this.tab === 'history' || this.tab === 'alerts') this.loadHistory(true);
   }
 
   private loadSummary(): void {
@@ -1350,9 +1362,31 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   setTab(t: Tab): void {
+    const was = this.tab;
     this.tab = t;
-    if (t === 'history') this.loadHistory();
+    if (t === 'alerts') {
+      // Active alerts = Open only; acknowledged ones leave this list and are in Event History
+      this.hDate = '';
+      this.hStatus = 'Open';
+      this.hZone = this.hType = this.hSeverity = this.hSearch = '';
+      this.histMode = 'alerts';
+      this.hPage = 1;
+      this.loadHistory();
+    } else if (t === 'history') {
+      if (was === 'alerts') this.hStatus = '';
+      this.loadHistory();
+    }
   }
+
+  /** Acknowledge every open alert (server side, not just this page). */
+  acknowledgeEverything(): void {
+    void this.alertFeed.acknowledgeAll().then((ok) => {
+      this.showToast(ok ? 'All alerts acknowledged. They are in Event History now.' : 'Could not acknowledge the alerts. Try again.');
+      this.refreshLive();
+      this.loadHistory(true);
+    });
+  }
+
 
   setHistMode(m: 'alerts' | 'movements'): void {
     this.histMode = m;
@@ -1389,7 +1423,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   private afterStatus(): void {
     this.loadSummary();
     this.loadRecent();
-    if (this.tab === 'history') this.loadHistory(true);
+    if (this.tab === 'history' || this.tab === 'alerts') this.loadHistory(true);
   }
 
   private setStatus(list: AlertEvent[], status: EventStatus, done: (n: number) => string, assignee?: string, note?: string): void {

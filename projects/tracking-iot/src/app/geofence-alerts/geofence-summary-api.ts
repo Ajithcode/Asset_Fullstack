@@ -61,7 +61,7 @@ interface EventDto {
   alertId: string; raisedAt: string; assetId: string | null; assetName: string; deviceId: string | null; siteName: string | null;
   targetId: string | null; targetName: string | null; eventType: string; severity: string; alertSeverity: string; status: string;
   message: string | null; ruleId: string | null; ruleName: string | null; durationSeconds: number | null; assignedTo: string | null;
-  owner: string | null; escalatedAt: string | null; escalatedTo: string | null;
+  owner: string | null; acknowledgedBy: string | null; acknowledgedAt: string | null; escalatedAt: string | null; escalatedTo: string | null;
   history: { at: string; by: string | null; action: string; note: string | null }[];
 }
 
@@ -99,6 +99,8 @@ function toEvent(d: EventDto): AlertEvent {
     ruleName: d.ruleName ?? undefined,
     durationSec: d.durationSeconds,
     assignedTo: d.assignedTo ?? undefined,
+    acknowledgedBy: d.acknowledgedBy ?? undefined,
+    acknowledgedAt: d.acknowledgedAt ? new Date(d.acknowledgedAt) : undefined,
     escalatedTo: d.escalatedAt ? d.escalatedTo ?? 'Escalation group' : undefined,
     deviceId: d.deviceId ?? undefined,
     site: d.siteName ?? undefined,

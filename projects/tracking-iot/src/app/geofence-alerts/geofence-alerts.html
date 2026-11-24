@@ -37,6 +37,7 @@
   <nav class="tabs" role="tablist" aria-label="Geofence sections">
     <button type="button" role="tab" [class.is-active]="tab === 'geofences'" [attr.aria-selected]="tab === 'geofences'" (click)="setTab('geofences')"><lucide-icon [img]="icons.Pentagon" [size]="16"></lucide-icon>Geofences</button>
     <button type="button" role="tab" [class.is-active]="tab === 'rules'" [attr.aria-selected]="tab === 'rules'" (click)="setTab('rules')"><lucide-icon [img]="icons.Bell" [size]="16"></lucide-icon>Alert Rules</button>
+    <button type="button" role="tab" [class.is-active]="tab === 'alerts'" [attr.aria-selected]="tab === 'alerts'" (click)="setTab('alerts')"><lucide-icon [img]="icons.TriangleAlert" [size]="16"></lucide-icon>Active Alerts<span *ngIf="activeCount" class="tab-badge">{{ activeCount }}</span></button>
     <button type="button" role="tab" [class.is-active]="tab === 'history'" [attr.aria-selected]="tab === 'history'" (click)="setTab('history')"><lucide-icon [img]="icons.History" [size]="16"></lucide-icon>Event History</button>
     <div *ngIf="tab === 'geofences'" class="tab-filters">
       <label class="tab-filter">
@@ -319,11 +320,12 @@
   </section>
 
   <!-- ================= Event history ================= -->
-  <section *ngIf="tab === 'history'" class="card panel">
+  <section *ngIf="tab === 'history' || tab === 'alerts'" class="card panel">
     <div class="sec-head">
-      <span class="sec-ic"><lucide-icon [img]="icons.History" [size]="16"></lucide-icon></span>
-      <h2 class="grow">Event History</h2>
-      <div class="seg" role="group" aria-label="Event kind">
+      <span class="sec-ic"><lucide-icon [img]="tab === 'alerts' ? icons.TriangleAlert : icons.History" [size]="16"></lucide-icon></span>
+      <h2 class="grow">{{ tab === 'alerts' ? 'Active Alerts' : 'Event History' }}</h2>
+      <button *ngIf="tab === 'alerts' && activeCount" type="button" class="btn btn-primary btn-sm" (click)="acknowledgeEverything()"><lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>Acknowledge all ({{ activeCount }})</button>
+      <div *ngIf="tab === 'history'" class="seg" role="group" aria-label="Event kind">
         <button type="button" [class.is-on]="histMode === 'alerts'" (click)="setHistMode('alerts')">Alerts</button>
         <button type="button" [class.is-on]="histMode === 'movements'" (click)="setHistMode('movements')">Zone movements</button>
       </div>
@@ -340,7 +342,7 @@
         <select class="control control-sm" [(ngModel)]="hZone" (ngModelChange)="hFilter()" aria-label="Geofence"><option value="">All geofences</option><option *ngFor="let t of targets" [value]="t.id">{{ t.name }}{{ t.kind === 'Indoor' ? ' · ' + (t.floorName || 'indoor') : '' }}</option></select>
         <select class="control control-sm" [(ngModel)]="hType" (ngModelChange)="hFilter()" aria-label="Event type"><option value="">All event types</option><option *ngFor="let t of hTypes" [value]="t">{{ t }}</option></select>
         <select class="control control-sm" [(ngModel)]="hSeverity" (ngModelChange)="hFilter()" aria-label="Severity"><option value="">All severities</option><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select>
-        <select class="control control-sm" [(ngModel)]="hStatus" (ngModelChange)="hFilter()" aria-label="Status">
+        <select *ngIf="tab === 'history'" class="control control-sm" [(ngModel)]="hStatus" (ngModelChange)="hFilter()" aria-label="Status">
           <option value="">All statuses</option><option value="Unresolved">Open (not resolved)</option><option value="Open">New</option><option value="Acknowledged">Acknowledged</option>
           <option value="Assigned">Assigned</option><option value="In Progress">Investigating</option><option value="Resolved">Resolved</option><option value="Closed">Closed</option>
         </select>
@@ -348,7 +350,7 @@
       </div>
       <div class="table-wrap" [class.is-loading]="hLoading">
         <table class="dt">
-          <thead><tr><th>Alert ID</th><th>Timestamp</th><th>Asset</th><th>Geofence</th><th>Event</th><th>Severity</th><th>Duration</th><th>Owner</th><th>Status</th><th class="col-act"><span class="sr">Actions</span></th></tr></thead>
+          <thead><tr><th>Alert ID</th><th>Timestamp</th><th>Asset</th><th>Geofence</th><th>Event</th><th>Severity</th><th>Duration</th><th>Owner</th><th>Status</th><th *ngIf="tab === 'history'">Acknowledged by / at</th><th class="col-act"><span class="sr">Actions</span></th></tr></thead>
           <tbody>
             <tr *ngFor="let e of hRows" class="clickable" (click)="openDetail(e)">
               <td class="mono">{{ e.id }}</td>
@@ -360,9 +362,10 @@
               <td class="nowrap">{{ fmtDuration(e.durationSec) }}</td>
               <td class="nowrap">{{ e.owner }}</td>
               <td class="nowrap"><span class="pill" [ngClass]="stClass(e.status)">{{ e.status }}</span><small *ngIf="e.escalatedTo && isOpen(e)" class="esc block">Escalated to {{ e.escalatedTo }}</small></td>
-              <td class="col-act" (click)="$event.stopPropagation()"><ng-container *ngTemplateOutlet="evMenu; context: { $implicit: e }"></ng-container></td>
+              <td *ngIf="tab === 'history'" class="nowrap"><ng-container *ngIf="e.acknowledgedBy; else noAck">{{ e.acknowledgedBy }}<small class="muted block">{{ e.acknowledgedAt ? fmtStamp(e.acknowledgedAt) : '' }}</small></ng-container><ng-template #noAck>—</ng-template></td>
+              <td class="col-act" (click)="$event.stopPropagation()"><ng-container *ngIf="tab === 'alerts' && e.status === 'New'; else menu"><button type="button" class="btn btn-outline btn-sm" (click)="acknowledge(e)">Acknowledge</button></ng-container><ng-template #menu><ng-container *ngTemplateOutlet="evMenu; context: { $implicit: e }"></ng-container></ng-template></td>
             </tr>
-            <tr *ngIf="!hRows.length"><td colspan="10" class="empty">{{ hLoading ? 'Loading…' : 'No alerts match these filters.' }}</td></tr>
+            <tr *ngIf="!hRows.length"><td [attr.colspan]="tab === 'history' ? 11 : 10" class="empty">{{ hLoading ? 'Loading…' : tab === 'alerts' ? 'No active alerts. Acknowledged alerts are in Event History.' : 'No alerts match these filters.' }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -467,10 +470,11 @@
   <input class="control control-sm rb-sub" [(ngModel)]="f.workflowName" [disabled]="!f.workflow" [attr.list]="idp + '-wfs'" placeholder="e.g. Restricted Zone Incident" aria-label="Workflow" /><datalist [id]="idp + '-wfs'"><option *ngFor="let w of workflows" [value]="w"></option></datalist>
   <div class="rb-sec">Notification channels</div>
   <div class="cb-row">
-    <label class="cb"><input type="checkbox" [(ngModel)]="f.inApp" />In-app</label>
-    <label class="cb"><input type="checkbox" [(ngModel)]="f.email" />Email</label>
+    <label class="cb"><input type="checkbox" [(ngModel)]="f.inApp" />In-app (bell + pop-up)</label>
+    <label class="cb" [class.is-disabled]="!emailConfigured" [attr.title]="emailConfigured ? null : 'Email is not configured on this server (set the Smtp__* keys). Nothing is sent until then.'"><input type="checkbox" [(ngModel)]="f.email" [disabled]="!emailConfigured" />Email<small *ngIf="!emailConfigured" class="muted"> — Email not configured</small></label>
     <label class="cb"><input type="checkbox" [(ngModel)]="f.push" />Desktop (push)</label>
   </div>
+  <label class="cb"><input type="checkbox" [(ngModel)]="f.notifySound" />Play sound</label>
   <ng-container *ngIf="f.push">
     <div class="rb-grid">
       <label class="rb-label" [attr.for]="idp + '-every'">Notify every</label>
@@ -478,7 +482,6 @@
       <label class="rb-label" [attr.for]="idp + '-rep'">Repeat</label>
       <select class="control control-sm" [id]="idp + '-rep'" [(ngModel)]="f.notifyRepeat"><option *ngFor="let o of notifyRepeat" [ngValue]="o.value">{{ o.label }}</option></select>
     </div>
-    <label class="cb"><input type="checkbox" [(ngModel)]="f.notifySound" />Play notification sound</label>
     <div class="desk-row" [ngSwitch]="desktop.state">
       <span *ngSwitchCase="'enabled'" class="desk-ok">Desktop notifications are on for this browser.</span>
       <span *ngSwitchCase="'denied'" class="desk-warn">Notifications are blocked for this site. Allow them in the browser's site settings.</span>

@@ -1047,3 +1047,10 @@
     display: none;
   }
 }
+
+.notification-item .notification-body { flex: 1; }
+.notification-item .mark-read-btn { align-self: center; flex-shrink: 0; white-space: nowrap; }
+.notification-item .mark-read-btn:hover { text-decoration: underline; }
+.notifications-count { font-weight: 500; color: #64748b; font-size: 12px; }
+.notifications-footer { padding: 8px 16px; text-align: center; border-top: 1px solid #ede9fe; }
+.notifications-footer .mark-read-btn { font-size: 13px; }

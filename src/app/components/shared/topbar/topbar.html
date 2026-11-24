@@ -173,25 +173,21 @@
   (click)="$event.stopPropagation()"
 >
   <div class="notifications-header">
-    <strong>Notifications</strong>
-    <button type="button" class="mark-read-btn" (click)="markAllNotificationsRead()">Mark all read</button>
+    <strong>Alerts<span class="notifications-count" *ngIf="unreadNotificationCount > 0"> · {{ unreadNotificationCount }} unacknowledged</span></strong>
+    <button type="button" class="mark-read-btn" *ngIf="unreadNotificationCount > 0" [disabled]="alertFeed.busy" (click)="acknowledgeAllAlerts()">Acknowledge all</button>
   </div>
   <div class="notifications-list">
-    <button
-      type="button"
-      class="notification-item"
-      *ngFor="let n of notifications"
-      [class.unread]="!n.read"
-      (click)="openNotification(n)"
-    >
-      <span class="notification-dot" [attr.data-level]="n.level"></span>
+    <div class="notification-item unread" *ngFor="let a of bellAlerts">
+      <span class="notification-dot" [attr.data-level]="sevOf(a)"></span>
       <span class="notification-body">
-        <span class="notification-message">{{ n.message }}</span>
-        <span class="notification-time">{{ n.timestamp }}</span>
+        <span class="notification-message"><b>{{ a.severity }}</b> · {{ a.assetName }}</span>
+        <span class="notification-time">{{ a.eventType }}<ng-container *ngIf="a.zone"> · {{ a.zone }}</ng-container> · {{ alertTime(a) }}</span>
       </span>
-    </button>
-    <div class="notifications-empty" *ngIf="notifications.length === 0">You're all caught up.</div>
+      <button type="button" class="mark-read-btn" (click)="acknowledgeAlert(a)">Acknowledge</button>
+    </div>
+    <div class="notifications-empty" *ngIf="bellAlerts.length === 0">No unacknowledged alerts.</div>
   </div>
+  <div class="notifications-footer"><button type="button" class="mark-read-btn" (click)="viewAllAlerts()">View all</button></div>
   <div class="notifications-desktop" [ngSwitch]="desktopAlerts.state">
     <span *ngSwitchCase="'enabled'">Desktop notifications are on for this browser.</span>
     <span *ngSwitchCase="'denied'">Desktop notifications are blocked — allow them in the browser's site settings.</span>

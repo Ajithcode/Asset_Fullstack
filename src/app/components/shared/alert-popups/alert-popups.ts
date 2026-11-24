@@ -1,7 +1,7 @@
 import { Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { DesktopAlertMessage, DesktopAlertsService } from 'shared-ui';
+import { AlertFeedService, DesktopAlertMessage, DesktopAlertsService } from 'shared-ui';
 
 interface Popup {
   alert: DesktopAlertMessage;
@@ -36,7 +36,7 @@ interface Popup {
           <footer class="ap-actions">
             <button type="button" class="ap-link" (click)="open(p)">View</button>
             <span class="ap-grow"></span>
-            <button type="button" class="ap-btn ap-btn--ghost" [disabled]="!!p.busy" (click)="act(p, 'remind')">{{ p.busy === 'remind' ? 'Saving…' : 'Remind me' }}</button>
+            @if (p.alert.actionToken) { <button type="button" class="ap-btn ap-btn--ghost" [disabled]="!!p.busy" (click)="act(p, 'remind')">{{ p.busy === 'remind' ? 'Saving…' : 'Remind me' }}</button> }
             <button type="button" class="ap-btn" [disabled]="!!p.busy" (click)="act(p, 'acknowledge')">{{ p.busy === 'acknowledge' ? 'Saving…' : 'Acknowledge' }}</button>
           </footer>
         </section>
@@ -74,6 +74,7 @@ interface Popup {
 })
 export class AlertPopups {
   private readonly alerts = inject(DesktopAlertsService);
+  private readonly feed = inject(AlertFeedService);
   private readonly router = inject(Router);
   popups: Popup[] = [];
 
@@ -88,7 +89,8 @@ export class AlertPopups {
   async act(p: Popup, action: 'acknowledge' | 'remind'): Promise<void> {
     p.busy = action;
     p.error = '';
-    const ok = await this.alerts.act(p.alert, action);
+    // alerts from the 10 s feed have no push token: acknowledge them through the alert API
+    const ok = p.alert.actionToken ? await this.alerts.act(p.alert, action) : await this.feed.acknowledge({ alertId: p.alert.alertId } as never);
     p.busy = '';
     if (ok) this.close(p);
     else p.error = action === 'acknowledge' ? 'Could not acknowledge the alert. Try again.' : 'Could not set the reminder. Try again.';

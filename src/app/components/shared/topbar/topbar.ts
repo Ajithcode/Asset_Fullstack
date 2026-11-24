@@ -23,9 +23,8 @@ import {
 } from 'lucide-angular';
 import { Router, NavigationEnd, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
-import { AccessService, AuthService, DesktopAlertsService } from 'shared-ui';
+import { AccessService, AlertFeedService, AuthService, DesktopAlertsService, FeedAlert } from 'shared-ui';
 import { environment } from '../../../../environments/environment';
-import { NotificationService, AppNotification } from '../../services/notification.service';
 import { AlertPopups } from '../alert-popups/alert-popups';
 
 type ProfileSection = '' | 'language' | 'site' | 'help';
@@ -192,8 +191,7 @@ export class Topbar {
   constructor(
     private router: Router,
     private elementRef: ElementRef,
-    private auth: AuthService,
-    private notificationService: NotificationService
+    private auth: AuthService
   ) {
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
@@ -201,13 +199,13 @@ export class Topbar {
 
     // Desktop notifications for IoT alerts: service worker + this browser's push subscription; live alerts go to the bell
     this.desktopAlerts.soundEnabled = this.prefs.notifySound;
-    this.desktopAlerts.alerts$.subscribe((a) =>
-      this.notificationService.push(`${a.title}${a.body ? ' — ' + a.body : ''}`, a.severity === 'Critical' || a.severity === 'High' ? 'error' : 'warning', '/tracking-iot/geofence-alerts')
-    );
     void this.desktopAlerts.init();
+    // The bell: unacknowledged alerts from the Tracking alert feed (polled every 10 s)
+    this.alertFeed.start();
   }
 
   readonly desktopAlerts = inject(DesktopAlertsService);
+  readonly alertFeed = inject(AlertFeedService);
 
   enableDesktopAlerts(): void {
     void this.desktopAlerts.enable().then((ok) =>
@@ -215,12 +213,33 @@ export class Topbar {
     );
   }
 
-  get notifications(): AppNotification[] {
-    return this.notificationService.getAll();
+  get unreadNotificationCount(): number {
+    return this.alertFeed.unacknowledged;
   }
 
-  get unreadNotificationCount(): number {
-    return this.notificationService.unreadCount();
+  get bellAlerts(): FeedAlert[] {
+    return this.alertFeed.latest;
+  }
+
+  sevOf(a: FeedAlert): string {
+    return /critical|high/i.test(a.severity) ? 'error' : /medium|warn/i.test(a.severity) ? 'warning' : 'info';
+  }
+
+  alertTime(a: FeedAlert): string {
+    return new Date(a.raisedAt).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  async acknowledgeAlert(a: FeedAlert): Promise<void> {
+    if (!(await this.alertFeed.acknowledge(a))) this.showToast('Could not acknowledge the alert. Try again.');
+  }
+
+  async acknowledgeAllAlerts(): Promise<void> {
+    if (!(await this.alertFeed.acknowledgeAll())) this.showToast('Could not acknowledge the alerts. Try again.');
+  }
+
+  viewAllAlerts(): void {
+    this.closeNotifications();
+    void this.router.navigate(['/tracking-iot/geofence-alerts'], { queryParams: { tab: 'alerts' } });
   }
 
   toggleNotifications(triggerEl: EventTarget | null): void {
@@ -236,16 +255,6 @@ export class Topbar {
     }
   }
 
-  openNotification(notification: AppNotification): void {
-    this.notificationService.markRead(notification.id);
-    this.isNotificationsOpen = false;
-    this.notificationsFlyoutPosition = null;
-    this.router.navigateByUrl(notification.link);
-  }
-
-  markAllNotificationsRead(): void {
-    this.notificationService.markAllRead();
-  }
 
   /** Name shown in the header chip: the name you set in My Profile, else the name from User Management, else the login name. */
   get displayName(): string {

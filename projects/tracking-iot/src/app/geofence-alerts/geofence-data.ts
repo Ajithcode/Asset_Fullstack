@@ -172,6 +172,9 @@ export interface AlertEvent {
   /** Dwell / stay length, seconds. */
   durationSec?: number | null;
   assignedTo?: string;
+  /** Who acknowledged the alert and when (null until acknowledged). */
+  acknowledgedBy?: string;
+  acknowledgedAt?: Date;
   escalatedTo?: string;
   deviceId?: string;
   site?: string;

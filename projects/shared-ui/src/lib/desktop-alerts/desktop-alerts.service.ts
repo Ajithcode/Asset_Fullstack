@@ -43,6 +43,16 @@ export class DesktopAlertsService {
   /** Play the in-app sound (the shell turns it off with the user's "Notification sound" preference). */
   soundEnabled = true;
 
+  private readonly handled = new Set<string>();
+
+  /** False when this alert (and reminder number) was already shown by the alert feed or the service worker. */
+  markHandled(alertId: string, number: number): boolean {
+    const key = `${alertId}#${number}`;
+    if (this.handled.has(key)) return false;
+    this.handled.add(key);
+    return true;
+  }
+
   get supported(): boolean {
     return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   }
@@ -54,6 +64,8 @@ export class DesktopAlertsService {
     navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
       const data = event.data as DesktopAlertMessage | undefined;
       if (data?.type !== 'iot-alert') return;
+      // the 10 s alert feed may have shown this alert already (first notification only; reminders always show)
+      if (!this.markHandled(data.alertId, data.number)) return;
       this.zone.run(() => this.alerts$.next(data));
       if (data.sound && this.soundEnabled) this.playSound();
     });
