@@ -189,22 +189,50 @@ public sealed class AssetMovementReportRepository : IAssetMovementReportReposito
             .ToListAsync(cancellationToken);
 
         var assets = new Dictionary<string, TaggedAsset>(StringComparer.OrdinalIgnoreCase);
+        var byRegistration = new Dictionary<string, TaggedAsset>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
         {
             var basic = Sub(row, "basic_information");
             var tag = Text(basic, "asset_tag");
-            if (tag is null)
-            {
-                continue;
-            }
-
             var classification = Sub(row, "classification");
-            assets.TryAdd(tag, new TaggedAsset(
+            var asset = new TaggedAsset(
                 row["_id"].ToString(),
                 Text(row, "asset_registration_id"),
                 Text(basic, "asset_name"),
                 Text(classification, "category"),
-                Text(classification, "sub_category")));
+                Text(classification, "sub_category"));
+            byRegistration[asset.RegistrationId ?? string.Empty] = asset;
+            if (tag is not null)
+            {
+                byRegistration[tag] = asset;
+                assets.TryAdd(tag, asset);
+            }
+        }
+
+        // Tags linked in Tag Management (TrackingTag.asset_registration_id) are matched too: the network server writes the
+        // tag id (lower case, no separators) and the asset's own asset_tag is usually something else.
+        var links = await _database.GetCollection<BsonDocument>("TrackingTag")
+            .Find(new BsonDocument { { "is_deleted", new BsonDocument("$ne", true) }, { "asset_registration_id", new BsonDocument("$type", "string") } })
+            .Project(new BsonDocument { { "tag_id", 1 }, { "value", 1 }, { "asset_registration_id", 1 } })
+            .ToListAsync(cancellationToken);
+        foreach (var link in links)
+        {
+            var key = Text(link, "asset_registration_id");
+            if (key is null || !byRegistration.TryGetValue(key, out var linked))
+            {
+                continue;
+            }
+
+            foreach (var id in new[] { Text(link, "tag_id"), Text(link, "value") })
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                {
+                    continue;
+                }
+
+                assets.TryAdd(id.Trim(), linked);
+                assets.TryAdd(id.Trim().ToLowerInvariant().Replace(":", string.Empty).Replace("-", string.Empty).Replace(" ", string.Empty), linked);
+            }
         }
 
         return assets;
