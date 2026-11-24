@@ -29,6 +29,8 @@ export interface AdminUser {
   created: string;
   invitedAt: string | null;
   modules: string[];
+  /** Sign-in account id in the UserAccount service (password reset); null when the user has no password yet. */
+  loginAccountId?: string | null;
 }
 
 export interface UserRole {

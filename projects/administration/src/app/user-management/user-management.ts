@@ -386,15 +386,67 @@ export class UserManagementPage extends AdminPage {
     });
   }
 
-  // DEMO MODE: the reset link is sent by the identity service; admins never see or type passwords
+  /* ===== Password reset (no email service: the admin sets a password or gets a temporary one to hand over) ===== */
+
+  resetFor: AdminUser | null = null;
+  reset = { mode: 'generate' as 'generate' | 'set', password: '', confirm: '', error: '', saving: false, temporary: '' };
+
   resetPassword(u: AdminUser): void {
-    this.ask({
-      title: 'Reset password?',
-      message: `${u.name} will get an email at ${u.email} with a link to choose a new password. Current sessions are signed out.`,
-      confirmLabel: 'Send Reset Link',
-      danger: false,
-      run: () => this.notify(`A password reset link was sent to ${u.email}.`)
+    this.menuFor = null;
+    if (!u.loginAccountId) {
+      this.notify(`${u.name} has no sign-in account yet. Set a password with Edit user.`, 'error');
+      return;
+    }
+    this.resetFor = u;
+    this.reset = { mode: 'generate', password: '', confirm: '', error: '', saving: false, temporary: '' };
+  }
+
+  closeReset(): void {
+    if (!this.reset.saving) this.resetFor = null;
+  }
+
+  confirmReset(): void {
+    const u = this.resetFor;
+    if (!u || this.reset.saving) return;
+    const r = this.reset;
+    if (r.mode === 'set') {
+      if (r.password.length < 8 || !/\p{L}/u.test(r.password) || !/\d/.test(r.password)) {
+        r.error = 'Use at least 8 characters with letters and numbers.';
+        return;
+      }
+      if (r.password !== r.confirm) {
+        r.error = 'The passwords do not match.';
+        return;
+      }
+    }
+    r.error = '';
+    r.saving = true;
+    this.service.resetPassword(u, r.mode === 'set' ? r.password : undefined).subscribe({
+      next: (res) => {
+        r.saving = false;
+        r.password = r.confirm = '';
+        const signedOut = res.sessionsEnded ? ` ${res.sessionsEnded} session${res.sessionsEnded === 1 ? '' : 's'} signed out.` : '';
+        if (res.temporaryPassword) {
+          // Shown once in the dialog; closing it forgets the password
+          r.temporary = res.temporaryPassword;
+          this.notify(`Temporary password generated for ${u.name}.${signedOut}`, 'success');
+        } else {
+          this.resetFor = null;
+          this.notify(`New password set for ${u.name}.${signedOut}`, 'success');
+        }
+      },
+      error: (err: unknown) => {
+        r.saving = false;
+        r.error = apiErrorMessage(err, 'The password could not be reset.');
+      }
     });
+  }
+
+  copyTemporary(): void {
+    navigator.clipboard?.writeText(this.reset.temporary).then(
+      () => this.notify('Temporary password copied.', 'success'),
+      () => this.notify('Copy failed. Select the password and copy it.', 'error')
+    );
   }
 
   /** Row action: open the user in the details drawer for editing */
