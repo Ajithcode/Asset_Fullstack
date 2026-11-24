@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:asset360_mobile/data/api/api_config.dart' show apiMode;
+import 'package:asset360_mobile/data/repositories/alert_feed_repository.dart';
 import 'package:asset360_mobile/data/repositories/settings_repository.dart';
 import 'package:asset360_mobile/app/router/app_router.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
@@ -33,6 +35,8 @@ class _Asset360AppState extends ConsumerState<Asset360App> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
+    // In-app alerts: polling follows the session (starts at sign-in, stops at logout / server switch).
+    if (apiMode) ref.watch(alertFeedProvider.select((_) => 0));
     final mode = ref.watch(appSettingsProvider.select((s) => s.themeMode));
     final platformDark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
     final dark = mode == ThemeMode.dark || (mode == ThemeMode.system && platformDark);

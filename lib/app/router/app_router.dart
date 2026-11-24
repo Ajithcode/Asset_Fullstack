@@ -49,6 +49,7 @@ import 'package:asset360_mobile/features/work/maintenance/work_order_screen.dart
 import 'package:asset360_mobile/features/more/account/admin_screen.dart';
 import 'package:asset360_mobile/features/more/alerts/alert_detail_screen.dart';
 import 'package:asset360_mobile/features/more/alerts/alerts_screen.dart';
+import 'package:asset360_mobile/features/more/alerts/live_alerts_screen.dart';
 import 'package:asset360_mobile/features/more/alerts/notifications_screen.dart';
 import 'package:asset360_mobile/data/models/audit.dart';
 import 'package:asset360_mobile/features/work/audit/asset_audit_screen.dart';
@@ -225,7 +226,9 @@ CustomTransitionPage<void> _fade(GoRouterState state, Widget child) => CustomTra
 List<RouteBase> _shared() => [
   GoRoute(
     path: Routes.notificationsSegment,
-    builder: (_, _) => const NotificationsScreen(),
+    // API mode: the in-app alert feed (docs/api/MOBILE-ALERTS.md); `?alert=` = a notification was tapped.
+    builder: (_, state) =>
+        apiMode ? LiveAlertsScreen(alertId: state.uri.queryParameters['alert']) : const NotificationsScreen(),
     routes: [GoRoute(path: 'settings', builder: (_, _) => const NotificationSettingsScreen())],
   ),
   GoRoute(path: Routes.profileSegment, builder: (_, _) => const ProfileScreen()),

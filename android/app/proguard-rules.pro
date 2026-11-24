@@ -17,3 +17,7 @@
 -keep class com.mr.flutter.plugin.filepicker.** { *; }
 -keep class dev.fluttercommunity.plus.** { *; }
 -keep class dev.flutter.pigeon.** { *; }
+
+# Alert notifications + the alert monitoring foreground service.
+-keep class com.pravera.flutter_foreground_task.** { *; }
+-keep class com.dexterous.flutterlocalnotifications.** { *; }

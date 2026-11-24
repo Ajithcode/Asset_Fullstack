@@ -166,6 +166,9 @@ Defined in code but **not called**: `/api/administration/maps/settings` (`mapSet
 | R | GET | `/api/iot-events/timeline` | `days` (7 / 30 / 90) | Tracking → Sensors tab + Asset Tracking (IoT events card) |
 | R | GET | `/api/geofences` | – | Tracking → Live Map / Geofencing tab |
 | R | GET | `/api/iot-alerts` | `days` (Tracking alerts screen, Live Map tree uses 7) or `assetRegistrationId` + `limit=50` (Asset Tracking) | Tracking → Alerts screen, Live Map location tree, Asset Tracking alerts |
+| R | GET | `/api/alerts/feed` | first call `status=Open&limit=100`; then `since=<previous serverTime>&limit=200` | In-app alerts (docs/api/MOBILE-ALERTS.md): every 10 s while signed in (Android foreground service); bell badge = `unacknowledged`, Alerts list, local notifications |
+| W | POST | `/api/alerts/{alertId}/acknowledge` | – | Alerts list → Acknowledge |
+| W | POST | `/api/alerts/acknowledge-all` | – | Alerts list → Acknowledge all (asks first) |
 | R | GET | `/api/iot-alerts/count` | – | Tracking hub alert counter (poll every 5 s) |
 | R | GET | `/api/real-time-location/overview` | `siteId`, `floorPlanId` (the plan shown) when set | Real-Time Location (Live Map / Geofencing tabs; every 30 s while visible; alerts, confidence, expected location, gateways); without `floorPlanId`: Locate Asset list, View on Map, More Actions "Locate" |
 | R | GET | `/api/real-time-location/tags` | `minutes=1440`, `siteId`, `floorPlanId` when set | Live Map: first tag list on open, then every 10 s only while the tags/live socket is down ("Polling") |

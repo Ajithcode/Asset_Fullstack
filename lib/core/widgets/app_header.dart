@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/theme/app_theme.dart';
+import 'package:asset360_mobile/data/api/api_config.dart' show apiMode;
 import 'package:asset360_mobile/data/repositories/alerts_repository.dart';
 import 'package:asset360_mobile/data/repositories/session_repository.dart';
 import 'package:asset360_mobile/core/session_actions.dart';
@@ -212,11 +213,11 @@ class NotificationBell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(unreadNotificationCountProvider);
     return IconButton(
-      tooltip: 'Notifications',
+      tooltip: apiMode ? 'Alerts' : 'Notifications',
       onPressed: () {
         final path = GoRouterState.of(context).uri.path;
         if (path.endsWith('/${Routes.notificationsSegment}')) {
-          context.showSnack('You are already viewing Notifications');
+          context.showSnack('You are already viewing ${apiMode ? 'Alerts' : 'Notifications'}');
           return;
         }
         context.push(Routes.notificationsFrom(path));

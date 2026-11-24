@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:asset360_mobile/app/licence/licence.dart';
 import 'package:asset360_mobile/core/scanning/hardware_scan_listener.dart';
 import 'package:asset360_mobile/core/widgets/demo_guard.dart';
+import 'package:asset360_mobile/core/widgets/dialogs.dart' show showConfirmDialog;
+import 'package:asset360_mobile/data/repositories/alert_feed_repository.dart';
 import 'package:asset360_mobile/features/more/all_modules.dart';
 import 'package:asset360_mobile/app/theme/app_colors.dart';
 import 'package:asset360_mobile/app/router/routes.dart';
@@ -29,8 +33,66 @@ class MainShell extends ConsumerStatefulWidget {
 /// Bar slot → branch index (the Scan slot has no branch).
 const _branchOfSlot = {0: 0, 1: 1, 3: 2, 4: 3};
 
-class _MainShellState extends ConsumerState<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> with WidgetsBindingObserver {
   bool _modulesOpen = false;
+  bool _asked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Signed in (this shell exists): once the first frame is up, explain and ask for the notification permission.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _askNotifications());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// The app came back to the front: poll the alert feed now and re-read the notification permission.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !ref.exists(alertFeedProvider)) return;
+    final feed = ref.read(alertFeedProvider.notifier);
+    unawaited(feed.pollNow());
+    unawaited(feed.recheckPermission());
+  }
+
+  /// Android 13+: explain why, then show the system dialog. Never blocks: refused = the Alerts list and the badge
+  /// still work (and the Alerts screen offers "Turn on").
+  Future<void> _askNotifications() async {
+    if (_asked || !mounted || !ref.exists(alertFeedProvider)) return;
+    final feed = ref.read(alertFeedProvider.notifier);
+    if (!await feed.shouldAskPermission()) return;
+    final ctx = _branchContext;
+    if (!mounted || ctx == null || !ctx.mounted) return;
+    _asked = true;
+    final ok = await showConfirmDialog(
+      ctx,
+      title: 'Allow alert notifications?',
+      message:
+          'Asset360 shows a notification when a new alert is raised, even while the app is in the background. '
+          'If you say no, alerts still appear in the Alerts list and on the bell.',
+      confirmLabel: 'Allow',
+      cancelLabel: 'Not now',
+    );
+    if (ok) await feed.requestPermission();
+  }
+
+  /// A notification was tapped: open the alert list on that alert.
+  void _openAlert(String? id) {
+    if (id == null) return;
+    ref.read(alertFeedProvider.notifier).consumeFocus();
+    final base = Routes.notificationsFrom(widget.location);
+    final target = '$base?alert=${Uri.encodeQueryComponent(id)}';
+    if (widget.location.split('?').first.endsWith('/${Routes.notificationsSegment}')) {
+      GoRouter.of(context).go(target);
+    } else {
+      GoRouter.of(context).push(target);
+    }
+  }
 
   /// Last location shown in each branch (to reset a branch left on a locked screen).
   final _lastLocation = <int, String>{};
@@ -75,6 +137,10 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String?>(alertFeedProvider.select((s) => s.focusAlertId), (_, id) => _openAlert(id));
+    ref.listen<bool>(alertFeedProvider.select((s) => s.running), (_, on) {
+      if (on) WidgetsBinding.instance.addPostFrameCallback((_) => _askNotifications());
+    });
     _lastLocation[_shell.currentIndex] = widget.location;
     final onHome = _shell.currentIndex == 0;
     final int active;

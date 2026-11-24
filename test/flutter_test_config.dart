@@ -7,6 +7,7 @@ import 'package:asset360_mobile/data/api/api_config.dart';
 import 'package:asset360_mobile/data/api/dashboard/network_status_live.dart';
 import 'package:asset360_mobile/data/db/app_database.dart';
 import 'package:asset360_mobile/data/repositories/dashboard_repository.dart';
+import 'package:asset360_mobile/data/repositories/alert_feed_repository.dart' show AlertFeedNotifier;
 import 'package:asset360_mobile/data/repositories/rtl_repository.dart' show RtlNotifier;
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -37,6 +38,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   LiveDevicesNotifier.debugConnector = (_, _) => IdleLiveSocket();
   // Same for the Live Map's tags/live socket (test/live/rtl_test.dart drives it with its own fake).
   RtlNotifier.debugConnector = (_, _) => IdleLiveSocket();
+  // The in-app alert feed does not poll in tests unless a test turns it on (test/live/alerts_feed_test.dart).
+  AlertFeedNotifier.autoStart = false;
   await testMain();
 }
 

@@ -1,5 +1,8 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
@@ -11,6 +14,8 @@ import 'package:asset360_mobile/data/repositories/server_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Port between the alert foreground service and the app (Android).
+  if (Platform.isAndroid) FlutterForegroundTask.initCommunicationPort();
   // Gallery picks use the system photo picker (no storage permission; backported below Android 13).
   final picker = ImagePickerPlatform.instance;
   if (picker is ImagePickerAndroid) picker.useAndroidPhotoPicker = true;

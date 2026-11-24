@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 resource shrinking must keep the notification icon (@mipmap/ic_launcher) of the alert notifications. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@mipmap/ic_launcher*" />
