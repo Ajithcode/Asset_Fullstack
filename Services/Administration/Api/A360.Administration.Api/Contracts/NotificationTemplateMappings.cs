@@ -30,7 +30,14 @@ internal static class NotificationTemplateMappings
             CreatedAt = DateTime.UtcNow,
             TenantId = FirstNonEmpty(request.TenantId, currentUser?.TenantId),
             ClientId = FirstNonEmpty(request.ClientId, currentUser?.ClientId),
-            IsDeleted = false
+            IsDeleted = false,
+            Subject = Optional(request.Subject),
+            Body = Optional(request.Body),
+            SmsText = Optional(request.SmsText),
+            InAppTitle = Optional(request.InAppTitle),
+            InAppBody = Optional(request.InAppBody),
+            PushTitle = Optional(request.PushTitle),
+            PushBody = Optional(request.PushBody)
         };
     }
 
@@ -53,6 +60,13 @@ internal static class NotificationTemplateMappings
         template.Status = request.Status!.Trim();
         template.UpdatedBy = currentUser?.UserName;
         template.UpdatedAt = DateTime.UtcNow;
+        template.Subject = Optional(request.Subject);
+        template.Body = Optional(request.Body);
+        template.SmsText = Optional(request.SmsText);
+        template.InAppTitle = Optional(request.InAppTitle);
+        template.InAppBody = Optional(request.InAppBody);
+        template.PushTitle = Optional(request.PushTitle);
+        template.PushBody = Optional(request.PushBody);
     }
 
     private static string? Optional(string? value)

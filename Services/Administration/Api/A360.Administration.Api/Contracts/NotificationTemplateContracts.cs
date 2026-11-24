@@ -15,7 +15,14 @@ public sealed record CreateNotificationTemplateRequest(
     string? Status,
     string? CreatedBy,
     string? TenantId,
-    string? ClientId);
+    string? ClientId,
+    string? Subject,
+    string? Body,
+    string? SmsText,
+    string? InAppTitle,
+    string? InAppBody,
+    string? PushTitle,
+    string? PushBody);
 
 // Tenant, client and creator are fixed at creation; the code stays editable but must remain unique in the tenant.
 public sealed record UpdateNotificationTemplateRequest(
@@ -28,7 +35,14 @@ public sealed record UpdateNotificationTemplateRequest(
     string? Priority,
     string? DeliveryTiming,
     string? RetryPolicy,
-    string? Status);
+    string? Status,
+    string? Subject,
+    string? Body,
+    string? SmsText,
+    string? InAppTitle,
+    string? InAppBody,
+    string? PushTitle,
+    string? PushBody);
 
 public sealed record NotificationTemplateResponse(
     string TemplateId,
@@ -47,7 +61,14 @@ public sealed record NotificationTemplateResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt,
     string? TenantId,
-    string? ClientId)
+    string? ClientId,
+    string? Subject,
+    string? Body,
+    string? SmsText,
+    string? InAppTitle,
+    string? InAppBody,
+    string? PushTitle,
+    string? PushBody)
 {
     public static NotificationTemplateResponse FromEntity(NotificationTemplate template)
     {
@@ -68,6 +89,13 @@ public sealed record NotificationTemplateResponse(
             template.UpdatedBy,
             template.UpdatedAt,
             template.TenantId,
-            template.ClientId);
+            template.ClientId,
+            template.Subject,
+            template.Body,
+            template.SmsText,
+            template.InAppTitle,
+            template.InAppBody,
+            template.PushTitle,
+            template.PushBody);
     }
 }

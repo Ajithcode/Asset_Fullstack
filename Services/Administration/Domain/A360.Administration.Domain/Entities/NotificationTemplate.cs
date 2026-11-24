@@ -43,4 +43,26 @@ public sealed class NotificationTemplate : BaseEntity
     // e.g. 3 retries (1hr apart).
     [BsonElement("retry_policy")]
     public string? RetryPolicy { get; set; }
+
+    // Message content; placeholders such as {assetName}, {zone}, {time} are kept as written.
+    [BsonElement("email_subject")]
+    public string? Subject { get; set; }
+
+    [BsonElement("message_body")]
+    public string? Body { get; set; }
+
+    [BsonElement("sms_text")]
+    public string? SmsText { get; set; }
+
+    [BsonElement("in_app_title")]
+    public string? InAppTitle { get; set; }
+
+    [BsonElement("in_app_body")]
+    public string? InAppBody { get; set; }
+
+    [BsonElement("push_title")]
+    public string? PushTitle { get; set; }
+
+    [BsonElement("push_body")]
+    public string? PushBody { get; set; }
 }
