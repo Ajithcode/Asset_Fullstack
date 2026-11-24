@@ -148,14 +148,22 @@ public sealed class MasterDataSeedHostedService : BackgroundService
                 {
                     if (existing.MinScore is null && existing.MaxScore is null)
                     {
-                        await collection.UpdateOneAsync(
-                            Builders<Domain.Entities.Criticality>.Filter.Eq(level => level.Id, existing.Id),
+                        // Only while the level still has no range: a range saved since it was read (by a user, or by
+                        // another instance running this backfill at the same time) is left alone.
+                        var filter = Builders<Domain.Entities.Criticality>.Filter;
+                        var updated = await collection.UpdateOneAsync(
+                            filter.Eq(level => level.Id, existing.Id)
+                                & filter.Eq(level => level.MinScore, null)
+                                & filter.Eq(level => level.MaxScore, null),
                             Builders<Domain.Entities.Criticality>.Update
                                 .Set(level => level.MinScore, range.Min)
                                 .Set(level => level.MaxScore, range.Max)
                                 .Set(level => level.DisplayOrder, existing.DisplayOrder ?? range.Order),
                             cancellationToken: cancellationToken);
-                        _logger.LogInformation("Criticality {Name} ({Code}) got the default score range {Min}-{Max}.", existing.CriticalityName, existing.Code, range.Min, range.Max);
+                        if (updated.ModifiedCount > 0)
+                        {
+                            _logger.LogInformation("Criticality {Name} ({Code}) got the default score range {Min}-{Max}.", existing.CriticalityName, existing.Code, range.Min, range.Max);
+                        }
                     }
 
                     continue;
@@ -192,14 +200,35 @@ public sealed class MasterDataSeedHostedService : BackgroundService
                     Status = "Active",
                     IsDeleted = false
                 };
-                level.Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString();
-                await collection.InsertOneAsync(level, cancellationToken: cancellationToken);
+                // Same id for the same client and level on every instance, so two instances starting together cannot
+                // both add it: the second insert hits the _id unique index and is skipped.
+                level.Id = BackfillLevelId(client.Key, template.CriticalityName);
+                try
+                {
+                    await collection.InsertOneAsync(level, cancellationToken: cancellationToken);
+                }
+                catch (MongoWriteException exception) when (exception.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+                {
+                    continue;
+                }
+
                 _logger.LogInformation("Added the missing criticality level {Name} ({Code}) with score range {Min}-{Max}.", level.CriticalityName, code, range.Min, range.Max);
             }
         }
 
         static bool IsLevel(Domain.Entities.Criticality level, string name) =>
             string.Equals(level.CriticalityName?.Trim(), name, StringComparison.OrdinalIgnoreCase);
+
+        // ObjectId with a fixed timestamp (2026-11-23) and 8 bytes of SHA-256(client | level name).
+        static string BackfillLevelId(string? clientId, string levelName)
+        {
+            var hash = System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes($"criticality-backfill|{clientId}|{levelName.ToLowerInvariant()}"));
+            var bytes = new byte[12];
+            System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(bytes, 1795392000);
+            Array.Copy(hash, 0, bytes, 4, 8);
+            return new MongoDB.Bson.ObjectId(bytes).ToString();
+        }
     }
 
     private async Task SeedAsync(CancellationToken cancellationToken)
