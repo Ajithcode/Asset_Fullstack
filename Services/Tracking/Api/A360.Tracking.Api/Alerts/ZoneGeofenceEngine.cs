@@ -21,6 +21,7 @@ public sealed class ZoneGeofenceEngine(
     IMongoDatabase database,
     MapZoneLookup zoneLookup,
     AlertNotifications notifications,
+    AlertEmailNotifier emailNotifier,
     ISequenceGenerator sequenceGenerator,
     IConfiguration configuration,
     ILogger<ZoneGeofenceEngine> logger) : BackgroundService
@@ -365,6 +366,7 @@ public sealed class ZoneGeofenceEngine(
 
         await Alerts.InsertOneAsync(alert, cancellationToken: ct);
         await notifications.ScheduleAsync(alert, rule, ct);
+        await emailNotifier.SendAsync(alert, rule, ct);
         logger.LogInformation("{AlertId} {EventType}: {Message}", alert.AlertId, eventType, alert.Message);
     }
 

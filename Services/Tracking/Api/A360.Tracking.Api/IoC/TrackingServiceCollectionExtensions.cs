@@ -133,6 +133,7 @@ public static class TrackingServiceCollectionExtensions
         services.AddSingleton<MapZoneLookup>();
         services.AddSingleton<PushSender>();
         services.AddSingleton<AlertNotifications>();
+        services.AddSingleton<AlertEmailNotifier>();
         services.AddHostedService<ZoneGeofenceEngine>();
         services.AddHostedService<AlertNotificationDispatcher>();
         services.AddLocating(configuration);

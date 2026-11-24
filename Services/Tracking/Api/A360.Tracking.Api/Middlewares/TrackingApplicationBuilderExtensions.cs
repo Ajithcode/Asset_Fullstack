@@ -44,6 +44,7 @@ public static class TrackingApplicationBuilderExtensions
         app.MapTrackingTelemetryEndpoints();
         app.MapRealTimeLocationEndpoints();
         app.MapGeofenceAlertsEndpoints();
+        app.MapAlertFeedEndpoints();
         app.MapSensorParameterEndpoints();
         app.MapLocating();
 
