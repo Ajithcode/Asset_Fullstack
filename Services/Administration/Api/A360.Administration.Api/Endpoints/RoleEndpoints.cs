@@ -46,6 +46,7 @@ public static class RoleEndpoints
         }
 
         var oldName = role.RoleName;
+        var before = RoleChangeDescriber.Capture(role);
         request.ApplyTo(role, currentUserAccessor.GetCurrentUser());
 
         if (await repository.RoleCodeExistsAsync(role.RoleCode, role.TenantId, cancellationToken, exceptRoleId: role.RoleId))
@@ -64,7 +65,8 @@ public static class RoleEndpoints
             await userRepository.RenameRoleAsync(oldName, role.RoleName, role.TenantId, cancellationToken);
         }
 
-        await eventLogger.LogAsync(EntityType, role.Id, role.RoleName, EventAction.Updated, cancellationToken);
+        // Only what changed, old → new (permission matrix / module access included), for the System Audit Log
+        await eventLogger.LogDetailedAsync(EntityType, role.Id, role.RoleName, EventAction.Updated, RoleChangeDescriber.Describe(before, role), cancellationToken);
 
         return Results.Ok(RoleResponse.FromEntity(role));
     }
