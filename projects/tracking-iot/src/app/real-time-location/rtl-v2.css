@@ -117,7 +117,6 @@ a.btn { text-decoration: none; }
 
 /* ---- Locate asset › LED / buzzer */
 .loc-modal { max-height: calc(100vh - 40px); }
-.loc-modal--sig { max-width: 440px; width: 100%; }
 .loc-modal .modal-body { overflow-y: auto; }
 .loc-modal .modal-head { justify-content: flex-start; }
 .loc-back { margin-right: 4px; }
@@ -125,29 +124,6 @@ a.btn { text-decoration: none; }
 .loc-signal:hover { background: #fef3c7; color: #92400e; }
 .loc-signal.is-on { background: #f59e0b; color: #fff; border-color: #f59e0b; }
 .locate-list li { gap: 8px; }
-.sig { gap: 10px; }
-.sig-asset { padding: 10px 12px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 14px; }
-.sig-asset small { display: block; margin-top: 2px; color: #64748b; font-size: 12px; }
-.sig-seg { display: flex; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; }
-.sig-seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 0; border: 0; background: #fff; color: #334155; font-weight: 600; cursor: pointer; }
-.sig-seg button + button { border-left: 1px solid #cbd5e1; }
-.sig-seg button.on { background: #ede9fe; color: #5b21b6; }
-.sig-h { display: flex; align-items: center; gap: 6px; margin: 4px 0 6px; font-size: 13px; font-weight: 700; color: #0f172a; }
-.sig-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.sig-box { margin: 0; padding: 0; border: 0; min-width: 0; }
-.sig-box.is-off { opacity: .45; }
-.sig-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
-.sig-f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #475569; }
-.sig-f small { font-size: 11px; color: #94a3b8; }
-.sig-f input[type=range] { width: 100%; accent-color: #6d28d9; }
-.sig-f .control.is-bad { border-color: #dc2626; }
-.sig-run { margin: 2px 0 0; font-size: 13px; color: #475569; }
-.sig-foot { display: flex; justify-content: flex-end; gap: 8px; }
-.sig-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
-.sig-status { margin: 0; font-size: 13px; }
-.sig-status--ok { color: #15803d; }
-.sig-status--bad { color: #dc2626; }
-.sig-status--wait { color: #b45309; }
 .signal-panel { right: 10px; bottom: 12px; display: flex; align-items: center; gap: 10px; width: min(330px, calc(100% - 20px)); padding: 9px 12px; border-radius: 12px;
   background: #fff; border: 1.5px solid #e2e8f0; box-shadow: 0 8px 24px rgba(15, 23, 42, .18); font-size: 12.5px; }
 .signal-panel.is-on { border-color: #fcd34d; }
@@ -156,7 +132,6 @@ a.btn { text-decoration: none; }
 .signal-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #94a3b8; color: #fff; flex: none; }
 .signal-panel.is-on .signal-ic { background: #f59e0b; animation: live-dot 1.2s infinite; }
 .signal-off { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; background: #0f172a; color: #fff; border: 0; font-weight: 600; flex: none; }
-@media (max-width: 520px) { .sig-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Locate asset: multi-select + clear highlight */
 .loc-bar { display: flex; align-items: center; gap: 10px; margin: 8px 0 6px; }
@@ -167,3 +142,51 @@ a.btn { text-decoration: none; }
 .loc-badge { display: inline-flex; flex-direction: column; align-items: flex-end; padding: 2px 8px; border-radius: 8px; background: #fef3c7; color: #92400e; font-size: 11.5px; font-weight: 600; max-width: 190px; text-align: right; }
 .loc-badge small { font-weight: 400; font-size: 10.5px; color: #a16207; white-space: normal; }
 .loc-chk:disabled { opacity: .4; cursor: not-allowed; }
+
+
+/* ---- Locate asset › LED & Buzzer panel: values copied from docs/design/locate_asset_led_buzzer_panel_mockup.html (440px card) */
+.loc-modal--sig { max-width: 440px; width: 100%; padding: 16px 20px; border-radius: 12px; color: #0b0b0b; }
+.loc-modal--sig .modal-head { padding: 0; border: 0; margin-bottom: 12px; gap: 8px; min-height: 0; align-items: center; }
+.loc-modal--sig .modal-head h2 { font-size: 16px; font-weight: 500; line-height: 21px; margin: 0; color: #0b0b0b; }
+.loc-modal--sig .modal-head .loc-back { width: 32px; height: 28px; padding: 4px 8px; margin: 0; border: 1px solid rgba(11, 11, 11, .2); border-radius: 8px; background: transparent; color: #0b0b0b; display: inline-flex; align-items: center; justify-content: center; }
+.loc-modal--sig .modal-head .icon-btn:not(.loc-back) { color: #52514e; }
+.loc-modal--sig .modal-body.sig { padding: 0; display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
+/* never let the flex column squash a block (the mode tabs collapsed to a line on short screens) */
+.sig > * { flex: none; }
+.sig-asset { padding: 10px 12px; margin-bottom: 12px; border-radius: 8px; background: #fcfcfb; border: 0; font-size: 14px; line-height: 21px; color: #0b0b0b; }
+.sig-asset b { font-weight: 500; }
+.sig-asset small { display: block; margin-top: 0; color: #52514e; font-size: 12px; line-height: 18px; }
+.sig-seg { display: flex; gap: 0; border: 1px solid rgba(11, 11, 11, .2); border-radius: 8px; overflow: hidden; }
+.sig-seg button { flex: 1 1 0; min-width: 0; height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border: 1px solid rgba(11, 11, 11, .2); border-radius: 8px; background: transparent; color: #0b0b0b; font: inherit; font-size: 14px; font-weight: 400; cursor: pointer; }
+.sig-seg button.on { background: #e8eff8; color: #184f95; border-color: #184f95; }
+.sig-h { display: flex; align-items: center; gap: 6px; margin: 16px 0 8px; font-size: 13px; font-weight: 500; line-height: 18px; color: #0b0b0b; }
+.sig-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sig-chips .btn { height: 36px; padding: 8px 16px; font-size: 14px; font-weight: 400; line-height: 18px; border-radius: 8px; color: #0b0b0b; background: transparent; border: 1px solid rgba(11, 11, 11, .2); }
+.sig-box { margin: 0; padding: 0; border: 0; min-width: 0; }
+.sig-box > .sig-h { padding: 0; }
+.sig-box.is-off { opacity: .45; }
+.sig-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.sig-f { display: block; font-size: 12px; color: #52514e; }
+.sig-f > span { display: block; font-size: 12px; line-height: 17px; color: #52514e; margin-bottom: 4px; }
+.sig-f .control { width: 100%; box-sizing: border-box; height: 36px; padding: 8px 12px; font-size: 16px; line-height: 20px; color: #0b0b0b; border: 1px solid rgba(11, 11, 11, .1); border-radius: 6px; background-color: #fff; }
+.sig-f small { display: block; margin-top: 3px; font-size: 11px; line-height: 15px; color: #898781; }
+.sig-f small.c-red { color: #b3261e; }
+.sig-f .control.is-bad { border-color: #b3261e; }
+.sig-box > .sig-f { margin-top: 10px; }
+.sig-f input[type=range] { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 4px; padding: 0; margin: 10px 0 8px; border: 0; border-radius: 2px; background: rgba(0, 0, 0, .08); outline: none; }
+.sig-f input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 1px solid rgba(11, 11, 11, .3); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); cursor: pointer; }
+.sig-f input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 1px solid rgba(11, 11, 11, .3); cursor: pointer; }
+.sig-run { margin: 12px 0 4px; font-size: 13px; line-height: 18px; color: #52514e; }
+.sig-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.sig-foot .btn { height: 36px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 400; line-height: 18px; border-radius: 8px; }
+.sig-foot .btn-outline { color: #0b0b0b; background: transparent; border: 1px solid rgba(11, 11, 11, .2); }
+.sig-foot .btn-primary { background: #184f95; border-color: transparent; color: #fff; }
+.sig-foot .btn-primary:disabled { opacity: .6; }
+.sig-status { margin: 10px 0 0; min-height: 18px; font-size: 13px; line-height: 18px; color: #0b0b0b; }
+.sig-status--ok { color: #1f7a3d; }
+.sig-status--bad { color: #b3261e; }
+.sig-status--wait { color: #8a5a00; }
+@media (max-width: 520px) { .sig-grid { grid-template-columns: minmax(0, 1fr); } }
+legend.sig-h { float: none; width: 100%; padding: 0; }
+fieldset.sig-box { margin-top: 16px; }
+fieldset.sig-box > legend.sig-h { margin: 0 0 8px; }
