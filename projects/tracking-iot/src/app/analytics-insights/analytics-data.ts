@@ -110,6 +110,7 @@ export function buildDevices(src: AnalyticsSource, now: number): IotDevice[] {
     if (u.deviceId && !typeByDevice.has(u.deviceId)) typeByDevice.set(u.deviceId, u.assetType);
     if (u.assetRegistrationId && !typeByAsset.has(u.assetRegistrationId)) typeByAsset.set(u.assetRegistrationId, u.assetType);
   }
+  for (const [id, type] of Object.entries(src.deviceAssetTypes ?? {})) if (!typeByDevice.has(id)) typeByDevice.set(id, type);
   const latest = new Map<string, TelemetryReadingDto>();
   const latestVib = new Map<string, number>();
   for (const r of src.readings) {
@@ -236,7 +237,12 @@ export function analyze(src: AnalyticsSource | null, all: IotDevice[], f: Filter
   // ----- telemetry events: the timeline fleet-wide, else readings + location events of the selected devices -----
   let eventsCur: number | null;
   let eventsPrev: number | null = null;
-  if (!filtered) {
+  if (src.eventsFromRtl) {
+    // Real-Time Location events (zone changes) + alerts raised, since the telemetry timeline collections are empty
+    const n = (inPeriod: (day: string) => boolean) => events.filter((e) => inPeriod(dayOf(e.eventTime))).length + alerts.filter((a) => inPeriod(dayOf(a.raisedAt))).length;
+    eventsCur = n(inCur);
+    eventsPrev = null;
+  } else if (!filtered) {
     const sum = (inPeriod: (day: string) => boolean) => src.timeline.points.filter((p) => inPeriod(p.date)).reduce((n, p) => n + p.telemetryData + p.locationUpdates + p.geofenceEvents, 0);
     eventsCur = sum(inCur);
     eventsPrev = prevComplete ? sum(inPrev) : null;

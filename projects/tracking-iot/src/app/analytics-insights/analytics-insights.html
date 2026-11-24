@@ -94,7 +94,7 @@
     <section class="card chart-card" aria-labelledby="ai-conn">
       <div class="chart-head"><h2 id="ai-conn">Device Connectivity Trend <lucide-icon class="info" [img]="icons.Info" [size]="15" title="Devices online, in warning (weak signal / late heartbeat) and offline each day."></lucide-icon></h2>
         <span class="chart-date"><lucide-icon [img]="icons.CalendarDays" [size]="15"></lucide-icon>{{ rangeLabel }}</span></div>
-      <p *ngIf="!conn" class="muted">No connectivity history for this period.</p>
+      <p *ngIf="!conn" class="muted">No data available</p>
       <div class="chart-wrap" (mouseleave)="hoverDay = null" *ngIf="conn as c">
         <svg [attr.viewBox]="'0 0 ' + lw + ' ' + lh" class="chart" role="img" aria-label="Devices online, warning and offline per day">
           <g class="grid"><line *ngFor="let t of c.ticks" [attr.x1]="pad.l" [attr.x2]="lw - pad.r" [attr.y1]="t.y" [attr.y2]="t.y"></line></g>
@@ -157,7 +157,7 @@
             <path class="tel-area" [attr.d]="t.area" [attr.fill]="paramMeta.color"></path>
             <path class="line" [attr.d]="t.d" [attr.stroke]="paramMeta.color"></path>
           </ng-container>
-          <text *ngIf="t.empty" class="axis" [attr.x]="tw / 2" [attr.y]="lh / 2" text-anchor="middle">No {{ paramMeta.label.toLowerCase() }} readings in this selection</text>
+          <text *ngIf="t.empty" class="axis" [attr.x]="tw / 2" [attr.y]="lh / 2" text-anchor="middle">No data available</text>
           <ng-container *ngIf="hoverTel !== null && !t.empty">
             <line class="crosshair" [attr.x1]="t.xs[hoverTel]" [attr.x2]="t.xs[hoverTel]" [attr.y1]="pad.t" [attr.y2]="lh - pad.b"></line>
             <circle class="dot" [attr.cx]="t.xs[hoverTel]" [attr.cy]="t.ys[hoverTel]" r="4" [attr.fill]="paramMeta.color"></circle>
@@ -250,7 +250,7 @@
       <div class="ins">
         <lucide-icon class="ins-ic ins-ic--violet" [img]="icons.TrendingUp" [size]="26"></lucide-icon>
         <p *ngIf="a.highVibration.length; else okVib"><strong>Pump vibration alerts exceed baseline</strong> at {{ a.highVibration.length }} {{ a.highVibration.length === 1 ? 'asset' : 'assets' }}.</p>
-        <ng-template #okVib><p><strong>Pump vibration is within baseline</strong> across this selection.</p></ng-template>
+        <ng-template #okVib><p *ngIf="a.telemetryAvg.vibration !== null; else noVib"><strong>Pump vibration is within baseline</strong> across this selection.</p><ng-template #noVib><p><strong>No vibration data available</strong> for this selection.</p></ng-template></ng-template>
         <button type="button" class="btn btn-outline btn-sm" (click)="openVibration()" [disabled]="!a.highVibration.length">Create Report<lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon></button>
       </div>
     </div>
