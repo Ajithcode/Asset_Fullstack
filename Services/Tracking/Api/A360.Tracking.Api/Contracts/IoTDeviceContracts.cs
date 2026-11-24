@@ -150,7 +150,10 @@ public sealed record IoTDeviceSummaryResponse(
     int NeverReported,
     IReadOnlyDictionary<string, int> ByDeviceType);
 
-/// <summary>A row of the device table.</summary>
+/// <summary>
+/// A row of the device table. Id, serial number, firmware and audit dates are included so pages that list devices
+/// (firmware inventory, replacement queue) do not need a details call per row.
+/// </summary>
 public sealed record IoTDeviceListItemResponse(
     string DeviceId,
     string DeviceName,
@@ -170,7 +173,14 @@ public sealed record IoTDeviceListItemResponse(
     bool LowBattery,
     int? SignalDbm,
     DateTime? LastSeenAt,
-    string Health)
+    string Health,
+    string Id,
+    string? SerialNumber,
+    string? FirmwareVersion,
+    string? PendingFirmwareVersion,
+    DateTime? FirmwareUpdateScheduledAt,
+    DateTime? CreatedAt,
+    DateTime? UpdatedAt)
 {
     public static IoTDeviceListItemResponse From(LiveIoTDevice live) => new(
         live.Device.DeviceId,
@@ -191,7 +201,14 @@ public sealed record IoTDeviceListItemResponse(
         live.LowBattery,
         live.Reading?.Rssi,
         live.LastSeenAt,
-        live.Health);
+        live.Health,
+        live.Device.Id,
+        live.Device.SerialNumber,
+        live.Device.FirmwareVersion,
+        live.Device.PendingFirmwareVersion,
+        live.Device.FirmwareUpdateScheduledAt,
+        live.Device.CreatedAt,
+        live.Device.UpdatedAt);
 }
 
 public sealed record DeviceIdentityResponse(
@@ -204,7 +221,8 @@ public sealed record DeviceIdentityResponse(
     string? Protocol,
     string Connectivity,
     string? FirmwareVersion,
-    string? PendingFirmwareVersion);
+    string? PendingFirmwareVersion,
+    DateTime? FirmwareUpdateScheduledAt = null);
 
 public sealed record DeviceAssociationResponse(
     string? AssetRegistrationId,
@@ -246,7 +264,8 @@ public sealed record IoTDeviceDetailsResponse(
             device.Id,
             new DeviceIdentityResponse(
                 device.DeviceName, device.DeviceId, device.SerialNumber, device.DeviceType, device.Model,
-                live.ModelDisplayName, live.Protocol, device.Connectivity, device.FirmwareVersion, device.PendingFirmwareVersion),
+                live.ModelDisplayName, live.Protocol, device.Connectivity, device.FirmwareVersion, device.PendingFirmwareVersion,
+                device.FirmwareUpdateScheduledAt),
             new DeviceAssociationResponse(
                 device.AssetRegistrationId, device.AssetCode, device.AssetName, live.Gateway, device.SiteId, device.SiteName, live.LastSeenAt),
             new DeviceStatusResponse(

@@ -29,6 +29,22 @@ internal static class LocationMappings
         };
     }
 
+    public static void ApplyTo(this UpdateLocationRequest request, Location location, CurrentUser? currentUser)
+    {
+        location.LocationCode = request.LocationCode!.Trim();
+        location.LocationName = request.LocationName!.Trim();
+        location.LocationType = request.LocationType!.Trim();
+        location.ParentLocationId = string.IsNullOrWhiteSpace(request.ParentLocationId) ? null : request.ParentLocationId.Trim();
+        location.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+        location.Country = request.Country!.Trim();
+        location.City = request.City!.Trim();
+        location.TimeZone = request.TimeZone!.Trim();
+        location.LocationManager = request.LocationManager!.Trim();
+        location.Status = request.Status!.Trim();
+        location.UpdatedBy = currentUser?.UserName;
+        location.UpdatedAt = DateTime.UtcNow;
+    }
+
     private static string? FirstNonEmpty(string? requested, string? fallback)
     {
         return string.IsNullOrWhiteSpace(requested) ? fallback : requested.Trim();

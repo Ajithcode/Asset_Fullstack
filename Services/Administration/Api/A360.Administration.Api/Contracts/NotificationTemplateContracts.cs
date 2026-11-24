@@ -17,6 +17,19 @@ public sealed record CreateNotificationTemplateRequest(
     string? TenantId,
     string? ClientId);
 
+// Tenant, client and creator are fixed at creation; the code stays editable but must remain unique in the tenant.
+public sealed record UpdateNotificationTemplateRequest(
+    string? TemplateName,
+    string? TemplateCode,
+    string? Category,
+    string? TriggerEvent,
+    List<string>? DeliveryChannels,
+    string? Language,
+    string? Priority,
+    string? DeliveryTiming,
+    string? RetryPolicy,
+    string? Status);
+
 public sealed record NotificationTemplateResponse(
     string TemplateId,
     string TemplateName,

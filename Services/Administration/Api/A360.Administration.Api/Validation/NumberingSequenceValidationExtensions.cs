@@ -14,72 +14,119 @@ public static partial class NumberingSequenceValidationExtensions
 
     public static Dictionary<string, string[]> Validate(this CreateNumberingSequenceRequest request)
     {
+        return ValidateSequence(
+            request.SequenceName,
+            request.SequenceCode,
+            request.Module,
+            request.RecordType,
+            request.Prefix,
+            request.Separator,
+            request.NumberLength,
+            request.StartNumber,
+            request.IncrementBy,
+            request.ResetFrequency,
+            request.Scope,
+            request.Status);
+    }
+
+    public static Dictionary<string, string[]> Validate(this UpdateNumberingSequenceRequest request)
+    {
+        return ValidateSequence(
+            request.SequenceName,
+            request.SequenceCode,
+            request.Module,
+            request.RecordType,
+            request.Prefix,
+            request.Separator,
+            request.NumberLength,
+            request.StartNumber,
+            request.IncrementBy,
+            request.ResetFrequency,
+            request.Scope,
+            request.Status);
+    }
+
+    // Shared by the create and update requests so both report identical error keys.
+    private static Dictionary<string, string[]> ValidateSequence(
+        string? sequenceName,
+        string? sequenceCode,
+        string? module,
+        string? recordType,
+        string? prefix,
+        string? separator,
+        int? numberLength,
+        long? startNumber,
+        int? incrementBy,
+        string? resetFrequency,
+        string? scope,
+        string? status)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        Require(errors, nameof(request.SequenceName), request.SequenceName);
-        Require(errors, nameof(request.SequenceCode), request.SequenceCode);
-        Require(errors, nameof(request.Module), request.Module);
-        Require(errors, nameof(request.RecordType), request.RecordType);
-        Require(errors, nameof(request.Prefix), request.Prefix);
-        Require(errors, nameof(request.ResetFrequency), request.ResetFrequency);
-        Require(errors, nameof(request.Scope), request.Scope);
-        Require(errors, nameof(request.Status), request.Status);
+        Require(errors, "SequenceName", sequenceName);
+        Require(errors, "SequenceCode", sequenceCode);
+        Require(errors, "Module", module);
+        Require(errors, "RecordType", recordType);
+        Require(errors, "Prefix", prefix);
+        Require(errors, "ResetFrequency", resetFrequency);
+        Require(errors, "Scope", scope);
+        Require(errors, "Status", status);
 
-        if (!string.IsNullOrWhiteSpace(request.SequenceCode) && !CodePattern().IsMatch(request.SequenceCode.Trim()))
+        if (!string.IsNullOrWhiteSpace(sequenceCode) && !CodePattern().IsMatch(sequenceCode.Trim()))
         {
-            errors[nameof(request.SequenceCode)] = ["SequenceCode may only contain letters, digits, hyphens and underscores"];
+            errors["SequenceCode"] = ["SequenceCode may only contain letters, digits, hyphens and underscores"];
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Prefix) && !PrefixPattern().IsMatch(request.Prefix.Trim()))
+        if (!string.IsNullOrWhiteSpace(prefix) && !PrefixPattern().IsMatch(prefix.Trim()))
         {
-            errors[nameof(request.Prefix)] = ["Prefix may only contain letters and digits"];
+            errors["Prefix"] = ["Prefix may only contain letters and digits"];
         }
 
         // Letters or digits in the separator would make the generated numbers ambiguous.
-        if (string.IsNullOrEmpty(request.Separator))
+        if (string.IsNullOrEmpty(separator))
         {
-            errors[nameof(request.Separator)] = ["Separator is required"];
+            errors["Separator"] = ["Separator is required"];
         }
-        else if (request.Separator.Length > MaxSeparatorLength || request.Separator.Any(char.IsLetterOrDigit))
+        else if (separator.Length > MaxSeparatorLength || separator.Any(char.IsLetterOrDigit))
         {
-            errors[nameof(request.Separator)] = [$"Separator must be up to {MaxSeparatorLength} non-alphanumeric characters, e.g. \"-\""];
-        }
-
-        if (request.NumberLength is null)
-        {
-            errors[nameof(request.NumberLength)] = ["NumberLength is required"];
-        }
-        else if (request.NumberLength is < 1 or > MaxNumberLength)
-        {
-            errors[nameof(request.NumberLength)] = [$"NumberLength must be between 1 and {MaxNumberLength}"];
+            errors["Separator"] = [$"Separator must be up to {MaxSeparatorLength} non-alphanumeric characters, e.g. \"-\""];
         }
 
-        if (request.StartNumber is null)
+        if (numberLength is null)
         {
-            errors[nameof(request.StartNumber)] = ["StartNumber is required"];
+            errors["NumberLength"] = ["NumberLength is required"];
         }
-        else if (request.StartNumber < 0)
+        else if (numberLength is < 1 or > MaxNumberLength)
         {
-            errors[nameof(request.StartNumber)] = ["StartNumber must be zero or greater"];
-        }
-        else if (request.NumberLength is >= 1 and <= MaxNumberLength
-            && request.StartNumber.Value.ToString().Length > request.NumberLength)
-        {
-            errors[nameof(request.StartNumber)] = ["StartNumber has more digits than NumberLength allows"];
+            errors["NumberLength"] = [$"NumberLength must be between 1 and {MaxNumberLength}"];
         }
 
-        if (request.IncrementBy is null)
+        if (startNumber is null)
         {
-            errors[nameof(request.IncrementBy)] = ["IncrementBy is required"];
+            errors["StartNumber"] = ["StartNumber is required"];
         }
-        else if (request.IncrementBy < 1)
+        else if (startNumber < 0)
         {
-            errors[nameof(request.IncrementBy)] = ["IncrementBy must be 1 or greater"];
+            errors["StartNumber"] = ["StartNumber must be zero or greater"];
+        }
+        else if (numberLength is >= 1 and <= MaxNumberLength
+            && startNumber.Value.ToString().Length > numberLength)
+        {
+            errors["StartNumber"] = ["StartNumber has more digits than NumberLength allows"];
         }
 
-        AllowOnly(errors, nameof(request.ResetFrequency), request.ResetFrequency, AllowedResetFrequencies);
-        AllowOnly(errors, nameof(request.Scope), request.Scope, AllowedScopes);
-        AllowOnly(errors, nameof(request.Status), request.Status, AllowedStatuses);
+        if (incrementBy is null)
+        {
+            errors["IncrementBy"] = ["IncrementBy is required"];
+        }
+        else if (incrementBy < 1)
+        {
+            errors["IncrementBy"] = ["IncrementBy must be 1 or greater"];
+        }
+
+        AllowOnly(errors, "ResetFrequency", resetFrequency, AllowedResetFrequencies);
+        AllowOnly(errors, "Scope", scope, AllowedScopes);
+        AllowOnly(errors, "Status", status, AllowedStatuses);
 
         return errors;
     }

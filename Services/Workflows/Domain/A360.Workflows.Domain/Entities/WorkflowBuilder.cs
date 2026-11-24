@@ -20,4 +20,8 @@ public class WorkflowBuilder : BaseEntity
 
     [BsonElement("start_from_template")]
     public bool StartFromTemplate { get; set; }
+
+    // The builder's design as JSON (code, owner, description, canvas nodes and edges, published versions).
+    [BsonElement("design")]
+    public string? Design { get; set; }
 }
