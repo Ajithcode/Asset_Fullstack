@@ -16,6 +16,12 @@ public interface IUserRepository : IMongoRepository<User>
     /// <summary>The user (not deleted) holding the invitation whose token hashes to <paramref name="tokenHash"/>.</summary>
     Task<User?> GetByInviteTokenHashAsync(string tokenHash, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Atomically uses up the invitation: clears the token only while the user still holds that unexpired token.
+    /// False when another request already used it (or it expired), so each token is accepted once.
+    /// </summary>
+    Task<bool> ConsumeInviteTokenAsync(string id, string tokenHash, CancellationToken cancellationToken = default);
+
     /// <summary>Number of users (not deleted) with the role as primary or secondary role.</summary>
     Task<long> CountWithRoleAsync(string roleName, string? tenantId, CancellationToken cancellationToken = default);
 

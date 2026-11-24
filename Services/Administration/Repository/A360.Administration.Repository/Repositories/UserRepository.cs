@@ -104,6 +104,20 @@ public sealed class UserRepository : MongoRepository<User>, IUserRepository, IMo
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> ConsumeInviteTokenAsync(string id, string tokenHash, CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<User>.Filter;
+        var filter = builder.Eq(user => user.Id, id)
+            & builder.Eq(user => user.InviteTokenHash, tokenHash)
+            & builder.Gt(user => user.InviteExpiresAt, DateTime.UtcNow)
+            & builder.Eq(user => user.IsDeleted, false);
+        var update = Builders<User>.Update
+            .Set(user => user.InviteTokenHash, null)
+            .Set(user => user.InviteExpiresAt, null);
+        var result = await Collection.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
+        return result.ModifiedCount == 1;
+    }
+
     public Task<bool> EmailExistsAsync(string email, string? tenantId, CancellationToken cancellationToken = default, string? exceptUserId = null)
     {
         return ExistsAsync(Builders<User>.Filter.Eq(user => user.Email, email), tenantId, exceptUserId, cancellationToken);

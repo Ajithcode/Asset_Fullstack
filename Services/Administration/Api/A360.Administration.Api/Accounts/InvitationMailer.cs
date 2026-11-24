@@ -44,9 +44,10 @@ public sealed class InvitationMailer(IConfiguration configuration, ILogger<Invit
         var missing = MissingSettings();
         if (missing.Count > 0)
         {
+            // The link carries the one-time token, so it is never written to the log; the administrator gets it in the response.
             logger.LogWarning(
-                "SMTP is not configured (missing: {Missing}); invitation e-mail not sent.\nTo: {To}\nSubject: {Subject}\nInvite link: {Link}",
-                string.Join(", ", missing), user.Email, subject, link);
+                "SMTP is not configured (missing: {Missing}); invitation e-mail to {To} not sent.",
+                string.Join(", ", missing), user.Email);
             return new InvitationMailResult(false, "E-mail is not set up on this server.", missing);
         }
 
@@ -67,7 +68,6 @@ public sealed class InvitationMailer(IConfiguration configuration, ILogger<Invit
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Invitation e-mail to {To} failed.", user.Email);
-            logger.LogWarning("Invite link for {To} (e-mail failed): {Link}", user.Email, link);
             return new InvitationMailResult(false, "The e-mail server refused or could not be reached.", []);
         }
     }

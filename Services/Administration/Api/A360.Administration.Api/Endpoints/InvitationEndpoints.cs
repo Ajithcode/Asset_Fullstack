@@ -126,6 +126,14 @@ public static class InvitationEndpoints
             return Results.BadRequest(new { message = login.Error });
         }
 
+        // Use the token up atomically: when two requests race with the same link only one wins, and the loser removes
+        // the sign-in account it just created.
+        if (!await repository.ConsumeInviteTokenAsync(user.Id, user.InviteTokenHash!, cancellationToken))
+        {
+            await loginAccounts.DeleteAsync(login.AccountId!, CancellationToken.None);
+            return Results.NotFound(new { message = "This invitation link is invalid or has expired. Ask your administrator to send a new one." });
+        }
+
         user.LoginAccountId = login.AccountId;
         user.InviteTokenHash = null;
         user.InviteExpiresAt = null;
