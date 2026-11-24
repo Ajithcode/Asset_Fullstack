@@ -85,7 +85,7 @@ export const RESET_RULES: ResetRule[] = ['Never', 'Yearly', 'Monthly'];
 export const RECORD_TYPES = [
   'Physical Asset', 'Work Order', 'Inspection', 'Inventory Item', 'Purchase Request', 'Vendor', 'User',
   'Transfer', 'Checkout', 'Disposal', 'Gate Pass', 'Visitor', 'Audit', 'Incident', 'Purchase Order',
-  'Contract', 'Warranty Claim', 'Invoice', 'Depreciation Run', 'Report', 'Device', 'Tag', 'Location', 'Department'
+  'Contract', 'Warranty Claim', 'Invoice', 'Depreciation Run', 'Report', 'Device', 'Tag', 'Alert', 'Location', 'Department'
 ];
 
 // Icon given to a new sequence, by module
