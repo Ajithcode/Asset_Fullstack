@@ -117,6 +117,7 @@ a.btn { text-decoration: none; }
 
 /* ---- Locate asset › LED / buzzer */
 .loc-modal { max-height: calc(100vh - 40px); }
+.loc-modal--sig { max-width: 440px; width: 100%; }
 .loc-modal .modal-body { overflow-y: auto; }
 .loc-modal .modal-head { justify-content: flex-start; }
 .loc-back { margin-right: 4px; }

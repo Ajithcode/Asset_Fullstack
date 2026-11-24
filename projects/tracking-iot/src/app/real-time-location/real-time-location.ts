@@ -777,7 +777,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
         this.ctlWaitTimer = setTimeout(() => this.onCtlMessage({ type: 'commandStatus', command: m.command, status: 'timeout', message: 'No answer from the gateway in time. Check that the tag is near the gateway and try again.' }), 70_000);
         if (m.command === 'off') break;
         if (c) {
-          c.status = `Sent to gateway ${m.gatewayid}. Waiting for the tag (up to 60 s)…`;
+          c.status = `Sent to gateway ${m.gatewayid}. Waiting for the tag`;
           c.statusKind = 'wait';
         }
         if (this.signalling) {
@@ -790,7 +790,9 @@ export class RealTimeLocation implements OnInit, OnDestroy {
         if (done) clearTimeout(this.ctlWaitTimer);
         if (c) {
           if (done) c.busy = false;
-          c.status = m.message ?? m.status ?? '';
+          const txt = m.message ?? m.status ?? '';
+          // sent -> acknowledged -> failed, spelled out
+          c.status = m.status === 'accepted' ? `Acknowledged by the gateway. ${txt}`.trim() : m.status === 'completed' ? `Acknowledged by the tag. ${txt}`.trim() : `Failed: ${txt}`;
           c.statusKind = m.status === 'completed' ? 'ok' : m.status === 'accepted' ? 'wait' : 'bad';
         }
         if (m.command === 'off') {

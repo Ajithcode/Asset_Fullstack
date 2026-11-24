@@ -225,7 +225,7 @@
 
 <!-- Locate asset: asset list, and the LED / buzzer form of one asset -->
 <div *ngIf="locateOpen" class="overlay" (click)="closeLocate()">
-  <div class="modal loc-modal" role="dialog" aria-modal="true" aria-labelledby="rtl-loc" (click)="$event.stopPropagation()">
+  <div class="modal loc-modal" [class.loc-modal--sig]="!!ctl" role="dialog" aria-modal="true" aria-labelledby="rtl-loc" (click)="$event.stopPropagation()">
     <div class="modal-head">
       <button *ngIf="ctl" type="button" class="icon-btn loc-back" (click)="backToLocateList()" aria-label="Back to the asset list"><lucide-icon [img]="icons.ArrowLeft" [size]="17"></lucide-icon></button>
       <h2 id="rtl-loc" class="grow">Locate asset</h2>
@@ -268,7 +268,7 @@
         <button type="button" role="radio" [attr.aria-checked]="c.mode === 'both'" [class.on]="c.mode === 'both'" (click)="setSignalMode('both')">Both</button>
       </div>
 
-      <div *ngIf="c.mode !== 'buzzer'">
+      <div>
         <h3 class="sig-h">Quick patterns</h3>
         <div class="sig-chips"><button *ngFor="let p of patterns" type="button" class="btn btn-outline btn-sm" (click)="applyPattern(p)">{{ p.label }}</button></div>
       </div>
