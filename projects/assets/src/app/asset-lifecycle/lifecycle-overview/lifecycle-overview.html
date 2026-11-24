@@ -1,0 +1,219 @@
+<section class="sc-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a>
+    <span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Asset Lifecycle</span>
+  </nav>
+
+  <section class="card panel">
+    <header class="sco-head">
+      <div class="grow">
+        <h1>Asset Lifecycle</h1>
+        <p class="muted">Monitor asset lifecycle stages, age, replacement planning and disposal</p>
+      </div>
+      <button type="button" class="btn btn-outline" (click)="exportCsv()" [disabled]="!filtered.length"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
+      <button type="button" class="btn btn-outline" (click)="refresh()" aria-label="Refresh"><lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon></button>
+    </header>
+
+    <!-- KPIs computed from the loaded assets; click to filter -->
+    <div class="sco-kpis lco-kpis">
+      <button *ngFor="let k of kpis" type="button" class="sco-kpi" [class.is-active]="k.active()" (click)="k.apply()" [attr.title]="k.hint">
+        <span class="sco-kpi-icon"><lucide-icon [img]="k.icon" [size]="18"></lucide-icon></span>
+        <strong>{{ k.value | number }}</strong>
+        <span class="sco-kpi-label">{{ k.label }}</span>
+      </button>
+      <ng-container *ngIf="!kpis.length">
+        <div *ngFor="let _ of [1, 2, 3, 4, 5, 6, 7, 8]" class="sco-kpi sco-kpi--loading" aria-hidden="true"></div>
+      </ng-container>
+    </div>
+    <p *ngIf="!loading && untracked" class="lco-note">
+      <lucide-icon [img]="icons.TriangleAlert" [size]="15"></lucide-icon>
+      {{ untracked }} asset{{ untracked === 1 ? ' has' : 's have' }} no lifecycle stage recorded yet.
+      <button type="button" class="link-btn link-btn--u" (click)="clearFilters(); phase = 'Not tracked'; view = 'summary'">Show</button>
+    </p>
+
+    <div class="sco-toggle" role="tablist">
+      <button type="button" role="tab" [attr.aria-selected]="view === 'summary'" [class.is-active]="view === 'summary'" (click)="view = 'summary'">Asset Summary</button>
+      <button type="button" role="tab" [attr.aria-selected]="view === 'events'" [class.is-active]="view === 'events'" (click)="view = 'events'">Lifecycle Events</button>
+      <button type="button" role="tab" [attr.aria-selected]="view === 'analytics'" [class.is-active]="view === 'analytics'" (click)="view = 'analytics'">Lifecycle Analytics</button>
+    </div>
+
+    <ng-container *ngIf="view !== 'analytics'">
+      <label class="search search--full sco-search">
+        <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+        <input type="search" [(ngModel)]="search" (ngModelChange)="onFilter()" [placeholder]="view === 'summary' ? 'Search asset ID, tag, name, site, category or type' : 'Search asset, event or person'" aria-label="Search" />
+      </label>
+      <div class="sco-filters lco-filters">
+        <ng-container *ngIf="view === 'summary'">
+          <select class="control" [(ngModel)]="site" (ngModelChange)="onFilter()" aria-label="Site"><option value="">All Sites</option><option *ngFor="let s of sites" [value]="s">{{ s }}</option></select>
+          <select class="control" [(ngModel)]="category" (ngModelChange)="assetType = ''; onFilter()" aria-label="Category"><option value="">All Categories</option><option *ngFor="let c of categories" [value]="c">{{ c }}</option></select>
+          <select class="control" [(ngModel)]="assetType" (ngModelChange)="onFilter()" aria-label="Asset type"><option value="">All Asset Types</option><option *ngFor="let t of assetTypes" [value]="t">{{ t }}</option></select>
+          <select class="control" [(ngModel)]="phase" (ngModelChange)="onFilter()" aria-label="Lifecycle stage">
+            <option value="">All Stages</option><option *ngFor="let p of phases" [value]="p">{{ p }}</option><option value="Not tracked">Not tracked</option>
+          </select>
+          <select class="control" [(ngModel)]="status" (ngModelChange)="onFilter()" aria-label="Operational status"><option value="">All Statuses</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option></select>
+          <select class="control" [(ngModel)]="condition" (ngModelChange)="onFilter()" aria-label="Condition"><option value="">All Conditions</option><option *ngFor="let c of conditions" [value]="c">{{ c }}</option></select>
+          <select class="control" [(ngModel)]="criticality" (ngModelChange)="onFilter()" aria-label="Criticality"><option value="">All Criticality</option><option *ngFor="let c of criticalities" [value]="c">{{ c }}</option></select>
+          <select class="control" [(ngModel)]="due" (ngModelChange)="onFilter()" aria-label="Replacement due">
+            <option value="">Any Replacement Date</option><option value="exceeded">Replacement overdue</option><option value="year">Due within 12 months</option><option value="later">Due later</option><option value="unknown">Not planned</option>
+          </select>
+          <select class="control" [(ngModel)]="disposal" (ngModelChange)="onFilter()" aria-label="Disposal status">
+            <option value="">Any Disposal Status</option><option value="Not Started">Not Started</option><option value="Pending Approval">Pending (draft / approval / approved)</option><option value="Completed">Completed</option>
+          </select>
+        </ng-container>
+        <label class="lco-date"><span class="muted">{{ view === 'summary' ? 'Acquired from' : 'From' }}</span><input type="date" class="control" [(ngModel)]="from" (ngModelChange)="onFilter()" /></label>
+        <label class="lco-date"><span class="muted">To</span><input type="date" class="control" [(ngModel)]="to" (ngModelChange)="onFilter()" /></label>
+        <button *ngIf="hasFilters" type="button" class="link-btn" (click)="clearFilters()">Clear filters</button>
+      </div>
+    </ng-container>
+
+    <p *ngIf="loadError" class="form-error" role="alert">{{ loadError }} <button type="button" class="link-btn" (click)="refresh()">Retry</button></p>
+    <p *ngIf="loading" class="muted">Loading lifecycle data…</p>
+
+    <!-- ===== Asset Summary ===== -->
+    <div *ngIf="view === 'summary'" class="lco-body" [class.has-panel]="!!detail">
+      <div class="lco-main">
+        <div class="table-wrap">
+          <table class="data-table lco-table">
+            <thead>
+              <tr>
+                <th>Asset</th><th>Category / Type</th><th>Site</th><th>Acquired</th><th>Lifecycle Stage</th><th>Status / Condition</th>
+                <th>Age</th><th>Useful Life</th><th>Life Used</th><th>Planned Replacement</th><th>Disposal</th><th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of pageRows; trackBy: trackRow" [class.is-picked]="detail?.asset?.assetRegistrationId === r.asset.assetRegistrationId" (click)="openDetail(r)">
+                <td class="nowrap"><span class="lco-strong">{{ r.asset.assetTag || r.asset.assetRegistrationId }}</span><span class="muted lco-sub">{{ r.asset.assetName || '-' }}</span></td>
+                <td>{{ r.asset.category || '-' }}<span *ngIf="r.asset.assetType" class="muted lco-sub">{{ r.asset.assetType }}</span></td>
+                <td>{{ r.asset.siteName || '-' }}</td>
+                <td class="nowrap">{{ formatDate(r.acquisitionDate) }}</td>
+                <td>
+                  <span class="pill pill--xs" [ngClass]="phaseTone(r.phase)">{{ r.phase }}</span>
+                  <span *ngIf="r.stageKey" class="muted lco-sub">{{ stageLabel(r.stageKey) }}</span>
+                </td>
+                <td>
+                  <span class="pill pill--xs" [ngClass]="statusTone(r.asset.status)">{{ r.asset.status || '-' }}</span>
+                  <span *ngIf="r.asset.condition" class="lco-sub"><span class="pill pill--xs" [ngClass]="conditionTone(r.asset.condition)">{{ r.asset.condition }}</span></span>
+                </td>
+                <td class="nowrap">{{ ageLabel(r) }}</td>
+                <td class="nowrap">{{ lifeLabel(r) }}</td>
+                <td class="lco-life">
+                  <ng-container *ngIf="r.lifeUsedPct != null; else dash">
+                    <strong>{{ r.lifeUsedPct }}%</strong>
+                    <span class="meter meter--thin"><span class="meter-fill" [ngClass]="lifeTone(r)" [style.width.%]="r.lifeUsedPct"></span></span>
+                  </ng-container>
+                </td>
+                <td class="nowrap" [class.text-danger]="replacementDue(r) === 'exceeded'">{{ formatDate(r.plannedReplacement) }}</td>
+                <td><span class="pill pill--xs" [ngClass]="disposalTone(r.disposal)">{{ r.disposal === 'Completed' ? 'Disposed' : r.disposal }}</span></td>
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <div class="row-actions">
+                    <button type="button" class="icon-btn" (click)="viewLifecycle(r)" title="View lifecycle"><lucide-icon [img]="icons.Eye" [size]="16"></lucide-icon></button>
+                    <button type="button" class="icon-btn" (click)="viewLifecycle(r)" title="Update stage"><lucide-icon [img]="icons.Pencil" [size]="16"></lucide-icon></button>
+                    <button type="button" class="icon-btn" (click)="requestDisposal(r)" [disabled]="!canRequestDisposal(r)"
+                      [title]="canRequestDisposal(r) ? 'Request disposal' : 'Already in disposal request ' + (r.disposalRequest?.number || '')"><lucide-icon [img]="icons.Trash2" [size]="16"></lucide-icon></button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="!loading && !loadError && !rows.length"><td colspan="12" class="empty-line">No registered assets yet.</td></tr>
+              <tr *ngIf="rows.length && !filtered.length"><td colspan="12" class="empty-line">No assets match these filters. <button type="button" class="link-btn" (click)="clearFilters()">Clear filters</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <footer *ngIf="filtered.length > pageSize" class="sco-pager">
+          <span class="muted grow">{{ (page - 1) * pageSize + 1 }}–{{ (page - 1) * pageSize + pageRows.length }} of {{ filtered.length }}</span>
+          <button type="button" class="btn btn-outline btn-sm" [disabled]="page <= 1" (click)="setPage(page - 1)">Previous</button>
+          <span class="muted">Page {{ page }} of {{ pageCount }}</span>
+          <button type="button" class="btn btn-outline btn-sm" [disabled]="page >= pageCount" (click)="setPage(page + 1)">Next</button>
+        </footer>
+      </div>
+
+      <!-- Details panel -->
+      <aside *ngIf="detail as r" class="lco-panel card" aria-label="Asset lifecycle details">
+        <header class="lco-panel-head">
+          <div class="grow"><strong>{{ r.asset.assetTag || r.asset.assetRegistrationId }}</strong><span class="muted lco-sub">{{ r.asset.assetName }}<ng-container *ngIf="r.asset.siteName"> · {{ r.asset.siteName }}</ng-container></span></div>
+          <button type="button" class="icon-btn" (click)="detail = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="16"></lucide-icon></button>
+        </header>
+        <dl class="lco-facts">
+          <dt>Lifecycle Stage</dt><dd><span class="pill pill--xs" [ngClass]="phaseTone(r.phase)">{{ r.phase }}</span><span *ngIf="r.stageKey" class="muted"> · {{ stageLabel(r.stageKey) }}</span></dd>
+          <dt>Status / Condition</dt><dd>{{ r.asset.status || '-' }} · {{ r.asset.condition || '-' }}</dd>
+          <dt>Criticality</dt><dd>{{ r.asset.criticality || '-' }}</dd>
+          <dt>Acquired</dt><dd>{{ formatDate(r.acquisitionDate) }}</dd>
+          <dt>Commissioned</dt><dd>{{ formatDate(r.commissioningDate) }}</dd>
+          <dt>Age</dt><dd>{{ ageLabel(r) }}</dd>
+          <dt>Expected Useful Life</dt><dd>{{ lifeLabel(r) }}</dd>
+          <dt>Life Used</dt><dd>{{ r.lifeUsedPct != null ? r.lifeUsedPct + '%' : '-' }}</dd>
+          <dt>Planned Replacement</dt><dd [class.text-danger]="replacementDue(r) === 'exceeded'">{{ formatDate(r.plannedReplacement) }}</dd>
+          <dt>Warranty Ends</dt><dd>{{ formatDate(r.warrantyEnd) }}</dd>
+          <dt>Acquisition Cost</dt><dd>{{ r.purchaseCost != null ? (r.purchaseCost | number: '1.0-2') + ' ' + r.currency : '-' }}</dd>
+          <dt>Disposal</dt>
+          <dd>
+            <span class="pill pill--xs" [ngClass]="disposalTone(r.disposal)">{{ r.disposal === 'Completed' ? 'Disposed' : r.disposal }}</span>
+            <button *ngIf="r.disposalRequest" type="button" class="link-btn" (click)="openDisposal(r)"> {{ r.disposalRequest.number }}</button>
+          </dd>
+        </dl>
+        <div class="lco-panel-actions">
+          <button type="button" class="btn btn-primary btn-sm" (click)="viewLifecycle(r)"><lucide-icon [img]="icons.Eye" [size]="14"></lucide-icon>View Lifecycle</button>
+          <button type="button" class="btn btn-outline btn-sm" (click)="requestDisposal(r)" [disabled]="!canRequestDisposal(r)"><lucide-icon [img]="icons.Trash2" [size]="14"></lucide-icon>Request Disposal</button>
+        </div>
+        <section class="lco-panel-sec">
+          <h4>Recent Lifecycle Events</h4>
+          <ul *ngIf="r.events.length; else noEvents" class="lco-events lco-events--compact">
+            <li *ngFor="let e of r.events.slice(0, 6)"><span class="muted nowrap">{{ formatDate(e.date) }}</span><span>{{ e.title }}</span></li>
+          </ul>
+          <ng-template #noEvents><p class="muted">No lifecycle events recorded.</p></ng-template>
+        </section>
+      </aside>
+    </div>
+
+    <!-- ===== Lifecycle Events ===== -->
+    <div *ngIf="view === 'events'" class="table-wrap">
+      <table class="data-table lco-table">
+        <thead><tr><th>Date</th><th>Asset</th><th>Event</th><th>Type</th><th>By</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let e of filteredEvents">
+            <td class="nowrap">{{ formatDate(e.date) }}</td>
+            <td class="nowrap"><span class="lco-strong">{{ e.assetTag }}</span><span class="muted lco-sub">{{ e.assetName }}</span></td>
+            <td>{{ e.title }}</td>
+            <td><span class="pill pill--xs">{{ e.kind }}</span></td>
+            <td>{{ e.by || '-' }}</td>
+          </tr>
+          <tr *ngIf="!loading && !events.length"><td colspan="5" class="empty-line">No lifecycle events recorded yet. Stages and events are added on each asset's lifecycle page.</td></tr>
+          <tr *ngIf="events.length && !filteredEvents.length"><td colspan="5" class="empty-line">No events match these filters.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===== Lifecycle Analytics ===== -->
+    <div *ngIf="view === 'analytics'" class="lco-analytics">
+      <section class="lco-chart card">
+        <h4>Stage Distribution</h4>
+        <div *ngFor="let s of stageDistribution" class="lco-bar"><span>{{ s.label }}</span><span class="lco-track"><span [style.width.%]="s.pct"></span></span><strong>{{ s.count }}</strong></div>
+      </section>
+      <section class="lco-chart card">
+        <h4>Age Profile</h4>
+        <div *ngFor="let s of ageProfile" class="lco-bar"><span>{{ s.label }}</span><span class="lco-track"><span [style.width.%]="s.pct"></span></span><strong>{{ s.count }}</strong></div>
+      </section>
+      <section class="lco-chart card">
+        <h4>Replacement Forecast</h4>
+        <div *ngFor="let s of replacementForecast" class="lco-bar"><span>{{ s.label }}</span><span class="lco-track lco-track--warn"><span [style.width.%]="s.pct"></span></span><strong>{{ s.count }}</strong></div>
+        <p *ngIf="!replacementForecast.length" class="muted">No planned replacements: add the expected lifespan on the asset registration.</p>
+      </section>
+      <section class="lco-chart card">
+        <h4>Disposal Backlog</h4>
+        <div *ngFor="let s of disposalBacklog" class="lco-bar lco-bar--plain"><span>{{ s.label === 'Completed' ? 'Disposed' : s.label }}</span><strong>{{ s.count }}</strong></div>
+      </section>
+      <section class="lco-chart card lco-chart--wide">
+        <h4>Nearing or Past End of Life</h4>
+        <ul *ngIf="nearingEndOfLife.length; else noneNear" class="lco-events">
+          <li *ngFor="let r of nearingEndOfLife">
+            <button type="button" class="link-btn" (click)="viewLifecycle(r)">{{ r.asset.assetTag || r.asset.assetRegistrationId }}</button>
+            <span>{{ r.asset.assetName }}</span><span class="muted">{{ r.lifeUsedPct }}% used · replace {{ formatDate(r.plannedReplacement) }}</span>
+          </li>
+        </ul>
+        <ng-template #noneNear><p class="muted">No asset has used {{ nearEol }}% or more of its expected useful life.</p></ng-template>
+      </section>
+    </div>
+  </section>
+</section>
+
+<ng-template #dash>-</ng-template>

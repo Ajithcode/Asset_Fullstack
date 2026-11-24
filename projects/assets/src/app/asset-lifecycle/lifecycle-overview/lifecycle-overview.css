@@ -1,0 +1,50 @@
+/* Asset Lifecycle landing page. Header, KPI, tab, filter and pager styles come from the Status & Condition overview. */
+
+.lco-kpis { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.lco-note { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: #fffbeb; font-size: 0.813rem; color: #92400e; }
+.lco-filters { flex-wrap: wrap; }
+.lco-filters .control { min-width: 140px; }
+.lco-date { display: inline-flex; align-items: center; gap: 6px; }
+.lco-strong { display: block; font-weight: 700; }
+.lco-sub { display: block; margin-top: 2px; font-size: 0.75rem; }
+
+.lco-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.lco-body.has-panel { grid-template-columns: minmax(0, 1fr) 340px; }
+.lco-main { min-width: 0; }
+.lco-table tbody tr { cursor: pointer; }
+.lco-table tbody tr.is-picked td { background: var(--sc-accent-soft); }
+.lco-life { min-width: 96px; }
+.lco-life strong { display: block; font-size: 0.813rem; }
+.row-actions .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.lco-panel { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.lco-panel-head { display: flex; align-items: flex-start; gap: 8px; }
+.lco-facts { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 6px 10px; margin: 0; font-size: 0.813rem; }
+.lco-facts dt { color: var(--sc-text-muted); }
+.lco-facts dd { margin: 0; overflow-wrap: anywhere; }
+.lco-panel-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lco-panel-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
+.lco-panel-sec { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--sc-border); }
+.lco-panel-sec h4, .lco-chart h4 { margin: 0; font-size: 0.875rem; font-weight: 800; }
+.lco-panel-sec p { margin: 0; }
+
+.lco-events { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.813rem; }
+.lco-events li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.lco-events--compact li { flex-wrap: nowrap; }
+
+/* Analytics: simple horizontal bars */
+.lco-analytics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.lco-chart { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
+.lco-chart--wide { grid-column: 1 / -1; }
+.lco-bar { display: grid; grid-template-columns: 150px minmax(0, 1fr) 40px; gap: 10px; align-items: center; font-size: 0.813rem; }
+.lco-bar strong { text-align: right; }
+.lco-bar--plain { grid-template-columns: minmax(0, 1fr) 40px; }
+.lco-track { display: block; height: 8px; overflow: hidden; border-radius: 999px; background: #eef0f5; }
+.lco-track > span { display: block; height: 100%; border-radius: 999px; background: var(--sc-accent); }
+.lco-track--warn > span { background: #d97706; }
+
+@media (max-width: 1100px) {
+  .lco-body.has-panel { grid-template-columns: minmax(0, 1fr); }
+  .lco-panel { position: static; }
+  .lco-analytics { grid-template-columns: minmax(0, 1fr); }
+}

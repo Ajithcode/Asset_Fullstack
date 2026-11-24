@@ -285,6 +285,9 @@ export class NewDisposal implements OnInit, OnDestroy {
     this.loadAssets();
     const id = this.route.snapshot.queryParamMap.get('id');
     if (id) this.loadRequest(id);
+    // ?assets=TAG1,TAG2 (e.g. Request Disposal from Asset Lifecycle): pre-fill the asset tags to add on the Assets step
+    const preset = this.route.snapshot.queryParamMap.get('assets');
+    if (!id && preset) this.tagText = preset.split(',').map((t) => t.trim()).filter(Boolean).join('\n');
   }
 
   ngOnDestroy(): void {

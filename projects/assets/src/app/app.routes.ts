@@ -31,6 +31,7 @@ import { NewassetAudit } from './asset-audit/newasset-audit/newasset-audit';
 import { AssetDisposal } from './asset-disposal/asset-disposal/asset-disposal';
 import { NewDisposal } from './asset-disposal/new-disposal/new-disposal';
 import { AssetLifecycle } from './asset-lifecycle/asset-lifecycle';
+import { LifecycleOverview } from './asset-lifecycle/lifecycle-overview/lifecycle-overview';
 import { AssetMaintenanceTab } from './asset-maintenance-tab/asset-maintenance-tab';
 import { AssetDetailTab } from './asset-detail-tab/asset-detail-tab';
 
@@ -72,7 +73,9 @@ export const routes: Routes = [
   { path: 'disposal', component: AssetDisposal },
   { path: 'disposal/new-disposal', component: NewDisposal },
   { path: 'custom-fields', component: AssetCustomFields },
-  { path: 'lifecycle', component: AssetLifecycle },
+  // Lifecycle landing page (all assets); /assets/lifecycle?tag= forwards to the asset's lifecycle
+  { path: 'lifecycle', component: LifecycleOverview },
+  { path: 'lifecycle/asset', component: AssetLifecycle },
   { path: 'documents', component: AssetDocuments },
   // Menu page: documents of every asset, uploaded to one or more assets at a time
   { path: 'all-documents', component: AssetDocuments, data: { allAssets: true } },
