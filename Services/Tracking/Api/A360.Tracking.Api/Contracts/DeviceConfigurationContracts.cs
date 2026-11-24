@@ -143,7 +143,8 @@ public sealed record DeviceAlertRuleRequest(
     string? Unit,
     string? Severity,
     IReadOnlyList<string>? NotifyChannels,
-    bool? Active)
+    bool? Active,
+    bool? NotifySound = null)
 {
     public DeviceAlertRule ToEntity(string? ruleId, DeviceTelemetrySettings telemetry)
     {
@@ -162,6 +163,7 @@ public sealed record DeviceAlertRuleRequest(
                 .OfType<string>()
                 .Distinct()
                 .ToList(),
+            NotifySound = NotifySound ?? true,
             Active = Active ?? true
         };
     }

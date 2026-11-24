@@ -175,6 +175,10 @@ public sealed class DeviceAlertRule
     [BsonElement("notify_channels")]
     public List<string> NotifyChannels { get; set; } = [];
 
+    /// <summary>Play a sound with the in-app / desktop notification.</summary>
+    [BsonElement("notify_sound")]
+    public bool NotifySound { get; set; } = true;
+
     [BsonElement("active")]
     public bool Active { get; set; }
 }
