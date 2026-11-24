@@ -104,6 +104,7 @@ public static class UserEndpoints
         UpdateUserRequest request,
         IUserRepository repository,
         IRoleRepository roleRepository,
+        IRefreshTokenRepository refreshTokenRepository,
         PasswordHashingService passwordHashingService,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
@@ -147,6 +148,18 @@ public static class UserEndpoints
         }
 
         await eventLogger.LogAsync("User", user.Id, user.UserName, EventAction.Updated, cancellationToken);
+
+        // A password set from User Management (Administration › edit user) is a reset: every session of the user ends
+        if (!string.IsNullOrWhiteSpace(request.LoginPassword))
+        {
+            await repository.ClearTwoFactorCodeAsync(user.Id, cancellationToken);
+            var ended = await refreshTokenRepository.RevokeOthersForUserAsync(user.Id, null, cancellationToken);
+            await eventLogger.LogDetailedAsync(
+                "User", user.Id, user.UserName, EventAction.PasswordReset,
+                $"New password set from User Management (edit user). {(ended == 1 ? "1 session" : $"{ended} sessions")} signed out.",
+                cancellationToken);
+        }
+
         return Results.Ok(UserResponse.FromEntity(user));
     }
 

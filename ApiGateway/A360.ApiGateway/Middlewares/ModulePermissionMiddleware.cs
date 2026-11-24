@@ -49,7 +49,9 @@ public sealed class ModulePermissionMiddleware(
     private static readonly Dictionary<string, string> RouteModules = new(StringComparer.OrdinalIgnoreCase)
     {
         ["asset-criticality-root"] = AssetCriticalityPermissions.Module,
-        ["asset-criticality"] = AssetCriticalityPermissions.Module
+        ["asset-criticality"] = AssetCriticalityPermissions.Module,
+        // Resetting a user's password (UserAccount service) is editing a user: Edit on Administration
+        ["account-reset-password"] = "Administration"
     };
 
     /// <summary>POSTs ending in one of these only read data (searches, previews, exports, checks): they need View.</summary>

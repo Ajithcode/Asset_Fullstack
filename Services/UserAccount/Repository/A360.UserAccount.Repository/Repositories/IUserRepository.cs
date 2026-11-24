@@ -27,4 +27,10 @@ public interface IUserRepository : IMongoRepository<UserEntity>
 
     /// <summary>Records an accepted code's time step; false when that step (or a later one) was already used.</summary>
     Task<bool> TryUseTotpStepAsync(string id, long step, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replaces the password hash. With <paramref name="expectedCurrentHash"/>, only when the stored hash is still that one
+    /// (so two concurrent changes can't both pass the current-password check). False when nothing was updated.
+    /// </summary>
+    Task<bool> SetPasswordAsync(string id, string passwordHash, string updatedBy, string? expectedCurrentHash = null, CancellationToken cancellationToken = default);
 }

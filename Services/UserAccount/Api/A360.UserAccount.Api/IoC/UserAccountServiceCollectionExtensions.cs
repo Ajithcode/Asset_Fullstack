@@ -68,6 +68,7 @@ public static class UserAccountServiceCollectionExtensions
         services.AddHostedService<DefaultRoleSeeder>();
         // "Session expired" audit events for sessions that ended without sign-out
         services.AddHostedService<A360.UserAccount.Api.Background.SessionExpiryAuditService>();
+        services.AddScoped<AdministrationAccessChecker>();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
         {

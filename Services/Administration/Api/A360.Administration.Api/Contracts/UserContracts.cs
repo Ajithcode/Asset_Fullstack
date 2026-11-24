@@ -86,7 +86,9 @@ public sealed record UserResponse(
     string? TenantId,
     string? ClientId,
     // True when the user has a sign-in account (a password was set)
-    bool HasLogin)
+    bool HasLogin,
+    // The sign-in account's id in the UserAccount service (password reset goes there), null without one
+    string? LoginAccountId = null)
 {
     public static UserResponse FromEntity(User user)
     {
@@ -115,6 +117,7 @@ public sealed record UserResponse(
             user.UpdatedAt,
             user.TenantId,
             user.ClientId,
-            !string.IsNullOrWhiteSpace(user.LoginAccountId));
+            !string.IsNullOrWhiteSpace(user.LoginAccountId),
+            string.IsNullOrWhiteSpace(user.LoginAccountId) ? null : user.LoginAccountId);
     }
 }

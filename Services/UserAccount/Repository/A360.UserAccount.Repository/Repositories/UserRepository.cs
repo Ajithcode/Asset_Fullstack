@@ -83,6 +83,30 @@ public sealed class UserRepository : MongoRepository<UserEntity>, IUserRepositor
         return user?.TwoFactorAttempts ?? int.MaxValue;
     }
 
+    public async Task<bool> SetPasswordAsync(
+        string id,
+        string passwordHash,
+        string updatedBy,
+        string? expectedCurrentHash = null,
+        CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<UserEntity>.Filter.Eq(user => user.Id, id);
+        if (expectedCurrentHash is not null)
+        {
+            filter &= Builders<UserEntity>.Filter.Eq(user => user.LoginPassword, expectedCurrentHash);
+        }
+
+        var result = await Collection.UpdateOneAsync(
+            filter,
+            Builders<UserEntity>.Update
+                .Set(user => user.LoginPassword, passwordHash)
+                .Set(user => user.UpdatedBy, updatedBy)
+                .Set(user => user.UpdatedAt, DateTime.UtcNow),
+            cancellationToken: cancellationToken);
+
+        return result.IsAcknowledged && result.MatchedCount > 0;
+    }
+
     public async Task ClearTwoFactorCodeAsync(string id, CancellationToken cancellationToken = default)
     {
         await Collection.UpdateOneAsync(

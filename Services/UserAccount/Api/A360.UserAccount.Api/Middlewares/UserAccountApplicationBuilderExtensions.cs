@@ -24,6 +24,7 @@ public static class UserAccountApplicationBuilderExtensions
             .WithTags("Health");
 
         app.MapAuthEndpoints();
+        app.MapAccountEndpoints();
         app.MapUserEndpoints();
         app.MapRoleEndpoints();
 
