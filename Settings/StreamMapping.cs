@@ -45,14 +45,15 @@ public class StreamMapping
 
     /// <summary>
     /// Document field that gets "in" / "out" computed from each tag's previous gateway (see DeviceTriggerTracker),
-    /// replacing any value from the payload. Needs gatewayid and tagid in Meta. Null = off.
+    /// replacing any value from the payload; zone_in, zone_out and time_spent are written right after it.
+    /// Needs gatewayid and tagid in Meta. Null = off.
     /// </summary>
     public string? DeviceTriggerField { get; set; }
 
-    /// <summary>Redis hash holding each tag's last gateway and trigger. Defaults to "{Stream}:device_trigger".</summary>
+    /// <summary>Redis hash holding each tag's current gateway and zone_in. Defaults to "{Stream}:zone_state".</summary>
     public string? DeviceTriggerKey { get; set; }
 
-    public string DeviceTriggerStateKey => DeviceTriggerKey ?? $"{Stream}:device_trigger";
+    public string DeviceTriggerStateKey => DeviceTriggerKey ?? $"{Stream}:zone_state";
 
     public string Granularity { get; set; } = "seconds";
     public int BatchSize { get; set; } = 500;
