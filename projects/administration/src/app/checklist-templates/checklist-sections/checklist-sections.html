@@ -19,9 +19,10 @@
         <input class="sec__rename" [(ngModel)]="renameText" maxlength="60" aria-label="Section name"
           (keydown.enter)="finishRename(s)" (keydown.escape)="cancelRename()" (blur)="finishRename(s)" />
       } @else {
-        <h4 (dblclick)="startRename(s)" title="Double-click to rename">{{ si + 1 }}. {{ s.title }}</h4>
+        <h4 (dblclick)="!singleSection && startRename(s)" [attr.title]="singleSection ? null : 'Double-click to rename'">{{ singleSection ? (s.title || 'New template') : (si + 1) + '. ' + s.title }}</h4>
       }
       <span class="muted sec__count">{{ s.items.length }} {{ s.items.length === 1 ? 'item' : 'items' }}</span>
+      @if (!singleSection) {
       <div class="row-menu">
         <button type="button" class="icon-btn icon-btn--bare" title="Section actions" (click)="toggleMenu(s.id, $event)">
           <lucide-icon [img]="icons.EllipsisVertical" [size]="16"></lucide-icon>
@@ -36,6 +37,7 @@
           </div>
         }
       </div>
+      }
     </header>
 
     @if (!isCollapsed(s)) {

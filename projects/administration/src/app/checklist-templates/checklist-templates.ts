@@ -1,7 +1,7 @@
 import { Component, ElementRef, ViewChild, inject } from '@angular/core';
 import { ExportMenu, ExportRequest } from 'shared-ui';
 import { FormsModule } from '@angular/forms';
-import { Observable, forkJoin, of } from 'rxjs';
+import { Observable, concat, forkJoin, of, toArray } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import {
   BookOpen, Building2, ChartNoAxesColumnIncreasing, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleCheck,
@@ -14,9 +14,9 @@ import { ChecklistSections, DeleteRequest, ItemRef } from './checklist-sections/
 import { LIBRARY, LibraryEntry, categoryAssets, categoryTeam, librarySections } from './checklist-templates.data';
 import {
   ASSET_TYPES, CATEGORIES, ChecklistItem, ChecklistSection, ChecklistTemplate, FREQUENCIES, STATUSES, TEAMS, TemplateIcon, TemplateStatus,
-  blankItem, itemCount, itemErrors, maxScore, statusTone, templateErrors
+  blankItem, itemCount, itemErrors, maxScore, statusTone
 } from './checklist-templates.model';
-import { ChecklistTemplatesService } from './checklist-templates.service';
+import { ChecklistTemplatesService, templateKey } from './checklist-templates.service';
 import { ItemDrawer, ItemSave } from './item-drawer/item-drawer';
 
 type Tab = 'items' | 'settings' | 'history';
@@ -74,8 +74,6 @@ export class ChecklistTemplatesPage extends AdminPage {
 
   search = '';
   listSearch = '';
-  categoryFilter = '';
-  statusFilter = '';
   page = 1;
   listCollapsed = false;
 
@@ -98,17 +96,19 @@ export class ChecklistTemplatesPage extends AdminPage {
 
   constructor() {
     super();
-    const first = this.service.templates()[0];
-    if (first) {
-      this.selectedId = first.id;
-      this.draft = structuredClone(first);
-    } else {
-      // No templates yet: start on a blank, unsaved draft
-      this.createTemplate();
-      this.dirty = false;
-      this.toast = null;
-    }
-    this.service.loadItems().subscribe({ error: (err: Error) => this.notify(`Saved checklist items could not be loaded. ${err.message}`) });
+    // Until the saved items are loaded: a blank, unsaved draft
+    this.createTemplate();
+    this.dirty = false;
+    this.toast = null;
+    // The template list is built from the saved items, so it fills once they are loaded.
+    this.service.loadItems().subscribe({
+      next: () => {
+        const pristine = this.isNew && !this.draft.name && !this.draftItems;
+        const first = this.service.templates()[0];
+        if (first && (pristine || (!this.isNew && !this.selectedId))) this.select(first);
+      },
+      error: (err: Error) => this.notify(`Saved checklist items could not be loaded. ${err.message}`)
+    });
   }
 
   // ===== Stats =====
@@ -116,21 +116,19 @@ export class ChecklistTemplatesPage extends AdminPage {
     return this.service.templates();
   }
 
-  count(status: TemplateStatus): number {
-    return this.all.filter((t) => t.status === status).length;
+  get totalItems(): number {
+    return this.all.reduce((sum, t) => sum + itemCount(t), 0);
   }
 
-  get totalUses(): number {
-    return this.all.reduce((sum, t) => sum + t.uses, 0);
+  get criticalItems(): number {
+    return this.all.reduce((sum, t) => sum + t.sections.reduce((a, sec) => a + sec.items.filter((i) => i.critical).length, 0), 0);
   }
 
   // ===== List =====
   get filtered(): ChecklistTemplate[] {
     const terms = (this.search + ' ' + this.listSearch).trim().toLowerCase().split(/\s+/).filter(Boolean);
     return this.all.filter((t) => {
-      if (this.categoryFilter && t.category !== this.categoryFilter) return false;
-      if (this.statusFilter && t.status !== this.statusFilter) return false;
-      const hay = `${t.name} ${t.code} ${t.category} ${t.owner}`.toLowerCase();
+      const hay = `${t.name} ${t.code} ${t.owner}`.toLowerCase();
       return terms.every((q) => hay.includes(q));
     });
   }
@@ -157,14 +155,12 @@ export class ChecklistTemplatesPage extends AdminPage {
   }
 
   get hasFilters(): boolean {
-    return !!(this.search || this.listSearch || this.categoryFilter || this.statusFilter);
+    return !!(this.search || this.listSearch);
   }
 
   clearFilters(): void {
     this.search = '';
     this.listSearch = '';
-    this.categoryFilter = '';
-    this.statusFilter = '';
     this.page = 1;
   }
 
@@ -213,6 +209,12 @@ export class ChecklistTemplatesPage extends AdminPage {
     this.dirty = true;
   }
 
+  /** A new template's single section carries the template name, so items show under it. */
+  onNameChange(): void {
+    this.markDirty();
+    if (this.isNew && this.draft.sections[0]) this.draft.sections[0].title = this.draft.name.trim();
+  }
+
   closeMenus(): void {
     this.headMenu = false;
     this.bulkOpen = false;
@@ -220,15 +222,23 @@ export class ChecklistTemplatesPage extends AdminPage {
   }
 
   get errors(): Record<string, string> {
-    return templateErrors(this.draft, this.service.codeTaken(this.draft.code, this.isNew ? null : this.draft.id));
+    const e: Record<string, string> = {};
+    const name = this.draft.name.trim();
+    if (!name) e['name'] = 'Template name is required.';
+    else if (name.length > 60) e['name'] = 'Keep the template name under 60 characters.';
+    else if (this.service.nameTaken(name, this.isNew ? null : this.draft.id)) e['name'] = 'Another template already uses this name.';
+    return e;
   }
 
   err(field: string): string | null {
     return this.showErrors ? (this.errors[field] ?? null) : null;
   }
 
-  /** Validates and stores the draft. 'draft' → Draft status, 'publish' → Active + new version, 'settings' → status unchanged. */
-  commit(mode: 'draft' | 'publish' | 'settings'): void {
+  /**
+   * Saves the template. A new template creates its items (section = template name); an existing one whose name changed
+   * moves its items to the new section name. Item edits of an existing template are saved when the item is saved.
+   */
+  commit(): void {
     this.closeMenus();
     this.showErrors = true;
     const errs = Object.values(this.errors);
@@ -237,33 +247,52 @@ export class ChecklistTemplatesPage extends AdminPage {
       this.notify(errs[0]);
       return;
     }
-    if (mode === 'publish') {
-      if (!this.draftItems) {
-        this.notify('Add at least one checklist item before publishing.');
+    const name = this.draft.name.trim();
+    const items = this.draft.sections.flatMap((s) => s.items);
+    if (this.savingTemplate) return;
+    if (this.isNew) {
+      if (!items.length) {
+        this.tab = 'items';
+        this.notify('Add at least one checklist item; a template is its items.');
         return;
       }
-      for (const s of this.draft.sections) {
-        const bad = s.items.find((i) => Object.keys(itemErrors(i)).length);
-        if (bad) {
+      for (const i of items) {
+        if (Object.keys(itemErrors(i)).length) {
           this.tab = 'items';
-          this.drawer = { sectionId: s.id, item: bad, isNew: false };
-          this.notify(`Fix "${bad.text || 'untitled item'}" before publishing.`);
+          this.notify(`Fix "${i.text || 'untitled item'}" before saving.`);
           return;
         }
       }
+      this.runSave(this.service.createTemplate(name, items), name, `${name} created with ${items.length} ${items.length === 1 ? 'item' : 'items'}.`);
+      return;
     }
-    const wasNew = this.isNew;
-    const saved = this.service.save(this.draft, mode);
-    const openItemId = this.drawer && !this.drawer.isNew ? this.drawer.item.id : null;
-    this.selectedId = saved.id;
-    this.draft = structuredClone(saved);
-    this.isNew = false;
-    this.dirty = false;
-    this.showErrors = false;
-    this.drawer = openItemId ? this.findDrawer(openItemId) : null;
-    if (mode === 'publish') this.notify(`${saved.name} published as ${saved.version}.`);
-    else if (mode === 'draft') this.notify(wasNew ? `${saved.name} created as a draft.` : `${saved.name} saved as draft.`);
-    else this.notify(`Settings saved for ${saved.name}.`);
+    const current = this.selectedId ? this.service.get(this.selectedId) : null;
+    if (current && current.name !== name) this.runSave(this.service.renameTemplate(current.id, name), name, `Renamed to ${name}.`);
+    else {
+      this.dirty = false;
+      this.showErrors = false;
+      this.notify('Nothing to save: item changes are saved as you save each item.');
+    }
+  }
+
+  savingTemplate = false;
+
+  private runSave(request: Observable<unknown>, name: string, message: string): void {
+    this.savingTemplate = true;
+    request.subscribe({
+      next: () => {
+        this.savingTemplate = false;
+        const saved = this.service.get(templateKey(name));
+        if (saved) this.select(saved);
+        this.notify(message);
+      },
+      error: (err: Error) => {
+        this.savingTemplate = false;
+        // Items created before the failure are saved; reload so the list shows what exists.
+        this.service.loadItems().subscribe({ error: () => undefined });
+        this.notify(`Template not saved. ${err.message}`);
+      }
+    });
   }
 
   private findDrawer(itemId: string): DrawerState | null {
@@ -292,9 +321,9 @@ export class ChecklistTemplatesPage extends AdminPage {
     this.draft = {
       id: '',
       name: '',
-      code: this.service.nextCode(''),
+      code: '',
       version: 'v1.0',
-      category: '',
+      category: 'Inspection',
       owner: '',
       updated: todayIso(),
       status: 'Draft',
@@ -309,18 +338,12 @@ export class ChecklistTemplatesPage extends AdminPage {
       passThreshold: 80,
       scoringMethod: 'Weighted',
       failOnCritical: true,
-      sections: [{ id: this.service.newId('S'), title: 'General', items: [] }],
+      sections: [{ id: this.service.newId('S'), title: '', items: [] }],
       uses: 0,
       versions: [],
       executions: []
     };
-    this.notify('Name the template, then add sections and items.');
-  }
-
-  /** Keeps the code prefix in line with the category for unsaved templates */
-  onCategoryChange(): void {
-    this.markDirty();
-    if (this.isNew) this.draft.code = this.service.nextCode(this.draft.category);
+    this.notify('Name the template, add its items, then Save.');
   }
 
   duplicateTemplate(): void {
@@ -332,15 +355,7 @@ export class ChecklistTemplatesPage extends AdminPage {
     this.isNew = true;
     this.dirty = true;
     this.drawer = null;
-    this.notify(`Duplicated ${source.name}. Save Draft to keep it.`);
-  }
-
-  setStatus(status: TemplateStatus): void {
-    this.closeMenus();
-    if (this.isNew || !this.selectedId) return;
-    this.service.setStatus(this.selectedId, status);
-    this.draft.status = status;
-    this.notify(`${this.draft.name} is now ${status}.`);
+    this.notify(`Duplicated ${source.name}. Change the name if needed, then Save to create its items.`);
   }
 
   askDeleteTemplate(): void {
@@ -351,7 +366,7 @@ export class ChecklistTemplatesPage extends AdminPage {
     }
     this.confirm = {
       title: 'Delete template?',
-      message: `${this.draft.name} (${this.draft.code}) will be removed. Completed checklists keep their results.`,
+      message: `${this.draft.name} and its ${this.draftItems} ${this.draftItems === 1 ? 'item' : 'items'} will be deleted.`,
       action: 'template'
     };
   }
@@ -364,48 +379,15 @@ export class ChecklistTemplatesPage extends AdminPage {
     Object.assign(this.draft, {
       name: entry.name,
       category: entry.category,
-      code: this.service.nextCode(entry.category),
       icon: entry.icon,
       tone: entry.tone,
       description: entry.description,
       frequency: entry.frequency,
       assetTypes: categoryAssets(entry.category),
       teams: [categoryTeam(entry.category)],
-      sections: librarySections(this.service.newId('LIB'), entry, index)
+      sections: [{ id: this.service.newId('S'), title: entry.name, items: librarySections(this.service.newId('LIB'), entry, index).flatMap((sec) => sec.items) }]
     });
-    this.notify(`${entry.name} added from the library as a draft. Save Draft to keep it.`);
-  }
-
-  /** Server-backed items grouped by section, in the order the API returns them. */
-  get savedSections(): SavedSection[] {
-    const groups = new Map<string, SavedSection>();
-    for (const { section, item } of this.service.savedItems()) {
-      const key = section.toLowerCase();
-      if (!groups.has(key)) groups.set(key, { title: section, items: [] });
-      groups.get(key)!.items.push(item);
-    }
-    return [...groups.values()];
-  }
-
-  /** Adds a saved section's items to the current draft, merging into a section with the same title. */
-  useSavedSection(saved: SavedSection): void {
-    this.libraryOpen = false;
-    this.tab = 'items';
-    const present = new Set(this.draft.sections.flatMap((s) => s.items.map((i) => i.id)));
-    const items = saved.items.filter((i) => !present.has(i.id)).map((i) => ({ ...i }));
-    if (!items.length) {
-      this.notify(`All items from ${saved.title} are already in this template.`);
-      return;
-    }
-    let section = this.draft.sections.find((s) => s.title.trim().toLowerCase() === saved.title.toLowerCase());
-    if (section) section.items.push(...items);
-    else {
-      section = { id: this.service.newId('S'), title: saved.title, items };
-      this.draft.sections.push(section);
-    }
-    this.markDirty();
-    this.sectionsView?.expand(section.id);
-    this.notify(`${items.length} saved ${items.length === 1 ? 'item' : 'items'} added to ${section.title}. Save Draft or Publish to keep them in this template.`);
+    this.notify(`${entry.name} added from the library. Edit it if needed, then Save to create its items.`);
   }
 
   // ===== Items & sections =====
@@ -415,15 +397,7 @@ export class ChecklistTemplatesPage extends AdminPage {
     if (section && item) this.drawer = { sectionId: section.id, item, isNew: false };
   }
 
-  addSection(): void {
-    const section: ChecklistSection = { id: this.service.newId('S'), title: 'New Section', items: [] };
-    this.draft.sections.push(section);
-    this.markDirty();
-    this.sectionsView?.startRename(section);
-  }
-
   addItem(sectionId?: string): void {
-    if (!this.draft.sections.length) this.addSection();
     const target = sectionId ?? this.drawer?.sectionId ?? this.draft.sections[this.draft.sections.length - 1].id;
     this.drawer = { sectionId: target, item: blankItem(this.service.newId('I')), isNew: true };
     this.sectionsView?.expand(target);
@@ -437,13 +411,14 @@ export class ChecklistTemplatesPage extends AdminPage {
     const target = this.draft.sections.find((s) => s.id === e.sectionId);
     if (!target) return;
     const isNew = !!this.drawer?.isNew;
-    if (!isNew && !this.service.isPersisted(e.item.id)) {
-      this.storeItem(e, false);
+    // A template that is not saved yet keeps its items in the draft; Save creates them.
+    if (this.isNew || (!isNew && !this.service.isPersisted(e.item.id))) {
+      this.storeItem(e, isNew);
       return;
     }
     if (this.savingItem) return;
     this.savingItem = true;
-    const request = isNew ? this.service.createItem(e.item, target.title) : this.service.updateItem(e.item, target.title);
+    const request = isNew ? this.service.createItem(e.item, this.sectionTitle(target)) : this.service.updateItem(e.item, this.sectionTitle(target));
     request.subscribe({
       next: (saved) => {
         this.savingItem = false;
@@ -454,6 +429,11 @@ export class ChecklistTemplatesPage extends AdminPage {
         this.notify(`${isNew ? 'Item not added' : 'Item not updated'}. ${err.message}`);
       }
     });
+  }
+
+  /** Section name items are saved under: the saved template name (a renamed draft only changes on Save). */
+  private sectionTitle(section: ChecklistSection): string {
+    return section.title;
   }
 
   private storeItem(e: ItemSave, wasNew: boolean): void {
@@ -469,7 +449,7 @@ export class ChecklistTemplatesPage extends AdminPage {
     }
     this.drawer = { sectionId: target.id, item: e.item, isNew: false };
     this.markDirty();
-    this.notify(wasNew ? 'Item created. Save Draft or Publish to keep it in this template.' : 'Item updated. Save Draft or Publish to keep it.');
+    this.notify(this.isNew ? 'Item added. Save the template to create it.' : wasNew ? 'Item created.' : 'Item updated.');
   }
 
   duplicateItem(ref: ItemRef): void {
@@ -508,11 +488,17 @@ export class ChecklistTemplatesPage extends AdminPage {
     if (!c) return;
     if (c.action === 'template') {
       const name = this.draft.name;
-      this.service.remove(this.draft.id);
-      const next = this.all[0];
-      if (next) this.select(next);
-      this.goTo(this.page);
-      this.notify(`${name} deleted.`);
+      const id = this.draft.id;
+      this.service.deleteTemplate(id).subscribe({
+        next: () => {
+          const next = this.all[0];
+          if (next) this.select(next);
+          else this.createTemplate();
+          this.goTo(this.page);
+          this.notify(`${name} deleted.`);
+        },
+        error: (err: Error) => this.notify(`${name} not fully deleted. ${err.message}`)
+      });
       return;
     }
     const ref = c.ref;
@@ -533,6 +519,12 @@ export class ChecklistTemplatesPage extends AdminPage {
           this.notify('Item deleted.');
         }
         this.markDirty();
+        // A saved template whose last item is gone no longer exists (a template is its items).
+        if (!this.isNew && this.selectedId && !this.service.get(this.selectedId)) {
+          const next = this.all[0];
+          if (next) this.select(next);
+          else this.createTemplate();
+        }
       },
       error: (err: Error) => this.notify(`${c.action === 'section' ? 'Section' : 'Item'} not deleted. ${err.message}`)
     });
@@ -624,11 +616,10 @@ export class ChecklistTemplatesPage extends AdminPage {
     title: 'Checklist Templates',
     fileBase: 'checklist-templates',
     columns: [
-      { label: 'Code', key: 'code' }, { label: 'Name', key: 'name' }, { label: 'Version', key: 'version' }, { label: 'Category', key: 'category' },
-      { label: 'Owner', key: 'owner' }, { label: 'Status', key: 'status' }, { label: 'Frequency', key: 'frequency' },
-      { label: 'Asset Types', value: (t) => t.assetTypes.join('; ') }, { label: 'Updated', key: 'updated' }, { label: 'Uses', key: 'uses' }
+      { label: 'Code', key: 'code' }, { label: 'Name', key: 'name' }, { label: 'Items', value: (t) => itemCount(t) },
+      { label: 'Owner', key: 'owner' }, { label: 'Updated', key: 'updated' }
     ],
-    filters: { Search: `${this.search} ${this.listSearch}`.trim(), Category: this.categoryFilter, Status: this.statusFilter },
+    filters: { Search: `${this.search} ${this.listSearch}`.trim() },
     rows: () => this.filtered
   });
 
@@ -650,25 +641,31 @@ export class ChecklistTemplatesPage extends AdminPage {
         return;
       }
       const list = (Array.isArray(rows) ? rows : [rows]) as Partial<ChecklistTemplate>[];
-      let added = 0;
-      for (const row of list) {
-        if (!row || typeof row.name !== 'string' || !Array.isArray(row.sections) || !row.category || !CATEGORIES.includes(row.category)) continue;
-        const source: ChecklistTemplate = {
-          ...(row as ChecklistTemplate),
-          icon: row.icon ?? 'file',
-          tone: row.tone ?? 'purple',
-          assetTypes: row.assetTypes ?? [],
-          locations: row.locations ?? [],
-          teams: row.teams ?? [],
-          passThreshold: row.passThreshold ?? 80,
-          versions: [],
-          executions: []
-        };
-        const copy = this.service.cloneOf(source, row.name);
-        this.service.save(copy, 'draft');
-        added++;
+      const valid = list.filter((row) => row && typeof row.name === 'string' && row.name.trim() && Array.isArray(row.sections));
+      const taken = new Set<string>();
+      const todo = valid.filter((row) => {
+        const key = templateKey(row.name as string);
+        if (taken.has(key) || this.service.nameTaken(row.name as string, null)) return false;
+        taken.add(key);
+        return true;
+      });
+      if (!todo.length) {
+        this.notify(valid.length ? 'Those templates already exist.' : 'No valid templates found in that file.');
+        return;
       }
-      this.notify(added ? `Imported ${added} ${added === 1 ? 'template' : 'templates'} as drafts.` : 'No valid templates found in that file.');
+      // Each template's items are created under its name, one template after the other.
+      const created = todo.map((row) => {
+        const name = (row.name as string).trim();
+        const items = (row.sections ?? []).flatMap((sec) => sec.items ?? []).map((i) => ({ ...blankItem(this.service.newId('I')), ...i, id: this.service.newId('I') }));
+        return this.service.createTemplate(name, items);
+      });
+      concat(...created).pipe(toArray()).subscribe({
+        next: () => this.notify(`Imported ${todo.length} ${todo.length === 1 ? 'template' : 'templates'}${valid.length > todo.length ? ` (${valid.length - todo.length} already existed)` : ''}.`),
+        error: (err: Error) => {
+          this.service.loadItems().subscribe({ error: () => undefined });
+          this.notify(`Import stopped. ${err.message}`);
+        }
+      });
     });
   }
 }

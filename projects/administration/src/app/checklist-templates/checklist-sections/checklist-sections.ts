@@ -25,6 +25,8 @@ export interface DeleteRequest {
 export class ChecklistSections {
   @Input({ required: true }) template!: ChecklistTemplate;
   @Input() selectedItemId: string | null = null;
+  /** A template is one section named like the template: no section rename, move or delete. */
+  @Input() singleSection = false;
   @Output() selectItem = new EventEmitter<ItemRef>();
   @Output() addItemTo = new EventEmitter<string>();
   @Output() duplicateItem = new EventEmitter<ItemRef>();

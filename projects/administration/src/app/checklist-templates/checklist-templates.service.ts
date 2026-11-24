@@ -1,9 +1,8 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
-import { Observable, catchError, map, tap, throwError } from 'rxjs';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { Observable, catchError, concat, forkJoin, map, of, tap, throwError, toArray } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
-import { CURRENT_USER, todayIso } from '../shared/admin-common';
-import { CATEGORY_CODES, ChecklistItem, ChecklistTemplate, ResponseType, TemplateStatus, bumpVersion } from './checklist-templates.model';
+import { ChecklistItem, ChecklistTemplate, ResponseType } from './checklist-templates.model';
 
 /** Body of POST /api/administration/checklist-items */
 interface CreateChecklistItemRequest {
@@ -57,6 +56,23 @@ interface ChecklistItemDto {
   clientId: string | null;
 }
 
+/** A saved item with the audit fields the template row shows. */
+interface SavedRow extends SavedChecklistItem {
+  createdBy: string;
+  updatedAt: string;
+}
+
+/** Template id = its section name, lower case (the API has no template record). */
+export function templateKey(section: string): string {
+  return section.trim().toLowerCase();
+}
+
+/** Stable CHK-... code from the template name (letters and digits only, up to 20 characters). */
+function codeOf(name: string): string {
+  const slug = name.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 15).replace(/-$/, '');
+  return `CHK-${slug || 'GEN'}`.slice(0, 20);
+}
+
 function toAppItem(dto: ChecklistItemDto): ChecklistItem {
   return {
     id: dto.itemId,
@@ -89,8 +105,8 @@ function itemBody(item: ChecklistItem, sectionTitle: string): ChecklistItemBody 
   };
 }
 
-function toSaved(dto: ChecklistItemDto): SavedChecklistItem {
-  return { section: dto.section, item: toAppItem(dto) };
+function toSaved(dto: ChecklistItemDto): SavedRow {
+  return { section: dto.section, item: toAppItem(dto), createdBy: dto.createdBy ?? '', updatedAt: dto.updatedAt ?? dto.createdAt ?? '' };
 }
 
 function errorMessage(err: HttpErrorResponse): string {
@@ -100,22 +116,60 @@ function errorMessage(err: HttpErrorResponse): string {
 }
 
 /*
- * Checklist items are persisted through the Administration API (list, create, update, delete).
- * The API has no template concept, only standalone items tagged with a section name, so
- * DEMO MODE: templates, their section layout, versions and executions still live in memory.
+ * Checklist items are persisted through the Administration API (list, create, update, delete). The API has no template
+ * record, so a template IS a section name: the template list is built from the saved items grouped by section (one
+ * section per template, named like the template). Creating, renaming or deleting a template creates, updates or deletes
+ * its items. Code, category, owner and status shown for a template are derived, not stored.
  */
 @Injectable({ providedIn: 'root' })
 export class ChecklistTemplatesService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly itemsUrl = `${environment.administrationApiUrl}api/administration/checklist-items`;
-  private readonly store = signal<ChecklistTemplate[]>([]); // templates come from the checklist API once wired
-  readonly templates = this.store.asReadonly();
-  private seq = 0;
   private idSeq = 1000;
-  private readonly savedStore = signal<SavedChecklistItem[]>([]);
+  private readonly savedStore = signal<SavedRow[]>([]);
   /** Items persisted on the server, ordered by section. */
   readonly savedItems = this.savedStore.asReadonly();
+  /** One template per section of the saved items. */
+  readonly templates = computed<ChecklistTemplate[]>(() => {
+    const groups = new Map<string, SavedRow[]>();
+    for (const row of this.savedStore()) {
+      const key = templateKey(row.section);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(row);
+    }
+    return [...groups.entries()].map(([key, rows]) => this.toTemplate(key, rows));
+  });
+
+  private toTemplate(key: string, rows: SavedRow[]): ChecklistTemplate {
+    const title = rows[0].section.trim();
+    const updated = rows.map((r) => r.updatedAt).filter(Boolean).sort().pop() ?? '';
+    return {
+      id: key,
+      name: title,
+      code: codeOf(title),
+      version: 'v1.0',
+      category: 'Inspection',
+      owner: rows[0].createdBy,
+      updated: updated.slice(0, 10),
+      status: 'Active',
+      icon: 'clipboard',
+      tone: 'purple',
+      description: '',
+      frequency: '',
+      assetTypes: [],
+      locations: [],
+      teams: [],
+      requireApproval: false,
+      passThreshold: 80,
+      scoringMethod: 'Weighted',
+      failOnCritical: true,
+      sections: [{ id: `S-${key}`, title, items: rows.map((r) => ({ ...r.item })) }],
+      uses: 0,
+      versions: [],
+      executions: []
+    };
+  }
 
   /** GET /api/administration/checklist-items for the current tenant and client. */
   loadItems(): Observable<SavedChecklistItem[]> {
@@ -133,7 +187,7 @@ export class ChecklistTemplatesService {
   }
 
   get(id: string): ChecklistTemplate | undefined {
-    return this.store().find((t) => t.id === id);
+    return this.templates().find((t) => t.id === id);
   }
 
   /** Unique id for new sections / items */
@@ -177,72 +231,39 @@ export class ChecklistTemplatesService {
     );
   }
 
-  codeTaken(code: string, exceptId: string | null): boolean {
-    const c = code.trim().toUpperCase();
-    return this.store().some((t) => t.id !== exceptId && t.code.toUpperCase() === c);
+  /** True when another template already uses this name (names are the section names, compared ignoring case). */
+  nameTaken(name: string, exceptId: string | null): boolean {
+    const key = templateKey(name);
+    return this.templates().some((t) => t.id !== exceptId && t.id === key);
   }
 
-  /** Next free CHK-<CAT>-nnn code for a category */
-  nextCode(category: string): string {
-    const prefix = `CHK-${CATEGORY_CODES[category] ?? 'GEN'}-`;
-    let n = 1;
-    while (this.codeTaken(prefix + String(n).padStart(3, '0'), null)) n++;
-    return prefix + String(n).padStart(3, '0');
+  /** Creates a new template: POSTs every item of its section under the template name, one after the other. */
+  createTemplate(name: string, items: ChecklistItem[]): Observable<unknown> {
+    return items.length ? concat(...items.map((i) => this.createItem({ ...i }, name))).pipe(toArray()) : of(null);
   }
 
-  /**
-   * Insert or update. Saving a draft marks the template Draft; publishing makes it Active and
-   * bumps the version. Both add a version-history row.
-   */
-  save(draft: ChecklistTemplate, mode: 'draft' | 'publish' | 'settings'): ChecklistTemplate {
-    const copy = structuredClone(draft);
-    copy.name = copy.name.trim();
-    copy.code = copy.code.trim().toUpperCase();
-    copy.updated = todayIso();
-    const isNew = !copy.id;
-    if (isNew) {
-      this.seq += 1;
-      copy.id = `CHT-${String(this.seq).padStart(3, '0')}`;
-    }
-    if (mode === 'publish') {
-      if (!isNew) copy.version = bumpVersion(copy.version);
-      copy.status = 'Active';
-    } else if (mode === 'draft') {
-      copy.status = 'Draft';
-    }
-    if (mode !== 'settings' || isNew) {
-      // Older published versions are superseded
-      const retired: TemplateStatus = 'Inactive';
-      const note = mode === 'publish' ? 'Published' : isNew ? 'Created template' : 'Draft saved';
-      const history = copy.versions.filter((v) => v.version !== copy.version).map((v) => (v.status === 'Active' ? { ...v, status: retired } : v));
-      copy.versions = [{ version: copy.version, date: copy.updated, user: CURRENT_USER.name, status: copy.status, note }, ...history];
-    }
-    this.store.update((list) => (isNew ? [copy, ...list] : list.map((t) => (t.id === copy.id ? copy : t))));
-    return copy;
+  /** Renames a template: every item moves to the new section name. */
+  renameTemplate(id: string, name: string): Observable<unknown> {
+    const rows = this.savedStore().filter((r) => templateKey(r.section) === id);
+    return rows.length ? forkJoin(rows.map((r) => this.updateItem(r.item, name))) : of(null);
   }
 
-  setStatus(id: string, status: TemplateStatus): void {
-    this.store.update((list) => list.map((t) => (t.id === id ? { ...t, status, updated: todayIso() } : t)));
+  /** Deletes a template: every item of its section is deleted. */
+  deleteTemplate(id: string): Observable<unknown> {
+    const rows = this.savedStore().filter((r) => templateKey(r.section) === id);
+    return rows.length ? forkJoin(rows.map((r) => this.deleteItem(r.item.id))) : of(null);
   }
 
-  remove(id: string): void {
-    this.store.update((list) => list.filter((t) => t.id !== id));
-  }
-
-  /** Copy as a new draft with a fresh code; not stored until saved */
+  /** Copy as a new unsaved template with fresh item ids; the items are created when it is saved. */
   cloneOf(source: ChecklistTemplate, name = `${source.name} (Copy)`): ChecklistTemplate {
     const copy = structuredClone(source);
     copy.id = '';
     copy.name = name;
-    copy.code = this.nextCode(source.category);
-    copy.version = 'v1.0';
-    copy.status = 'Draft';
-    copy.owner = CURRENT_USER.name;
-    copy.uses = 0;
-    copy.executions = [];
-    copy.versions = [];
+    copy.code = codeOf(name);
+    copy.owner = '';
     copy.sections.forEach((s) => {
       s.id = this.newId('S');
+      s.title = name;
       s.items.forEach((i) => (i.id = this.newId('I')));
     });
     return copy;
