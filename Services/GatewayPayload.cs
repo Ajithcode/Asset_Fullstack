@@ -101,6 +101,17 @@ public static class GatewayPayload
             ? Convert.ToBase64String(Convert.FromHexString(raw))
             : raw;
 
+    /// <summary>
+    /// The tag's coordinates array, or null when it has none: the field may be missing (gateways don't send it),
+    /// JSON null (the worker stores missing configured fields as null) or not an array at all. Never throws.
+    /// </summary>
+    public static JsonArray? Coordinates(JsonObject tag) =>
+        tag.TryGetPropertyValue("coordinates", out var node) ? node as JsonArray : null;
+
+    /// <summary>A string field of the tag, or null when it is missing, null or not a string. Never throws.</summary>
+    public static string? Text(JsonObject tag, string field) =>
+        tag.TryGetPropertyValue(field, out var node) && node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+
     public static int? Battery(JsonObject tag) =>
         tag["batterypercentage"] is JsonValue v && v.TryGetValue<int>(out var battery) ? battery : null;
 

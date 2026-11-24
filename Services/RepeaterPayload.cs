@@ -25,7 +25,7 @@ public static class RepeaterPayload
     public static List<JsonObject> RelayedTags(JsonObject repeater)
     {
         var tags = new List<JsonObject>();
-        var raw = (string?)repeater["raw"];
+        var raw = GatewayPayload.Text(repeater, "raw");
         var buffer = new byte[raw?.Length ?? 0];
         if (raw is null || !Convert.TryFromBase64String(raw, buffer, out var length))
             return tags;

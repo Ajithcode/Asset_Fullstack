@@ -130,8 +130,9 @@ public class TagAggregator : BackgroundService
         { "status", MongoMessageStore.ToBson(tag["status"]) },
         { "raw", MongoMessageStore.ToBson(tag["raw"]) },
         { "device_trigger", MongoMessageStore.ToBson(tag["device_trigger"]) },
-        { "coordinates", MongoMessageStore.ToBson(tag["coordinates"]) },
-        { "time", DateTime.TryParse((string?)tag["time"], System.Globalization.CultureInfo.InvariantCulture,
+        // Missing, null or non-array coordinates mean "no coordinates" (null); the reading itself is always kept.
+        { "coordinates", MongoMessageStore.ToBson(GatewayPayload.Coordinates(tag)) },
+        { "time", DateTime.TryParse(GatewayPayload.Text(tag, "time"), System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
             out var time) ? (BsonValue)time : BsonNull.Value },
     };
