@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, map, shareReplay, tap } from 'rxjs';
 import { environment } from 'shared-ui';
 import { CURRENT_USER } from '../shared/analytics-common';
+import { isModuleLicensed } from 'shared-ui';
 import { DATA_SOURCES, FIELD_GROUPS, RA_MODULES, SCHEDULES, blankDefinition } from './custom-reports.data';
 import { COUNT_KEY, fieldOf, isNumeric, outputColumns, sourceOf } from './custom-reports.engine';
 import {
@@ -167,9 +168,13 @@ export class CustomReportsService {
       options: this.http.get<ApiOptions>(`${this.api}/options`)
     }).pipe(
       tap(({ sources, fields, options }) => {
-        RA_MODULES.splice(0, RA_MODULES.length, ...(options?.modules ?? []));
-        FIELD_GROUPS.splice(0, FIELD_GROUPS.length, ...buildGroups(fields ?? []));
-        DATA_SOURCES.splice(0, DATA_SOURCES.length, ...buildSources(sources ?? [], options?.modules ?? []));
+        // Only licensed modules are offered (licence config): Maintenance / Inspection sources and the other locked modules stay hidden
+        const modules = (options?.modules ?? []).filter(isModuleLicensed);
+        const usable = (sources ?? []).filter((s) => s.required || isModuleLicensed(s.label));
+        const keys = new Set(usable.map((s) => s.key));
+        RA_MODULES.splice(0, RA_MODULES.length, ...modules);
+        FIELD_GROUPS.splice(0, FIELD_GROUPS.length, ...buildGroups(fields ?? []).filter((g) => keys.has(g.key.split('|')[0])));
+        DATA_SOURCES.splice(0, DATA_SOURCES.length, ...buildSources(usable, modules));
       }),
       map(() => undefined),
       shareReplay(1)
