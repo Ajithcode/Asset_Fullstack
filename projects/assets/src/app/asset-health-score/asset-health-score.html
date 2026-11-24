@@ -43,7 +43,8 @@
         <span class="pill" [ngClass]="'pill--' + criticalityTone(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span>
       </div>
     </div>
-    <div class="menu-wrap">
+    <app-export-menu [source]="exportRequest" [disabled]="!health" />
+<div class="menu-wrap">
       <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
         Actions
         <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
@@ -53,7 +54,6 @@
           <button type="button" role="menuitem" (click)="runHealthCheck()"><lucide-icon [img]="icons.Play" [size]="15"></lucide-icon>Run Health Check</button>
           <button type="button" role="menuitem" (click)="openDetailsEdit()"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Health Details</button>
           <button type="button" role="menuitem" (click)="openPlan()"><lucide-icon [img]="icons.CalendarDays" [size]="15"></lucide-icon>View Maintenance Plan</button>
-          <button type="button" role="menuitem" (click)="exportHistory()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export History (CSV)</button>
         </ng-container>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
       </div>

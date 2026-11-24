@@ -49,6 +49,7 @@ import { AssetComponent, COMPONENT_ICONS, componentTreeOf, componentsOf, loadCom
 import { ComponentOverview } from '../asset-components/component-overview/component-overview';
 import { CustomField } from '../asset-custom-fields/custom-fields.model';
 import { CustomFieldDto, toCustomField } from '../asset-custom-fields/custom-fields.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 /** Which asset detail tab this page is: route data { view }. */
 type View = 'overview' | 'components' | 'fields' | 'history';
@@ -248,7 +249,7 @@ const HISTORY_PAGE = 15;
 @Component({
   selector: 'app-asset-detail-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ComponentOverview],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ComponentOverview, ExportMenu],
   templateUrl: './asset-detail-tab.html',
   // Shares the Status & Condition page's header, tab, KPI, table and pill styles
   styleUrls: [
@@ -950,22 +951,34 @@ export class AssetDetailTab implements OnDestroy {
     this.router.navigate([path], { queryParams: { tag: this.asset.tag } });
   }
 
-  exportCsv(): void {
-    this.closeMenus();
-    const lines =
-      this.view === 'fields'
-        ? [['Group', 'Field', 'Value', 'Required'], ...this.fieldGroups.flatMap((g) => g.rows.map((r) => [g.name, r.field.label, this.displayValue(r), r.field.required ? 'Yes' : 'No']))]
-        : this.view === 'components'
-          ? [['Tag', 'Component', 'Status', 'Manufacturer', 'Model', 'Serial Number', 'Installed'], ...this.components.map((c) => [c.tag, c.name, c.status, c.manufacturer, c.model, c.serialNumber, c.installedDate])]
-          : [['Date', 'Type', 'Event', 'Detail', 'By'], ...this.filteredHistory.map((e) => [e.at.replace('T', ' '), e.kind, e.title, e.detail, e.by])];
-    const csv = lines.map((l) => l.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${this.asset.tag}_${VIEW_TABS[this.view].toLowerCase().replace(/ /g, '_')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  exportRequest = (): ExportRequest => {
+    const tab = VIEW_TABS[this.view];
+    const base = { fileBase: `${this.asset.tag}-${tab.toLowerCase().replace(/ /g, '-')}`, title: `Asset ${tab} - ${this.asset.tag}`, filters: { Asset: `${this.asset.name} (${this.asset.tag})` } };
+    if (this.view === 'fields')
+      return {
+        ...base,
+        columns: [{ label: 'Group', key: 'g' }, { label: 'Field', key: 'f' }, { label: 'Value', key: 'v', width: 2 }, { label: 'Required', key: 'r' }],
+        rows: () => this.fieldGroups.flatMap((g) => g.rows.map((r) => ({ g: g.name, f: r.field.label, v: this.displayValue(r), r: r.field.required ? 'Yes' : 'No' }))),
+      };
+    if (this.view === 'components')
+      return {
+        ...base,
+        columns: [
+          { label: 'Tag', key: 'tag' }, { label: 'Component', key: 'name', width: 2 }, { label: 'Status', key: 'status' }, { label: 'Manufacturer', key: 'manufacturer' },
+          { label: 'Model', key: 'model' }, { label: 'Serial Number', key: 'serialNumber' }, { label: 'Installed', key: 'installedDate' },
+        ],
+        rows: () => this.components,
+      };
+    return {
+      ...base,
+      filters: { ...base.filters, Search: this.search },
+      columns: [
+        { label: 'Date', value: (e) => e.at.replace('T', ' ') }, { label: 'Type', key: 'kind' }, { label: 'Event', key: 'title', width: 2 },
+        { label: 'Detail', key: 'detail', width: 3 }, { label: 'By', key: 'by' },
+      ],
+      rows: () => this.filteredHistory,
+    };
+  };
 
   print(): void {
     this.closeMenus();

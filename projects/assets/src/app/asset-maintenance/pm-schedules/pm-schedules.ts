@@ -3,7 +3,6 @@ import { MaintenanceApiService } from '../maintenance-api.service';
 import { apiErrorMessage } from '../../services/asset-api';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -24,7 +23,7 @@ import {
   Search,
   X,
 } from 'lucide-angular';
-import { AssetRecord, TODAY, toIsoDate } from 'shared-ui';
+import { AssetRecord, ExportMenu, ExportRequest, TODAY, toIsoDate } from 'shared-ui';
 import {
   DUE_SOON_DAYS,
   PM_CATEGORIES,
@@ -98,7 +97,7 @@ const PM_TYPES = new Set(['Preventive', 'Inspection']);
 @Component({
   selector: 'app-pm-schedules',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './pm-schedules.html',
   // shares the page's base styles (cards, tables, buttons, dialogs) with the parent
   styleUrls: ['../asset-maintenance.css', '../asset-maintenance-charts.css', './pm-schedules.css'],
@@ -483,18 +482,22 @@ export class PmSchedules {
 
   // ===== Export & menus =====
 
-  export(): void {
-    this.menuOpen = '';
-    const rows = this.rows
-      .filter((s) => !this.checked.size || this.checked.has(s.id))
-      .map((s, i) => ({
-        '#': i + 1, 'PM Name': s.name, 'Asset Component': s.component, Category: s.category, Frequency: s.frequency, 'Next Due Date': s.nextDue,
-        'Last Performed': s.lastPerformed, Status: this.status(s), 'Assigned To': s.assignedTo, 'Est. Duration (h)': s.durationHours, 'Est. Cost (AED)': s.estCost, Template: s.template,
-      }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'PM Schedules');
-    XLSX.writeFile(book, `${this.asset.tag}_PM_Schedules.xlsx`);
-  }
+  /** PM schedules: ticked rows, else every schedule matching the filters. */
+  exportRequest = (): ExportRequest<PmSchedule> => ({
+    title: `PM Schedules - ${this.asset.tag}`,
+    fileBase: 'pm-schedules',
+    columns: [
+      { label: 'PM Name', key: 'name' }, { label: 'Asset Component', key: 'component' }, { label: 'Category', key: 'category' }, { label: 'Frequency', key: 'frequency' },
+      { label: 'Next Due Date', key: 'nextDue' }, { label: 'Last Performed', key: 'lastPerformed' }, { label: 'Status', value: (s) => this.status(s) },
+      { label: 'Assigned To', key: 'assignedTo' }, { label: 'Est. Duration (h)', key: 'durationHours', align: 'right' }, { label: 'Est. Cost (AED)', key: 'estCost', align: 'right' },
+      { label: 'Template', key: 'template' },
+    ],
+    filters: {
+      Asset: this.asset.tag, Search: this.search.trim(), Status: this.statusFilter, Category: this.categoryFilter, Frequency: this.frequencyFilter,
+      'Assigned To': this.assigneeFilter, Selected: this.checked.size ? `${this.checked.size} rows` : '',
+    },
+    rows: () => this.rows.filter((s) => !this.checked.size || this.checked.has(s.id)),
+  });
 
   print(): void {
     this.menuOpen = '';

@@ -58,6 +58,7 @@ import {
   HierarchyTypeOption,
   toInput,
 } from './asset-hierarchy.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 /** Grouping levels plus the assets themselves. Assets can also parent other assets (sub-components). */
 type NodeKind = 'root' | 'site' | 'building' | 'area' | 'floor' | 'system' | 'asset';
@@ -126,7 +127,7 @@ const KIND_LABELS: Record<NodeKind, string> = {
 @Component({
   selector: 'app-asset-hierarchy',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-hierarchy.html',
   styleUrl: './asset-hierarchy.css',
 })
@@ -868,23 +869,23 @@ export class AssetHierarchy implements OnInit {
 
   // ===== Export =====
 
-  exportCsv(): void {
-    this.openMenu = null;
-    const rows: string[][] = [['Path', 'Level', 'Name', 'Tag / Code', 'Type', 'Model', 'Manufacturer', 'Status']];
-    this.walk(this.root, (n) => {
-      if (n.kind === 'root') return;
-      const path = this.lineage(n.id).slice(1, -1).map((a) => a.name).join(' > ');
-      rows.push([path, KIND_LABELS[n.kind], n.name, n.tag, n.type, n.model, n.manufacturer, n.kind === 'asset' ? n.status : '']);
-    });
-    const escape = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-    const blob = new Blob([rows.map((r) => r.map(escape).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'asset-hierarchy.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+  exportRequest = (): ExportRequest => ({
+    title: 'Asset Hierarchy',
+    fileBase: 'asset-hierarchy',
+    columns: [
+      { label: 'Path', key: 'path', width: 3 }, { label: 'Level', key: 'level' }, { label: 'Name', key: 'name', width: 2 }, { label: 'Tag / Code', key: 'tag' },
+      { label: 'Type', key: 'type' }, { label: 'Model', key: 'model' }, { label: 'Manufacturer', key: 'manufacturer' }, { label: 'Status', key: 'status' },
+    ],
+    rows: () => {
+      const rows: Record<string, string>[] = [];
+      this.walk(this.root, (n) => {
+        if (n.kind === 'root') return;
+        const path = this.lineage(n.id).slice(1, -1).map((a) => a.name).join(' > ');
+        rows.push({ path, level: KIND_LABELS[n.kind], name: n.name, tag: n.tag, type: n.type, model: n.model, manufacturer: n.manufacturer, status: n.kind === 'asset' ? n.status : '' });
+      });
+      return rows;
+    },
+  });
 
   trackById(_: number, n: HierarchyNode): string {
     return n.id;

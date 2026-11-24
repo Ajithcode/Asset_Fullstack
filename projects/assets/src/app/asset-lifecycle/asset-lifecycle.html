@@ -37,7 +37,8 @@
         <span class="pill" [ngClass]="'pill--crit-' + asset.criticality.toLowerCase()"><span class="dot"></span>{{ asset.criticality }}</span>
       </div>
     </div>
-    <div class="menu-wrap">
+    <app-export-menu [source]="exportRequest" />
+<div class="menu-wrap">
       <button type="button" class="btn btn-outline" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
         Actions
         <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
@@ -48,7 +49,6 @@
         <button type="button" role="menuitem" (click)="open('event')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Lifecycle Event</button>
         <button type="button" role="menuitem" (click)="open('info')"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Asset Information</button>
         <hr />
-        <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Lifecycle (CSV)</button>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
       </div>
     </div>

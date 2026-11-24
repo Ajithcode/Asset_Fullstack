@@ -68,6 +68,7 @@ import {
   toSubAssetRef,
 } from '../asset-relationship-list/asset-relationship.service';
 import { apiErrorMessage } from '../services/asset-api';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type RelType = 'Parent Asset' | 'Connected Asset' | 'Supporting Asset' | 'Component' | 'Sub Asset';
 type Direction = 'Parent' | 'Child' | 'Sibling';
@@ -288,7 +289,7 @@ interface DiagramSet {
 @Component({
   selector: 'app-asset-relationship',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-relationship.html',
   styleUrls: ['./asset-relationship.css'],
 })
@@ -861,21 +862,19 @@ export class AssetRelationship {
     if (!tab.path && !tab.active) this.showToast(`${tab.label} is not available in this demo.`);
   }
 
-  exportCsv(): void {
-    this.actionsOpen = false;
-    const head = ['Related Asset ID', 'Asset Name', 'Relationship Type', 'Direction', 'Category', 'Location', 'Status', 'Condition', 'From Date', 'To Date', 'Description'];
-    const rows = this.relationships.map((r) => {
-      const a = this.assetFor(r.tag);
-      return [r.tag, a.name, r.type, r.direction, a.category, a.location, r.status, a.condition || '-', r.since, r.to, r.description];
-    });
-    const csv = [head, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${this.asset.tag}-relationships.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+  exportRequest = (): ExportRequest => ({
+    title: 'Asset Relationships',
+    fileBase: `${this.asset.tag}-relationships`,
+    columns: [
+      { label: 'Related Asset ID', value: (r) => r.tag }, { label: 'Asset Name', value: (r) => this.assetFor(r.tag).name },
+      { label: 'Relationship Type', value: (r) => r.type }, { label: 'Direction', value: (r) => r.direction },
+      { label: 'Category', value: (r) => this.assetFor(r.tag).category }, { label: 'Location', value: (r) => this.assetFor(r.tag).location },
+      { label: 'Status', value: (r) => r.status }, { label: 'Condition', value: (r) => this.assetFor(r.tag).condition || '-' },
+      { label: 'From Date', value: (r) => r.since }, { label: 'To Date', value: (r) => r.to }, { label: 'Description', value: (r) => r.description, width: 3 },
+    ],
+    filters: { Asset: `${this.asset.name} (${this.asset.tag})` },
+    rows: () => this.relationships,
+  });
 
   print(): void {
     this.actionsOpen = false;

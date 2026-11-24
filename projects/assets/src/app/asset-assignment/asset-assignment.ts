@@ -2,7 +2,6 @@ import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   ArrowUp,
@@ -41,6 +40,7 @@ import { Assignment, AssignmentStatus, AssignmentType, AssetKind, ENTITIES, TARG
 import {
   AssetAssignmentDto, AssetAssignmentService, AssignmentLookups, DEFAULT_ASSIGNMENT_TYPE, EMPTY_LOOKUPS, choicesFor, requestFrom, targetFor, toRows, uniqueSorted,
 } from './asset-assignment.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type ColumnKey = 'tag' | 'type' | 'assignee' | 'from' | 'to' | 'status';
 type DetailTab = 'assignment' | 'history' | 'related';
@@ -63,7 +63,7 @@ interface AssignForm {
 @Component({
   selector: 'app-asset-assignment',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-assignment.html',
   styleUrls: ['./asset-assignment.css', './asset-assignment-table.css'],
 })
@@ -507,17 +507,20 @@ export class AssetAssignment implements OnInit, OnDestroy {
 
   // ===== Export =====
 
-  export(): void {
-    const source = this.checked.size ? this.filtered.filter((a) => this.checked.has(a.id)) : this.filtered;
-    const rows = source.map((a, i) => ({
-      '#': i + 1, Asset: a.assetName, 'Asset Type': a.assetType, 'Asset Tag': a.tag, 'Serial Number': a.serial, 'Assignment Type': a.type, 'Assigned To': a.assignee,
-      Department: a.department, Location: a.location, 'From Date': a.from, 'To Date': a.to, Status: a.status, 'Assigned By': a.assignedBy, Remarks: a.remarks,
-    }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Asset Assignments');
-    XLSX.writeFile(book, 'Asset_Assignments.xlsx');
-    this.menuOpen = '';
-  }
+  /** Selected assignments, or else every assignment matching the filters. */
+  exportRequest = (): ExportRequest<Assignment> => ({
+    title: 'Asset Assignments',
+    fileBase: 'asset-assignments',
+    columns: [
+      { label: 'Asset', key: 'assetName', width: 2 }, { label: 'Asset Type', key: 'assetType' }, { label: 'Asset Tag', key: 'tag' }, { label: 'Serial Number', key: 'serial' },
+      { label: 'Assignment Type', key: 'type' }, { label: 'Assigned To', key: 'assignee' }, { label: 'Department', key: 'department' }, { label: 'Location', key: 'location' },
+      { label: 'From Date', key: 'from' }, { label: 'To Date', key: 'to' }, { label: 'Status', key: 'status' }, { label: 'Assigned By', key: 'assignedBy' }, { label: 'Remarks', key: 'remarks', width: 2 },
+    ],
+    filters: this.checked.size
+      ? { Selection: `${this.checked.size} selected` }
+      : { Search: this.search, Type: this.typeFilter, 'Assigned To': this.assigneeFilter, Department: this.departmentFilter, Location: this.locationFilter, Status: this.statusFilter },
+    rows: () => (this.checked.size ? this.filtered.filter((a) => this.checked.has(a.id)) : this.filtered),
+  });
 
   toggleMenu(name: string, event: Event): void {
     event.stopPropagation();

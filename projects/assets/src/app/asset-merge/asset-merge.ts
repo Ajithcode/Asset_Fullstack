@@ -30,6 +30,7 @@ import { ASSET_TYPE_ICONS, AssetIconKey, AuthService } from 'shared-ui';
 import { iconForAsset } from '../asset-details/asset-details.service';
 import { Comparable, DEFAULT_RULES, DedupRules, MATCH_FIELDS, MatchField, confidence } from './dedup-match';
 import { AssetDedupService, AssetMergeDto, DedupGroupDto, DedupRecordDto, MergeField, dedupErrorMessage } from './asset-dedup.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type Confidence = 'High' | 'Medium' | 'Low';
 
@@ -116,7 +117,7 @@ function toLog(m: AssetMergeDto): MergeLog {
 @Component({
   selector: 'app-asset-merge',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-merge.html',
   // Split to keep each stylesheet under the anyComponentStyle budget
   styleUrls: ['./asset-merge.css', './asset-merge-panels.css'],
@@ -427,18 +428,19 @@ export class AssetMerge implements OnDestroy {
       });
   }
 
-  exportCsv(): void {
-    this.closeMenus();
-    const rows = [['Primary Asset ID', 'Primary Asset Name', 'Duplicate Asset ID', 'Duplicate Asset Name', 'Source', 'Match Score', 'Confidence']];
-    for (const g of this.filtered) for (const m of g.members) rows.push([g.primary.tag, g.primary.name, m.rec.tag, m.rec.name, m.rec.source, String(m.score), this.confidenceOf(m.score) ?? '']);
-    const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'duplicate-assets.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  exportRequest = (): ExportRequest => ({
+    title: 'Duplicate Assets',
+    fileBase: 'duplicate-assets',
+    columns: [
+      { label: 'Primary Asset ID', key: 'pt' }, { label: 'Primary Asset Name', key: 'pn', width: 2 }, { label: 'Duplicate Asset ID', key: 'dt' },
+      { label: 'Duplicate Asset Name', key: 'dn', width: 2 }, { label: 'Source', key: 'src' }, { label: 'Match Score', key: 'score', align: 'right' }, { label: 'Confidence', key: 'conf' },
+    ],
+    filters: { Search: this.search, Category: this.categoryFilter, Location: this.siteFilter, Status: this.statusFilter },
+    rows: () =>
+      this.filtered.flatMap((g) =>
+        g.members.map((m) => ({ pt: g.primary.tag, pn: g.primary.name, dt: m.rec.tag, dn: m.rec.name, src: m.rec.source, score: m.score, conf: this.confidenceOf(m.score) ?? '' })),
+      ),
+  });
 
   // ===== Merge panel =====
 

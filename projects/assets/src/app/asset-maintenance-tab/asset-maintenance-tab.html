@@ -52,7 +52,6 @@
         <button type="button" role="menuitem" (click)="openModule('workOrders')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Create Work Order</button>
         <button type="button" role="menuitem" (click)="newRequest()"><lucide-icon [img]="icons.MessageSquarePlus" [size]="15"></lucide-icon>New Service Request</button>
         <button type="button" role="menuitem" (click)="openModule()"><lucide-icon [img]="icons.ExternalLink" [size]="15"></lucide-icon>Open Maintenance Module</button>
-        <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export {{ view === 'maintenance' ? 'Work Orders' : 'Service History' }} (CSV)</button>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
       </div>
     </div>
@@ -186,7 +185,7 @@
       <div class="card-head">
         <lucide-icon class="head-icon" [img]="icons.History" [size]="20"></lucide-icon>
         <h3 class="grow">Maintenance History <span class="count">({{ completed.length }} completed)</span></h3>
-        <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+        <app-export-menu [source]="workOrdersExport" [small]="true" />
       </div>
       <div class="table-wrap">
         <table class="data-table">
@@ -302,7 +301,7 @@
       <div class="card-head">
         <lucide-icon class="head-icon" [img]="icons.History" [size]="20"></lucide-icon>
         <h3 class="grow">Service History <span class="count">({{ serviceEvents.length }})</span></h3>
-        <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+        <app-export-menu [source]="serviceHistoryExport" [small]="true" />
       </div>
       <div class="table-wrap">
         <table class="data-table">

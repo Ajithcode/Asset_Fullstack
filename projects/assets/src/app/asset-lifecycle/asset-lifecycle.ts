@@ -36,6 +36,7 @@ import {
   X,
   HeartPulse,
 } from 'lucide-angular';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type StageKey =
   | 'planning'
@@ -176,7 +177,7 @@ function addMonths(iso: string, months: number): string {
 @Component({
   standalone: true,
   selector: 'app-asset-lifecycle',
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-lifecycle.html',
   styleUrls: ['./asset-lifecycle.css'],
 })
@@ -694,24 +695,23 @@ export class AssetLifecycle implements OnDestroy {
     this.closeModal();
   }
 
-  exportCsv(): void {
-    this.actionsOpen = false;
-    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-    const rows: (string | number)[][] = [
-      ['Section', 'Item', 'Date', 'Status / Value', 'By / Notes'],
-      ...this.stages.map((s) => ['Stage', s.label, s.date, s.status, s.owner]),
-      ...this.sortedEvents.map((e) => ['Event', e.title, e.date, e.kind, e.by]),
-      ...this.sortedConditions.map((c) => ['Condition', 'Assessment', c.date, c.condition, c.notes]),
-      ...this.costRows.map((r) => ['Financial', r.label, '', this.financial[r.key], 'AED']),
-    ];
-    const url = URL.createObjectURL(new Blob([rows.map((r) => r.map(esc).join(',')).join('\n')], { type: 'text/csv' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${this.asset.tag}-lifecycle.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    this.showToast('Lifecycle exported as CSV.');
-  }
+  exportRequest = (): ExportRequest => ({
+    title: 'Asset Lifecycle',
+    fileBase: `${this.asset.tag}-lifecycle`,
+    columns: [
+      { label: 'Section', key: 'a' }, { label: 'Item', key: 'b', width: 2 }, { label: 'Date', key: 'c' }, { label: 'Status / Value', key: 'd' }, { label: 'By / Notes', key: 'e', width: 3 },
+    ],
+    filters: { Asset: `${this.asset.name} (${this.asset.tag})` },
+    rows: () => {
+      const r = (a: string, b: string, c: string, d: string | number, e: string) => ({ a, b, c, d, e });
+      return [
+        ...this.stages.map((s) => r('Stage', s.label, s.date, s.status, s.owner)),
+        ...this.sortedEvents.map((e) => r('Event', e.title, e.date, e.kind, e.by)),
+        ...this.sortedConditions.map((c) => r('Condition', 'Assessment', c.date, c.condition, c.notes)),
+        ...this.costRows.map((x) => r('Financial', x.label, '', this.financial[x.key], 'AED')),
+      ];
+    },
+  });
 
   print(): void {
     this.actionsOpen = false;

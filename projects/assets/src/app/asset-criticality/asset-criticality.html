@@ -41,6 +41,7 @@
         <span class="pill" [ngClass]="'pill--' + levelTone(headerLevel)"><span class="dot"></span>{{ headerLevel }}</span>
       </div>
     </div>
+    <app-export-menu *ngIf="crit" [source]="exportRequest" />
     <div class="menu-wrap">
       <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
         Actions
@@ -51,7 +52,6 @@
           <button type="button" role="menuitem" (click)="openAssessment()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Re-assess Criticality</button>
           <button type="button" role="menuitem" (click)="openInfoEdit()"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Additional Information</button>
           <button type="button" role="menuitem" (click)="openMitigation()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Mitigation Action</button>
-          <button type="button" role="menuitem" (click)="exportAssessment()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Assessment (CSV)</button>
         </ng-container>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
       </div>
@@ -357,7 +357,7 @@
           <button type="button" class="icon-btn" [class.is-on]="view === 'list'" (click)="view = 'list'" aria-label="List view" [attr.aria-pressed]="view === 'list'"><lucide-icon [img]="icons.List" [size]="18"></lucide-icon></button>
           <button type="button" class="icon-btn" [class.is-on]="view === 'grid'" (click)="view = 'grid'" aria-label="Grid view" [attr.aria-pressed]="view === 'grid'"><lucide-icon [img]="icons.LayoutGrid" [size]="18"></lucide-icon></button>
         </div>
-        <button type="button" class="btn btn-outline" (click)="exportList()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>{{ checked.size ? 'Export ' + checked.size : 'Export' }}</button>
+        <app-export-menu [source]="exportListRequest" />
         <button type="button" class="btn btn-primary" [disabled]="!assetId || notFound || loading" (click)="openAssessment()"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>Assess Asset</button>
       </div>
     </header>

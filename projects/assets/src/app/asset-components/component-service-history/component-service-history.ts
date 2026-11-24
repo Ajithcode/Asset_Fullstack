@@ -28,6 +28,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 export type ServiceType = 'Preventive' | 'Corrective' | 'Inspection';
 export type ServiceStatus = 'Completed' | 'In Progress' | 'Scheduled' | 'Cancelled';
@@ -107,7 +108,7 @@ export function buildMockServiceHistory(_c: AssetComponent): ServiceRecord[] {
 @Component({
   selector: 'app-component-service-history',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './component-service-history.html',
   // Reuses the page's card, table, pill, menu and modal styles.
   styleUrls: ['../asset-components.css', './component-service-history.css'],
@@ -296,20 +297,20 @@ export class ComponentServiceHistory {
     else this.checked.add(id);
   }
 
-  exportChecked(): void {
-    const rows = this.sorted.filter((r) => this.checked.has(r.id));
-    const header = ['Reference', 'Service Date', 'Type', 'Description', 'Performed By', 'Technician', 'Next Due', 'Status', 'Total Cost'];
-    const escape = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-    const lines = [header, ...rows.map((r) => [r.reference, r.date, r.type, r.description, r.performedBy, r.technician, r.nextDue, r.status, String(this.totalCost(r))])]
-      .map((cols) => cols.map(escape).join(','));
-    const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${this.comp.tag}-service-history.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    this.showToast(`Exported ${rows.length} record${rows.length === 1 ? '' : 's'}.`);
-  }
+  /** Selected records, or else every record matching the filters. */
+  exportRequest = (): ExportRequest<ServiceRecord> => ({
+    title: `Component Service History - ${this.comp.tag}`,
+    fileBase: `${this.comp.tag}-service-history`,
+    columns: [
+      { label: 'Reference', key: 'reference' }, { label: 'Service Date', key: 'date' }, { label: 'Type', key: 'type' }, { label: 'Description', key: 'description', width: 3 },
+      { label: 'Performed By', key: 'performedBy' }, { label: 'Technician', key: 'technician' }, { label: 'Next Due', key: 'nextDue' }, { label: 'Status', key: 'status' },
+      { label: 'Total Cost', value: (r) => this.totalCost(r), align: 'right' },
+    ],
+    filters: this.checked.size
+      ? { Selection: `${this.checked.size} selected` }
+      : { Search: this.search, 'Service Type': this.typeFilter, Status: this.statusFilter, From: this.fromDate, To: this.toDate },
+    rows: () => (this.checked.size ? this.sorted.filter((r) => this.checked.has(r.id)) : this.filtered),
+  });
 
   // ===== Selected record =====
 

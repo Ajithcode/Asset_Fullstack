@@ -36,7 +36,8 @@
           >
             <lucide-icon [img]="allExpanded ? icons.ChevronsDownUp : icons.ChevronsUpDown" [size]="17"></lucide-icon>
           </button>
-          <div class="menu-wrap">
+          <app-export-menu [source]="exportRequest" [small]="true" />
+<div class="menu-wrap">
             <button type="button" class="tool-btn" (click)="toggleMenu('tree', $event)" [attr.aria-expanded]="openMenu === 'tree'" aria-label="More options">
               <lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon>
             </button>
@@ -44,8 +45,6 @@
               <button type="button" role="menuitem" (click)="expandAll()"><lucide-icon [img]="icons.ChevronsUpDown" [size]="15"></lucide-icon>Expand All</button>
               <button type="button" role="menuitem" (click)="collapseAll()"><lucide-icon [img]="icons.ChevronsDownUp" [size]="15"></lucide-icon>Collapse All</button>
               <button type="button" role="menuitem" (click)="openMenu = null; openAdd(root, 'site')"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Site</button>
-              <hr />
-              <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Hierarchy (CSV)</button>
             </div>
           </div>
         </div>

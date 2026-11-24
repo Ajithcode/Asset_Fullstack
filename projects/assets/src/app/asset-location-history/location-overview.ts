@@ -3,7 +3,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -33,6 +32,7 @@ import { LocationEventDto, LocationHistoryService, MovementType } from './locati
 import { SITE_POINTS, ZONE_POINTS } from './location-overview.data';
 import { LocationOverviewMap, MapZone } from './location-overview-map';
 import { AssetListItemDto, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 export type LocSource = 'BLE' | 'Manual' | 'QR Scan' | 'GPS' | 'RFID';
 const SOURCES: LocSource[] = ['BLE', 'Manual', 'QR Scan', 'GPS', 'RFID'];
@@ -118,7 +118,7 @@ function fmtDwell(ms: number): string {
 @Component({
   selector: 'app-location-overview',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, LocationHistory, LocationOverviewMap],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, LocationHistory, LocationOverviewMap, ExportMenu],
   templateUrl: './location-overview.html',
   styleUrls: ['./location-history.css', './location-history-table.css', './location-overview.css'],
 })
@@ -621,21 +621,21 @@ export class LocationOverview implements OnInit, OnDestroy {
 
   // ===== Export =====
 
-  export(): void {
-    const book = XLSX.utils.book_new();
-    const pick = this.selected.size ? this.summary.filter((s) => this.selected.has(s.tag)) : this.summary;
-    const summary = pick.map((s) => ({
-      'Asset ID': s.tag, 'Asset Name': s.name, 'Asset Type': s.type, Category: s.category, Site: s.site, 'Current Location': s.current, 'Previous Location': s.previous,
-      'Last Movement': stamp(s.last).replace('T', ' '), Source: s.source, Status: s.status, 'Location Changes': s.changes,
-    }));
-    const tags = new Set(pick.map((s) => s.tag));
-    const events = this.filteredEvents.filter((e) => tags.has(e.tag)).map((e) => ({
-      'Date & Time': stamp(e.at).replace('T', ' '), 'Asset ID': e.tag, 'Asset Name': e.name, From: e.prevZone, To: e.zone, Event: e.eventType, Source: e.source, Details: e.details, 'Recorded By': e.by,
-    }));
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(summary), 'Asset Summary');
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(events), 'Location Changes');
-    XLSX.writeFile(book, `Location_History_${stamp(new Date()).slice(0, 10)}.xlsx`);
-  }
+  /** Selected assets, or else every asset in the summary table. */
+  exportRequest = (): ExportRequest<SummaryRow> => ({
+    title: 'Location History Overview',
+    fileBase: 'location-history',
+    columns: [
+      { label: 'Asset ID', key: 'tag' }, { label: 'Asset Name', key: 'name', width: 2 }, { label: 'Asset Type', key: 'type' }, { label: 'Category', key: 'category' },
+      { label: 'Site', key: 'site' }, { label: 'Current Location', key: 'current', width: 2 }, { label: 'Previous Location', key: 'previous', width: 2 },
+      { label: 'Last Movement', value: (s) => stamp(s.last).replace('T', ' ') }, { label: 'Source', key: 'source' }, { label: 'Status', key: 'status' },
+      { label: 'Location Changes', key: 'changes', align: 'right' },
+    ],
+    filters: this.selected.size
+      ? { Selection: `${this.selected.size} selected` }
+      : { Site: this.site, Category: this.category, 'Asset Type': this.type, Zone: this.zone, Source: this.source, Status: this.status, Search: this.search },
+    rows: () => (this.selected.size ? this.summary.filter((s) => this.selected.has(s.tag)) : this.summary),
+  });
 
   // ===== Menus =====
 

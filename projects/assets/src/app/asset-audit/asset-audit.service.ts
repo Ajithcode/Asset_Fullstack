@@ -335,11 +335,6 @@ export class AssetAuditService {
     );
   }
 
-  /** GET /export: the list with the same filters, as an Excel file. */
-  export(query: AuditListQuery): Observable<Blob> {
-    return this.http.get(`${this.url}/export`, { params: this.listParams(query), responseType: 'blob' });
-  }
-
   private listParams(query: AuditListQuery): HttpParams {
     let params = new HttpParams();
     for (const [key, value] of Object.entries(query)) if (value) params = params.set(key, value);

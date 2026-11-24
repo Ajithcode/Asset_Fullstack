@@ -8,14 +8,7 @@
         <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
         Upload Document
       </button>
-      <div class="menu-wrap">
-        <button type="button" class="square-btn" (click)="toggleMenu('list', $event)" [attr.aria-expanded]="openMenu === 'list'" aria-label="More options">
-          <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
-        </button>
-        <div *ngIf="openMenu === 'list'" class="menu" role="menu" (click)="$event.stopPropagation()">
-          <button type="button" role="menuitem" (click)="exportList()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export List (CSV)</button>
-        </div>
-      </div>
+      <app-export-menu [source]="exportRequest" [small]="true" />
     </div>
 
     <div *ngIf="loadError" class="load-state load-state--error" role="alert">

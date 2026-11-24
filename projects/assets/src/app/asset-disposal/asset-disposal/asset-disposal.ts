@@ -2,7 +2,6 @@ import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   Building2,
@@ -32,7 +31,8 @@ import {
   Upload,
   X,
 } from 'lucide-angular';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
+import { ExportMenu, ExportRequest, ExportService } from 'shared-ui';
 import { apiErrorMessage } from '../../services/asset-api';
 import { AssetDisposalService, DisposalApproverDto, DisposalListItemDto, DisposalRequestDto, toUiStatus } from '../asset-disposal.service';
 
@@ -224,7 +224,7 @@ type Tab = 'details' | 'items' | 'workflow' | 'files' | 'notes';
 
 @Component({
   selector: 'app-asset-disposal',
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-disposal.html',
   styleUrls: [
     '../../asset-assignment/asset-assignment.css',
@@ -340,8 +340,12 @@ export class AssetDisposal implements OnInit, OnDestroy {
   // ===== Filters & paging =====
 
   get filtered(): DisposalRequest[] {
+    return this.applyFilters(this.requests);
+  }
+
+  private applyFilters(list: DisposalRequest[]): DisposalRequest[] {
     const q = this.search.trim().toLowerCase();
-    return this.requests.filter(
+    return list.filter(
       (r) =>
         (!this.statusFilter || r.status === this.statusFilter) &&
         (!this.methodFilter || r.method === this.methodFilter) &&
@@ -629,19 +633,32 @@ export class AssetDisposal implements OnInit, OnDestroy {
 
   // ===== Export =====
 
-  export(format: 'xlsx' | 'csv'): void {
-    const source = this.checked.size ? this.filtered.filter((r) => this.checked.has(r.id)) : this.filtered;
-    const rows = source.map((r, i) => ({
-      '#': i + 1, 'Disposal ID': r.reference, 'Request Title': r.title, 'Asset Name': r.assetName, 'Asset Tag': r.tag, Assets: r.assetCount,
-      Category: r.category, Location: r.locationDetail || r.location, 'Disposal Method': r.method, Vendor: r.vendor, Status: r.status,
-      'Requested Date': r.requested.slice(0, 10), 'Requested By': r.requestedBy, Reason: r.reason, 'Serial Number': r.serial,
-      'Est. Value (AED)': r.value, 'Pending With': r.pendingWith,
-    }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Asset Disposals');
-    XLSX.writeFile(book, `Asset_Disposals.${format}`, { bookType: format });
-    this.menuOpen = '';
-  }
+  private readonly exporter = inject(ExportService);
+
+  /** Ticked rows, else every request matching the current filters (all pages when the list outgrew the first page). */
+  exportRequest = (): ExportRequest<DisposalRequest> => ({
+    title: 'Asset Disposals',
+    fileBase: 'asset-disposals',
+    columns: [
+      { label: 'Disposal ID', key: 'reference' }, { label: 'Request Title', key: 'title' }, { label: 'Asset Name', key: 'assetName' },
+      { label: 'Asset Tag', key: 'tag' }, { label: 'Assets', key: 'assetCount' }, { label: 'Category', key: 'category' },
+      { label: 'Location', value: (r) => r.locationDetail || r.location }, { label: 'Disposal Method', key: 'method' }, { label: 'Vendor', key: 'vendor' },
+      { label: 'Status', key: 'status' }, { label: 'Requested Date', value: (r) => r.requested.slice(0, 10) }, { label: 'Requested By', key: 'requestedBy' },
+      { label: 'Reason', key: 'reason' }, { label: 'Serial Number', key: 'serial' }, { label: 'Est. Value (AED)', key: 'value', align: 'right' },
+      { label: 'Pending With', key: 'pendingWith' },
+    ],
+    filters: {
+      Search: this.search.trim(), Status: this.statusFilter, Method: this.methodFilter, Category: this.categoryFilter, Location: this.locationFilter,
+      From: this.fromDate, To: this.toDate, Selected: this.checked.size ? `${this.checked.size} rows` : '',
+    },
+    rows: () => {
+      if (this.checked.size) return this.filtered.filter((r) => this.checked.has(r.id));
+      if (this.requests.length < 200) return this.filtered;
+      return this.exporter
+        .allPages<DisposalListItemDto>((page, size) => this.api.list({ page, pageSize: size }).pipe(map((res) => ({ items: res.items, total: res.totalCount }))))
+        .pipe(map((items) => this.applyFilters(items.map(fromListItem))));
+    },
+  });
 
   // ===== Menus =====
 

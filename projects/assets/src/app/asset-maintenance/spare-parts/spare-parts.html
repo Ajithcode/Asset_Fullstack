@@ -5,7 +5,6 @@
     <button type="button" class="btn btn-outline btn-sm" (click)="openRequest()"><lucide-icon [img]="icons.Upload" [size]="15"></lucide-icon>Request Parts</button>
     <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('more', $event)" aria-haspopup="menu">More Actions<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon></button>
       <span *ngIf="menuOpen === 'more'" class="menu" role="menu" (click)="$event.stopPropagation()">
-        <button type="button" role="menuitem" (click)="export('xlsx')">Export usage (Excel)</button>
         <button type="button" role="menuitem" (click)="sub = 'bom'; menuOpen = ''">Review BOM shortfalls ({{ bomShortfalls }})</button>
         <button type="button" role="menuitem" (click)="print()">Print</button>
       </span></span>
@@ -61,11 +60,7 @@
             <button type="button" class="btn btn-primary btn-sm" (click)="rangeOpen = false">Done</button>
           </span>
         </span>
-        <span class="menu-wrap"><button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('export', $event)" aria-haspopup="menu"><lucide-icon [img]="icons.Upload" [size]="15"></lucide-icon>Export<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon></button>
-          <span *ngIf="menuOpen === 'export'" class="menu" role="menu" (click)="$event.stopPropagation()">
-            <button type="button" role="menuitem" (click)="export('xlsx')">Excel (.xlsx){{ checked.size ? ' · ' + checked.size + ' selected' : '' }}</button>
-            <button type="button" role="menuitem" (click)="export('csv')">CSV (.csv)</button>
-          </span></span>
+        <app-export-menu [source]="exportRequest" [small]="true" />
       </ng-container>
     </div>
 

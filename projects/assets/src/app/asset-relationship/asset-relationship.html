@@ -38,14 +38,14 @@
       <div class="chip chip--sm"><span>Condition</span><span class="pill" [ngClass]="conditionPill(asset.condition)"><span class="dot"></span>{{ asset.condition }}</span></div>
       <div class="chip chip--sm"><span>Criticality</span><span class="pill" [ngClass]="criticalityPill(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span></div>
     </div>
-    <div class="menu-wrap">
+    <app-export-menu [source]="exportRequest" />
+<div class="menu-wrap">
       <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
         Actions
         <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
       </button>
       <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
         <button type="button" role="menuitem" (click)="openAdd()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Relationship</button>
-        <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Relationships (CSV)</button>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
       </div>
     </div>

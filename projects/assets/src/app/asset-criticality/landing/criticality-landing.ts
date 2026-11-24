@@ -21,7 +21,8 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-angular';
-import { Subject, Subscription, debounceTime, forkJoin } from 'rxjs';
+import { ExportColumn, ExportMenu, ExportRequest, ExportService } from 'shared-ui';
+import { Subject, Subscription, debounceTime, forkJoin, map } from 'rxjs';
 import { apiErrorMessage } from '../../services/asset-api';
 import { FilterSelect, FilterSelectOption } from '../../shared/filter-select/filter-select';
 import {
@@ -57,7 +58,7 @@ interface Kpi {
   apply: Partial<Pick<CriticalityFilters, 'level' | 'approvalStatus' | 'overdue'>>;
 }
 
-/** Table columns in display order; keys match the export columns of the API. */
+/** Table columns in display order; keys identify the column. */
 const COLUMNS: Column[] = [
   { key: 'assetId', label: 'Asset ID', sort: 'assetId' },
   { key: 'assetName', label: 'Asset Name', sort: 'assetName' },
@@ -73,13 +74,6 @@ const COLUMNS: Column[] = [
   { key: 'nextReviewDate', label: 'Next Review Date', sort: 'nextReviewDate' },
   { key: 'approvalStatus', label: 'Approval Status', sort: 'approvalStatus' },
 ];
-
-/** Table column → export columns (a combined table column exports as two spreadsheet columns). */
-const EXPORT_KEYS: Record<string, string[]> = {
-  category: ['category', 'assetType'],
-  site: ['site', 'location'],
-  department: ['department', 'owner'],
-};
 
 const DEFAULT_HIDDEN = ['condition', 'assessedBy'];
 const COLUMNS_STORAGE_KEY = 'a360.assetCriticality.columns';
@@ -100,13 +94,13 @@ const LEVEL_COLORS: Record<string, string> = { critical: '#C62828', high: '#EF6C
 
 /**
  * Assets › Asset Criticality (menu page): every registered asset with its approved criticality, KPI cards, filters,
- * the Assessment History tab, the level distribution and an Excel export. One asset's details open at
+ * the Assessment History tab, the level distribution and a CSV/PDF export. One asset's details open at
  * /assets/criticality/asset/:tag.
  */
 @Component({
   selector: 'app-criticality-landing',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect, ExportMenu],
   templateUrl: './criticality-landing.html',
   styleUrls: [
     '../../asset-status-condition/asset-status-condition.css',
@@ -123,6 +117,7 @@ export class CriticalityLanding implements OnInit, OnDestroy {
   readonly pageSize = PAGE_SIZE;
 
   private readonly api = inject(CriticalityApiService);
+  private readonly exporter = inject(ExportService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly search$ = new Subject<void>();
@@ -148,7 +143,6 @@ export class CriticalityLanding implements OnInit, OnDestroy {
   total = 0;
   loading = false;
   loadError = '';
-  exporting = false;
   showAnalytics = true;
   showColumnMenu = false;
   hidden = new Set<string>(DEFAULT_HIDDEN);
@@ -345,26 +339,34 @@ export class CriticalityLanding implements OnInit, OnDestroy {
     this.selected = this.selected?.assetRegistrationId === row.assetRegistrationId ? null : row;
   }
 
-  exportExcel(): void {
-    if (this.exporting) return;
-    this.exporting = true;
-    const keys = this.visibleColumns.flatMap((c) => EXPORT_KEYS[c.key] ?? [c.key]);
-    this.api.exportXlsx(this.filters, keys, this.sortBy, this.sortDir).subscribe({
-      next: (blob) => {
-        this.exporting = false;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `asset-criticality-${new Date().toISOString().slice(0, 10)}.xlsx`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      },
-      error: () => {
-        this.exporting = false;
-        this.showToast('Export failed. Please try again.');
-      },
-    });
-  }
+  /** The filtered, sorted list (all pages) with the columns currently shown in the table. */
+  exportRequest = (): ExportRequest<CriticalityAssetRow> => {
+    const num = (v: number | null) => (v != null ? `${Math.round(v * 10) / 10}/100` : '-');
+    const defs: Record<string, ExportColumn<CriticalityAssetRow>[]> = {
+      assetId: [{ label: 'Asset ID', value: (r) => r.assetTag || r.assetRegistrationId }],
+      assetName: [{ label: 'Asset Name', value: (r) => r.assetName || '-', width: 2 }],
+      category: [{ label: 'Category', value: (r) => r.category || '-' }, { label: 'Asset Type', value: (r) => r.assetType || '' }],
+      site: [{ label: 'Site', value: (r) => r.siteName || '-' }, { label: 'Location', value: (r) => r.locationPath || '', width: 2 }],
+      department: [{ label: 'Department', value: (r) => r.department || '-' }, { label: 'Owner', value: (r) => r.owner || '' }],
+      operationalStatus: [{ label: 'Operational Status', value: (r) => r.operationalStatus || '-' }],
+      condition: [{ label: 'Current Condition', value: (r) => r.condition || '-' }],
+      level: [{ label: 'Criticality Level', value: (r) => r.level || 'Unassessed' }],
+      score: [{ label: 'Score', value: (r) => num(r.score), align: 'right' }],
+      assessmentDate: [{ label: 'Assessment Date', value: (r) => this.formatDate(r.assessmentDate) }],
+      assessedBy: [{ label: 'Assessed By', value: (r) => r.assessedBy || '-' }],
+      nextReviewDate: [{ label: 'Next Review Date', value: (r) => this.formatDate(r.nextReviewDate) }],
+      approvalStatus: [{ label: 'Approval Status', value: (r) => this.statusLabel(r.approvalStatus) }],
+    };
+    const f = this.filters;
+    const { sortBy, sortDir } = this;
+    return {
+      title: 'Asset Criticality',
+      fileBase: 'asset-criticality',
+      columns: this.visibleColumns.flatMap((c) => defs[c.key] ?? []),
+      filters: Object.fromEntries(Object.entries(f).filter(([, v]) => v === true || (typeof v === 'string' && v.trim())).map(([k, v]) => [k, v === true ? 'Yes' : String(v)])),
+      rows: () => this.exporter.allPages<CriticalityAssetRow>((page, size) => this.api.assets(f, page, size, sortBy, sortDir).pipe(map((r) => ({ items: r.items, total: r.totalCount }))), 100),
+    };
+  };
 
   private showToast(message: string): void {
     this.toast = message;

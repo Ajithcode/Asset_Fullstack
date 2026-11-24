@@ -40,14 +40,14 @@
       <div class="chip chip--sm"><span>Condition</span><span class="pill" [ngClass]="conditionPill(asset.condition)"><span class="dot"></span>{{ asset.condition }}</span></div>
       <div class="chip chip--sm"><span>Criticality</span><span class="pill" [ngClass]="criticalityPill(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span></div>
     </div>
-    <div class="menu-wrap">
+    <app-export-menu [source]="exportRequest" />
+<div class="menu-wrap">
       <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
         Actions
         <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
       </button>
       <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
         <button type="button" role="menuitem" (click)="openUpload()"><lucide-icon [img]="icons.Upload" [size]="15"></lucide-icon>Upload Document</button>
-        <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Document List (CSV)</button>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
       </div>
     </div>
@@ -77,7 +77,8 @@
           <lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>
           Upload Document
         </button>
-        <div class="menu-wrap">
+        <app-export-menu [source]="exportRequest" [small]="true" />
+<div class="menu-wrap">
           <button type="button" class="square-btn" title="More actions" aria-haspopup="menu" [attr.aria-expanded]="bulkOpen"
             (click)="toggleBulk($event)">
             <lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon>
@@ -88,10 +89,6 @@
             </button>
             <button type="button" role="menuitem" class="danger" (click)="askDelete(selectedIds)">
               <lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete Selected ({{ selectedIds.length }})
-            </button>
-            <hr />
-            <button type="button" role="menuitem" (click)="exportCsv()">
-              <lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export List (CSV)
             </button>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -21,7 +20,7 @@ import {
   X,
   Package,
 } from 'lucide-angular';
-import { AssetRecord, TODAY, toIsoDate } from 'shared-ui';
+import { AssetRecord, ExportMenu, ExportRequest, TODAY, toIsoDate } from 'shared-ui';
 import { PartReservation, PartUsage, SparePart, StockStatus, isStocked, lineCost, reservedQty, stockStatus } from '../maintenance-parts';
 
 /** The work-order fields this tab reads and updates (issuing parts adds to a work order's parts cost). */
@@ -52,7 +51,7 @@ const BAR_COLORS = ['#7c5cff', '#2563eb', '#16a34a', '#eaa200', '#f97316'];
 @Component({
   selector: 'app-spare-parts',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './spare-parts.html',
   // shares the page's base styles (cards, tables, buttons, dialogs) with the parent
   styleUrls: ['../asset-maintenance.css', '../asset-maintenance-charts.css', './spare-parts.css'],
@@ -366,18 +365,19 @@ export class SpareParts {
 
   // ===== Export & menus =====
 
-  export(kind: 'xlsx' | 'csv' = 'xlsx'): void {
-    this.menuOpen = '';
-    const rows = this.usageRows
-      .filter((r) => !this.checked.size || this.checked.has(r.part.partNo))
-      .map((r, i) => ({
-        '#': i + 1, 'Part Number': r.part.partNo, 'Part Name': r.part.name, Category: r.part.category, 'Used Qty': r.qty, 'Unit Cost (AED)': r.avgCost,
-        'Total Cost (AED)': r.total, 'Last Used Date': r.lastUsed, 'Related WO': r.lastWo, Stock: isStocked(r.part) ? this.status(r.part) : 'Non-stock',
-      }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Parts Usage');
-    XLSX.writeFile(book, `${this.asset.tag}_Parts_Usage.${kind}`, { bookType: kind });
-  }
+  /** Parts usage in the selected date range: ticked rows, else every row. */
+  exportRequest = (): ExportRequest<UsageRow> => ({
+    title: `Parts Usage - ${this.asset.tag}`,
+    fileBase: 'spare-parts-usage',
+    columns: [
+      { label: 'Part Number', value: (r) => r.part.partNo }, { label: 'Part Name', value: (r) => r.part.name }, { label: 'Category', value: (r) => r.part.category },
+      { label: 'Used Qty', key: 'qty', align: 'right' }, { label: 'Unit Cost (AED)', key: 'avgCost', align: 'right' }, { label: 'Total Cost (AED)', key: 'total', align: 'right' },
+      { label: 'Last Used Date', key: 'lastUsed' }, { label: 'Related WO', key: 'lastWo' },
+      { label: 'Stock', value: (r) => (isStocked(r.part) ? this.status(r.part) : 'Non-stock') },
+    ],
+    filters: { Asset: this.asset.tag, From: this.from, To: this.to, Search: this.search.trim(), Category: this.categoryFilter, Stock: this.statusFilter, Selected: this.checked.size ? `${this.checked.size} rows` : '' },
+    rows: () => this.usageRows.filter((r) => !this.checked.size || this.checked.has(r.part.partNo)),
+  });
 
   print(): void {
     this.menuOpen = '';

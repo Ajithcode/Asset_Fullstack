@@ -51,6 +51,7 @@ import {
   cloneDetail,
   loadAssetDetail,
 } from '../asset-details/asset-details';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type SubTab = 'operational' | 'assessment' | 'performance' | 'environment' | 'alarms';
 type TrendRange = 'all' | '3y' | '1y';
@@ -76,7 +77,7 @@ const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'O
 @Component({
   selector: 'app-asset-status-condition',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-status-condition.html',
   // Split to keep each stylesheet under the anyComponentStyle budget
   styleUrls: ['./asset-status-condition.css', './asset-status-condition-panels.css'],
@@ -633,18 +634,16 @@ export class AssetStatusCondition implements OnDestroy {
 
   // ===== Export / print =====
 
-  exportAssessments(): void {
-    this.closeMenus();
-    const head = ['Date', 'Assessed By', 'Overall Condition', 'Health Score', 'Physical', 'Performance', 'Safety', 'Remarks'];
-    const rows = this.assessmentHistory.map((a) => [a.date, a.assessedBy, a.overall, `${a.healthScore}%`, a.physical, a.performance, a.safety, a.remarks]);
-    const csv = [head, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${this.asset.tag}-condition-assessments.csv`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url));
-  }
+  exportRequest = (): ExportRequest<ConditionAssessment> => ({
+    title: 'Condition Assessments',
+    fileBase: `${this.asset.tag}-condition-assessments`,
+    columns: [
+      { label: 'Date', key: 'date' }, { label: 'Assessed By', key: 'assessedBy' }, { label: 'Overall Condition', key: 'overall' }, { label: 'Health Score', value: (a) => `${a.healthScore}%`, align: 'right' },
+      { label: 'Physical', key: 'physical' }, { label: 'Performance', key: 'performance' }, { label: 'Safety', key: 'safety' }, { label: 'Remarks', key: 'remarks', width: 3 },
+    ],
+    filters: { Asset: `${this.asset.name} (${this.asset.tag})` },
+    rows: () => this.assessmentHistory,
+  });
 
   print(): void {
     this.closeMenus();

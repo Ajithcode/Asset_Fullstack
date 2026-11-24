@@ -26,6 +26,7 @@ import type { AssetComponent } from '../asset-components';
 import { FORMAT_ICONS, FilePreview, type FileFormat, formatOf, formatSize, saveBlob } from '../file-preview/file-preview';
 import { AssetComponentsService, isoLocalDateTime, type AssetDocumentDto, type ComponentFileDetails, type UploadedFile } from '../asset-components.service';
 import { apiErrorMessage } from '../../services/asset-api';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 export type DocumentType =
   | 'Manual'
@@ -105,7 +106,7 @@ export function toDocument(dto: AssetDocumentDto): ComponentDocument {
 @Component({
   selector: 'app-component-documents',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule, FilePreview],
+  imports: [CommonModule, FormsModule, LucideAngularModule, FilePreview, ExportMenu],
   templateUrl: './component-documents.html',
   // Reuses the page's card, table, pill, menu and modal styles.
   styleUrls: ['../asset-components.css', './component-documents.css'],
@@ -312,15 +313,17 @@ export class ComponentDocuments {
     });
   }
 
-  exportList(): void {
-    this.openMenu = null;
-    const header = ['Document Name', 'File Name', 'Type', 'Version', 'Uploaded At', 'Uploaded By', 'Status', 'Size (KB)', 'Description'];
-    const escape = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-    const lines = [header, ...this.filtered.map((d) => [d.name, d.fileName, d.type, d.version, d.uploadedAt.replace('T', ' '), d.uploadedBy, d.status, String(Math.round(d.size / 1024)), d.description])]
-      .map((cols) => cols.map(escape).join(','));
-    saveBlob(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }), `${this.comp.tag}-documents.csv`);
-    this.showToast(`Exported ${this.filtered.length} document${this.filtered.length === 1 ? '' : 's'}.`);
-  }
+  exportRequest = (): ExportRequest<ComponentDocument> => ({
+    title: `Component Documents - ${this.comp.tag}`,
+    fileBase: `${this.comp.tag}-documents`,
+    columns: [
+      { label: 'Document Name', key: 'name', width: 2 }, { label: 'File Name', key: 'fileName', width: 2 }, { label: 'Type', key: 'type' }, { label: 'Version', key: 'version' },
+      { label: 'Uploaded At', value: (d) => d.uploadedAt.replace('T', ' ') }, { label: 'Uploaded By', key: 'uploadedBy' }, { label: 'Status', key: 'status' },
+      { label: 'Size (KB)', value: (d) => Math.round(d.size / 1024), align: 'right' }, { label: 'Description', key: 'description', width: 2 },
+    ],
+    filters: { Search: this.search, Type: this.typeFilter },
+    rows: () => this.filtered,
+  });
 
   // ===== Selection =====
 

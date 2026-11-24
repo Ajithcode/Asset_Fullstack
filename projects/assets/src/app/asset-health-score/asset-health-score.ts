@@ -36,6 +36,7 @@ import { AssetLookupService, EMPTY_HEADER } from '../asset-status-condition/asse
 import { ConditionAssessment } from '../asset-status-condition/asset-condition.service';
 import { CriticalityAssessment } from '../asset-criticality/asset-criticality.service';
 import { AssetHealthScoreService, HealthOverrides, buildHealth, healthStatus } from './asset-health-score.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 export { healthStatus } from './asset-health-score.service';
 
@@ -81,7 +82,7 @@ function parseDate(iso: string): Date {
 @Component({
   selector: 'app-asset-health-score',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-health-score.html',
   // Shares the Status & Condition page's header, tab, table and modal styles
   styleUrls: [
@@ -432,22 +433,16 @@ export class AssetHealthScore implements OnDestroy {
     return !!date && date < this.today;
   }
 
-  exportHistory(): void {
-    this.closeMenus();
-    const h = this.health;
-    if (!h) return;
-    const lines = [
-      ['Date', 'Health Score', 'Status', 'Trigger', 'Comments', 'Assessed By'],
-      ...h.history.map((r) => [r.date, r.score, r.status, r.trigger, r.comments, r.assessedBy]),
-    ];
-    const csv = lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${this.asset.tag}_health_history.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  exportRequest = (): ExportRequest => ({
+    title: 'Asset Health Score History',
+    fileBase: `${this.asset.tag}-health-history`,
+    columns: [
+      { label: 'Date', key: 'date' }, { label: 'Health Score', key: 'score', align: 'right' }, { label: 'Status', key: 'status' },
+      { label: 'Trigger', key: 'trigger' }, { label: 'Comments', key: 'comments', width: 3 }, { label: 'Assessed By', key: 'assessedBy' },
+    ],
+    filters: { Asset: `${this.asset.name} (${this.asset.tag})` },
+    rows: () => this.health?.history ?? [],
+  });
 
   print(): void {
     this.closeMenus();

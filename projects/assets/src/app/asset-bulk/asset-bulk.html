@@ -220,7 +220,7 @@
         <span class="band-icon"><lucide-icon [img]="icons.FileDown" [size]="22"></lucide-icon></span>
         <div class="grow">
           <h2 id="bulk-export-title">Export Assets</h2>
-          <p>Export asset data to Excel/CSV with selected fields and filters.</p>
+          <p>Export asset data to CSV or PDF with selected fields and filters.</p>
         </div>
       </header>
       <div class="card-body">
@@ -281,13 +281,9 @@
             </div>
           </div>
 
-          <span class="row-label">File Format</span>
+          <span class="row-label"></span>
           <div class="export-foot">
-            <div class="radios" role="radiogroup" aria-label="File format">
-              <label class="radio"><input type="radio" name="exportFormat" value="xlsx" [(ngModel)]="exportFormat" />Microsoft Excel (.xlsx)</label>
-              <label class="radio"><input type="radio" name="exportFormat" value="csv" [(ngModel)]="exportFormat" />CSV (.csv)</label>
-            </div>
-            <button type="button" class="btn btn-primary" [disabled]="exporting" (click)="runExport()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>{{ exporting ? 'Exporting…' : 'Export' + (exportCount !== null ? ' ' + exportCount : '') }}</button>
+            <app-export-menu [source]="exportRequest" [label]="'Export' + (exportCount !== null ? ' ' + exportCount : '')" />
           </div>
         </div>
       </div>

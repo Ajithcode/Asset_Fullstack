@@ -67,13 +67,7 @@
     <div class="panel-head">
       <span *ngIf="checked.size" class="muted">{{ checked.size }} selected · <button type="button" class="link-btn" (click)="checked.clear()">Clear</button></span>
       <span class="grow"></span>
-      <span class="menu-wrap">
-        <button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('export', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'export'"><lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon>Export<lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon></button>
-        <span *ngIf="menuOpen === 'export'" class="menu" role="menu" (click)="$event.stopPropagation()">
-          <button type="button" role="menuitem" (click)="export('xlsx')">Excel (.xlsx)</button>
-          <button type="button" role="menuitem" (click)="export('csv')">CSV (.csv)</button>
-        </span>
-      </span>
+      <app-export-menu [source]="exportRequest" [small]="true" />
     </div>
 
     <div class="table-wrap">

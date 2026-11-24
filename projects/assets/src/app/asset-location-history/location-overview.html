@@ -16,7 +16,7 @@
     </div>
     <div class="head-actions">
       <button type="button" class="btn btn-outline" (click)="liveLocation()"><lucide-icon [img]="icons.MapIcon" [size]="17"></lucide-icon>Live Location</button>
-      <button type="button" class="btn btn-outline" (click)="export()" [disabled]="!summary.length"><lucide-icon [img]="icons.Download" [size]="17"></lucide-icon>Export</button>
+      <app-export-menu [source]="exportRequest" [disabled]="!summary.length" />
       <button type="button" class="btn btn-primary" (click)="openMovement()"><lucide-icon [img]="icons.Plus" [size]="17"></lucide-icon>Movement Event</button>
     </div>
   </div>

@@ -4,6 +4,7 @@
     <div class="card-head">
       <span class="icon-tile"><lucide-icon [img]="icons.History" [size]="18"></lucide-icon></span>
       <h3 class="grow">Service History ({{ records.length }})</h3>
+      <app-export-menu [source]="exportRequest" />
       <button type="button" class="btn btn-primary" (click)="openForm()">
         <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
         Add Service Record
@@ -37,7 +38,7 @@
 
     <div *ngIf="checked.size" class="bulk">
       <span><strong>{{ checked.size }}</strong> selected</span>
-      <button type="button" class="link-btn" (click)="exportChecked()">Export CSV</button>
+      <app-export-menu [source]="exportRequest" label="Export selected" [small]="true" />
       <button type="button" class="link-btn link-btn--muted" (click)="checked.clear()">Clear</button>
     </div>
 

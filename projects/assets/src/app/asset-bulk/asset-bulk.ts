@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import * as XLSX from 'xlsx';
-import { Observable, Subject, debounceTime, forkJoin, map, of, switchMap, throwError } from 'rxjs';
+import { Observable, Subject, debounceTime, forkJoin, from, map, of, switchMap, throwError } from 'rxjs';
 import {
   LucideAngularModule,
   ArrowLeft,
@@ -34,13 +34,13 @@ import { iconForAsset } from '../asset-details/asset-details.service';
 import { AssetDropdownService, DropdownOption } from '../services/asset-dropdowns/asset-dropdown';
 import { AssetBulkImport, AssetExportFilters, ImportExportHistoryDto, ImportRecordDto, ImportValidateResult } from '../services/asset-bulk-import/asset-bulk-import';
 import { apiErrorMessage } from '../services/asset-api';
+import { ExportColumn, ExportMenu, ExportRequest } from 'shared-ui';
 
 type ImportType = 'create' | 'update' | 'upsert';
 type ExportType = 'master' | 'related' | 'custom';
 /** ExportType values the export API accepts. */
 const EXPORT_TYPE_API: Record<ExportType, string> = { master: 'AssetMasterData', related: 'AssetWithRelatedData', custom: 'CustomExport' };
 type FieldSet = 'standard' | 'all' | 'custom';
-type FileFormat = 'xlsx' | 'csv';
 type DataType = 'Text' | 'Lookup' | 'Date';
 type FieldKey =
   | 'tag' | 'name' | 'category' | 'type' | 'manufacturer' | 'model' | 'serialNumber' | 'purchaseDate'
@@ -179,7 +179,7 @@ const MAX_ALERTS = 4;
 @Component({
   selector: 'app-asset-bulk',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-bulk.html',
   // Split to keep each stylesheet under the anyComponentStyle budget
   styleUrls: ['./asset-bulk.css', './asset-bulk-panels.css', './asset-bulk-alerts.css'],
@@ -236,7 +236,6 @@ export class AssetBulk implements OnInit, OnDestroy {
   exportFieldOptions: { key: string; label: string }[] = [];
   /** Assets matching the filters (GET exports/count); null while unknown. */
   exportCount: number | null = null;
-  exporting = false;
   private readonly exportCount$ = new Subject<void>();
   private exportCountSub?: { unsubscribe(): void };
   filterCategory = '';
@@ -247,7 +246,6 @@ export class AssetBulk implements OnInit, OnDestroy {
   advancedOpen = false;
   filterCriticality = '';
   filterDepartment = '';
-  exportFormat: FileFormat = 'xlsx';
 
   // ===== Dialogs =====
   historyOpen = false;
@@ -1036,44 +1034,41 @@ export class AssetBulk implements OnInit, OnDestroy {
     this.refreshExportCount();
   }
 
-  /** Export button: POST asset-import-export/exports, then downloads the file the server returns. */
-  runExport(): void {
-    if (!this.fieldSet) return this.showToast('Choose the fields to export.', true);
-    if (this.fieldSet === 'custom' && !this.exportFields.size) return this.showToast('Choose at least one field to export.', true);
-    if (this.dateFrom && this.dateTo && this.dateTo < this.dateFrom) return this.showToast('The end date is before the start date.', true);
-    if (this.exporting) return;
-    this.exporting = true;
-    this.bulkApi
-      .export({
-        exportType: EXPORT_TYPE_API[this.exportType],
-        fieldSet: this.fieldSet,
-        fields: this.fieldSet === 'custom' ? [...this.exportFields] : null,
-        filters: this.exportFilters(),
-        fileFormat: this.exportFormat,
-      })
-      .subscribe({
-        next: (res) => {
-          this.exporting = false;
-          if (res.blob) {
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(res.blob);
-            link.download = res.fileName;
-            link.click();
-            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-          } else if (res.downloadUrl) {
-            window.open(res.downloadUrl, '_blank');
-          } else {
-            console.info('[asset-bulk] export response', res.json);
-          }
-          this.loadHistory();
-          this.showToast(res.blob || res.downloadUrl ? `Exported to ${res.fileName}.` : 'Export started. It will appear in Import / Export History.');
-        },
-        error: (err) => {
-          this.exporting = false;
-          this.notify('error', apiErrorMessage(err, 'The export failed.'), 'Export failed');
-        },
-      });
-  }
+  /**
+   * Export menu source. The server builds the CSV for the chosen fields and filters (POST asset-import-export/exports,
+   * fileFormat csv); the rows are read from it so the same data is offered as CSV and PDF. Columns follow the file's header.
+   */
+  exportRequest = (): ExportRequest<string[]> => {
+    const columns: ExportColumn<string[]>[] = [];
+    const f = this.exportFilters();
+    return {
+      title: 'Asset Export',
+      fileBase: 'asset-export',
+      columns,
+      filters: {
+        Type: { master: 'Asset Master Data', related: 'Asset With Related Data', custom: 'Custom Export' }[this.exportType],
+        Category: this.filterCategory, Site: this.filterSite, Status: this.filterStatus, Criticality: this.filterCriticality, Department: this.filterDepartment,
+        'Next Maintenance From': this.dateFrom, 'Next Maintenance To': this.dateTo,
+      },
+      rows: () => {
+        if (!this.fieldSet) throw new Error('Choose the fields to export.');
+        if (this.fieldSet === 'custom' && !this.exportFields.size) throw new Error('Choose at least one field to export.');
+        if (this.dateFrom && this.dateTo && this.dateTo < this.dateFrom) throw new Error('The end date is before the start date.');
+        return this.bulkApi
+          .export({ exportType: EXPORT_TYPE_API[this.exportType], fieldSet: this.fieldSet, fields: this.fieldSet === 'custom' ? [...this.exportFields] : null, filters: f, fileFormat: 'csv' })
+          .pipe(
+            switchMap((res) => (res.blob ? from(res.blob.text()) : throwError(() => new Error('The export is being prepared. It will appear in Import / Export History.')))),
+            map((txt) => {
+              const [head, ...body] = parseCsv(txt);
+              columns.length = 0;
+              (head ?? []).forEach((label, i) => columns.push({ label, value: (r: string[]) => r[i] ?? '' }));
+              this.loadHistory();
+              return body;
+            }),
+          );
+      },
+    };
+  };
 
   // ===== Misc =====
 
@@ -1135,4 +1130,31 @@ export class AssetBulk implements OnInit, OnDestroy {
   private startAlertTimer(alert: PageAlert): void {
     alert.timer = setTimeout(() => this.dismissAlert(alert.id), alert.ms);
   }
+}
+
+/** Parses CSV text (quoted fields, doubled quotes, line breaks inside quotes; a leading BOM is ignored). */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let quoted = false;
+  const src = text.replace(/^\uFEFF/, '');
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quoted) {
+      if (ch === '"' && src[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(cell); cell = '';
+      if (row.some((c) => c !== '')) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  row.push(cell);
+  if (row.some((c) => c !== '')) rows.push(row);
+  return rows;
 }

@@ -154,10 +154,7 @@
       </div>
 
       <div class="summary-actions no-print">
-        <button type="button" class="btn btn-outline" (click)="exportCsv()">
-          <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>
-          Export
-        </button>
+        <app-export-menu [source]="exportRequest" />
         <button type="button" class="btn btn-outline" (click)="print()">
           <lucide-icon [img]="icons.Printer" [size]="16"></lucide-icon>
           Print
@@ -176,7 +173,7 @@
     <!-- Bulk selection bar -->
     <div *ngIf="selected.size" class="bulk-bar no-print">
       <span><strong>{{ selected.size }}</strong> selected</span>
-      <button type="button" class="link-btn" (click)="exportCsv()">Export selected</button>
+      <app-export-menu [source]="exportRequest" label="Export selected" [small]="true" />
       <button type="button" class="link-btn" (click)="clearSelection()">Clear selection</button>
     </div>
 

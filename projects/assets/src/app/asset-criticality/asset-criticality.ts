@@ -40,6 +40,7 @@ import {
   RISK_SCALE,
   RelatedAssetLink,
 } from './asset-criticality.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type SubTab = 'details' | 'impact' | 'mitigation' | 'history' | 'related';
 type ViewMode = 'list' | 'grid';
@@ -119,7 +120,7 @@ function addMonths(iso: string, months: number): string {
 @Component({
   selector: 'app-asset-criticality',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-criticality.html',
   // Shares the Status & Condition page's header, tab, table and modal styles
   styleUrls: [
@@ -681,37 +682,41 @@ export class AssetCriticality implements OnDestroy {
 
   // ===== Export / print =====
 
-  exportAssessment(): void {
-    this.closeMenus();
-    const c = this.crit;
-    if (!c) return;
-    const lines = [
-      ['Criteria', 'Weight (%)', 'Score (1-5)', 'Weighted Score', 'Justification'],
-      ...c.criteria.map((x) => [x.name, x.weight, x.score, weighted(x).toFixed(1), x.justification]),
-      ['Total', this.totalWeight, '', c.score.toFixed(1), c.level],
-    ];
-    this.download(lines, `${this.asset.tag}_criticality.csv`);
-  }
+  /** The criticality list: selected rows if any, else every row matching the filters. */
+  exportListRequest = (): ExportRequest<ListRow> => ({
+    title: 'Asset Criticality List',
+    fileBase: 'asset-criticality-list',
+    columns: [
+      { label: 'Asset ID', key: 'tag' }, { label: 'Asset Name', key: 'name', width: 2 }, { label: 'Category', key: 'category' }, { label: 'Location', key: 'location' },
+      { label: 'Criticality Level', key: 'level' }, { label: 'Criticality Score', key: 'score', align: 'right' }, { label: 'Assessment Date', key: 'assessmentDate' },
+      { label: 'Next Review', key: 'nextReview' }, { label: 'Status', key: 'assetStatus' },
+    ],
+    filters: this.checked.size
+      ? { Selection: `${this.checked.size} selected` }
+      : { Search: this.search, Category: this.categoryFilter, Location: this.siteFilter, Level: this.levelFilter },
+    rows: () => (this.checked.size ? this.filtered.filter((r) => this.checked.has(r.tag)) : this.filtered),
+  });
 
-  exportList(): void {
-    this.closeMenus();
-    const rows = this.checked.size ? this.filtered.filter((r) => this.checked.has(r.tag)) : this.filtered;
-    const lines = [
-      ['Asset ID', 'Asset Name', 'Category', 'Location', 'Criticality Level', 'Criticality Score', 'Assessment Date', 'Next Review', 'Status'],
-      ...rows.map((r) => [r.tag, r.name, r.category, r.location, r.level, r.score, r.assessmentDate, r.nextReview, r.assetStatus]),
-    ];
-    this.download(lines, 'asset_criticality_list.csv');
-  }
-
-  private download(lines: (string | number)[][], name: string): void {
-    const csv = lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  /** The selected asset's assessment (criteria table). */
+  exportRequest = (): ExportRequest => {
+    return {
+      title: `Criticality Assessment - ${this.asset.tag}`,
+      fileBase: `${this.asset.tag}-criticality`,
+      columns: [
+        { label: 'Criteria', key: 'name', width: 2 }, { label: 'Weight (%)', key: 'weight', align: 'right' }, { label: 'Score (1-5)', key: 'score', align: 'right' },
+        { label: 'Weighted Score', key: 'weighted', align: 'right' }, { label: 'Justification', key: 'justification', width: 3 },
+      ],
+      filters: { Asset: `${this.asset.name} (${this.asset.tag})` },
+      rows: () => {
+        const c = this.crit;
+        if (!c) return [];
+        return [
+          ...c.criteria.map((x) => ({ name: x.name, weight: x.weight, score: x.score, weighted: weighted(x).toFixed(1), justification: x.justification })),
+          { name: 'Total', weight: this.totalWeight, score: '', weighted: c.score.toFixed(1), justification: c.level },
+        ];
+      },
+    };
+  };
 
   print(): void {
     this.closeMenus();

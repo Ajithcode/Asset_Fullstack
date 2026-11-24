@@ -24,7 +24,6 @@
           <span *ngIf="menuOpen === 'more'" class="menu" role="menu" (click)="$event.stopPropagation()">
             <button type="button" role="menuitem" (click)="openWorkOrder('Preventive')">Schedule preventive maintenance</button>
             <button type="button" role="menuitem" (click)="tab = 'requests'; menuOpen = ''">View service requests</button>
-            <button type="button" role="menuitem" (click)="export()">Export costs (Excel)</button>
             <button type="button" role="menuitem" (click)="print()">Print report</button>
           </span>
         </span>
@@ -130,14 +129,8 @@
           <button type="button" class="btn btn-primary btn-sm" (click)="rangeOpen = false">Done</button>
         </span>
       </span>
-      <span class="menu-wrap">
-        <button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('export', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'export'"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export<lucide-icon [img]="icons.ChevronDown" [size]="14"></lucide-icon></button>
-        <span *ngIf="menuOpen === 'export'" class="menu" role="menu" (click)="$event.stopPropagation()">
-          <button type="button" role="menuitem" (click)="export('xlsx')">Excel (.xlsx){{ checked.size ? ' · ' + checked.size + ' selected' : '' }}</button>
-          <button type="button" role="menuitem" (click)="export('csv')">CSV (.csv)</button>
-          <button type="button" role="menuitem" (click)="print()">Print</button>
-        </span>
-      </span>
+      <app-export-menu [source]="costsExportRequest" [small]="true" />
+      <button type="button" class="btn btn-outline btn-sm" (click)="print()">Print</button>
     </div>
 
     <div class="mini-kpis">
@@ -471,11 +464,8 @@
     <div class="mh-main">
       <section class="card panel" aria-labelledby="mh-title">
         <div class="ov-head"><h3 id="mh-title" class="grow mh-title">Maintenance History ({{ asset.tag }})</h3>
-          <span class="menu-wrap"><button type="button" class="icon-btn" (click)="toggleMenu('mh', $event)" aria-haspopup="menu" aria-label="History actions"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
-            <span *ngIf="menuOpen === 'mh'" class="menu" role="menu" (click)="$event.stopPropagation()">
-              <button type="button" role="menuitem" (click)="exportHistory()">Export to Excel{{ histChecked.size ? ' · ' + histChecked.size + ' selected' : '' }}</button>
-              <button type="button" role="menuitem" (click)="print()">Print</button>
-            </span></span></div>
+          <app-export-menu [source]="historyExportRequest" [small]="true" />
+          <button type="button" class="btn btn-outline btn-sm" (click)="print()">Print</button></div>
 
         <div class="mh-filters">
           <label class="search mh-search"><lucide-icon [img]="icons.Search" [size]="15"></lucide-icon><input type="search" [(ngModel)]="histSearch" (ngModelChange)="onHistFilter()" placeholder="Search by description, work order, technician..." aria-label="Search history" /></label>

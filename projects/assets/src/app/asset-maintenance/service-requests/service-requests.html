@@ -4,9 +4,9 @@
       <div class="sr-head">
         <h3 id="sr-title" class="grow">Service Requests ({{ asset.tag }})</h3>
         <button type="button" class="btn btn-primary btn-sm" (click)="newRequest()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>New Service Request</button>
+        <app-export-menu [source]="exportRequest" [small]="true" />
         <span class="menu-wrap"><button type="button" class="icon-btn" (click)="toggleMenu('sr', $event)" aria-haspopup="menu" aria-label="More service request actions"><lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon></button>
           <span *ngIf="menuOpen === 'sr'" class="menu" role="menu" (click)="$event.stopPropagation()">
-            <button type="button" role="menuitem" (click)="export()">Export to Excel{{ checked.size ? ' · ' + checked.size + ' selected' : '' }}</button>
             <button type="button" role="menuitem" (click)="slaOpen = true; menuOpen = ''">SLA policy</button>
             <button type="button" role="menuitem" (click)="print()">Print</button>
           </span></span>

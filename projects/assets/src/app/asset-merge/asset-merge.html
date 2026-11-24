@@ -96,13 +96,13 @@
       <select class="control control--sm" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()" aria-label="Status">
         <option value="">Select Status</option><option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
       </select>
-      <div class="menu-wrap">
+      <app-export-menu [source]="exportRequest" [small]="true" />
+<div class="menu-wrap">
         <button type="button" class="square-btn" (click)="toggleTableMenu($event)" aria-haspopup="menu" [attr.aria-expanded]="tableMenuOpen" aria-label="More actions">
           <lucide-icon [img]="icons.EllipsisVertical" [size]="17"></lucide-icon>
         </button>
         <div *ngIf="tableMenuOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
           <button type="button" role="menuitem" (click)="closeMenus(); scan()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Scan Again</button>
-          <button type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.ArrowRight" [size]="15"></lucide-icon>Export List (CSV)</button>
           <button type="button" role="menuitem" (click)="dismissSelected()"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon>Not Duplicates ({{ checked.size }} selected)</button>
         </div>
       </div>

@@ -22,7 +22,7 @@ import {
   Timer,
   Wrench,
 } from 'lucide-angular';
-import { ASSET_TYPE_ICONS, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetTabs, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetHeader, AssetRecord, AssetTabLink, ExportMenu, ExportRequest, TODAY, assetHeader, assetTabs, toIsoDate } from 'shared-ui';
 import { blankAssetRecord } from '../shared/blank-asset';
 import { MaintenanceData, WorkOrder } from '../asset-maintenance/asset-maintenance';
 import { MaintenanceApiService, buildMaintenanceData, emptyMaintenanceData } from '../asset-maintenance/maintenance-api.service';
@@ -62,7 +62,7 @@ const HISTORY_ROWS = 8;
 @Component({
   selector: 'app-asset-maintenance-tab',
   standalone: true,
-  imports: [CommonModule, RouterModule, LucideAngularModule, ComponentMaintenance, ComponentServiceHistory],
+  imports: [CommonModule, RouterModule, LucideAngularModule, ComponentMaintenance, ComponentServiceHistory, ExportMenu],
   templateUrl: './asset-maintenance-tab.html',
   // Shares the Status & Condition page's header, tab, KPI, table and pill styles
   styleUrls: [
@@ -379,26 +379,30 @@ export class AssetMaintenanceTab implements OnDestroy {
     this.router.navigate(['/assets/components'], { queryParams: { tag: this.asset.tag } });
   }
 
-  exportCsv(): void {
-    this.closeMenus();
-    const lines =
-      this.view === 'maintenance'
-        ? [
-            ['Work Order', 'Date', 'Type', 'Description', 'Technician', 'Status', 'Cost', 'Downtime (min)'],
-            ...this.data.workOrders.map((w) => [w.id, w.date, w.type, w.description, w.technician, w.status, this.cost(w), w.downtimeMin]),
-          ]
-        : [
-            ['Date', 'Source', 'Reference', 'Type', 'Description', 'By', 'Cost'],
-            ...this.serviceEvents.map((e) => [e.date, e.source, e.ref, e.kind, e.description, e.by, e.cost ?? '']),
-          ];
-    const csv = lines.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${this.asset.tag}_${this.view === 'maintenance' ? 'maintenance' : 'service_history'}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  /** Work orders of this asset (the Maintenance History card). */
+  workOrdersExport = (): ExportRequest<WorkOrder> => ({
+    title: `Maintenance History - ${this.asset.tag}`,
+    fileBase: 'maintenance-history',
+    columns: [
+      { label: 'Work Order', key: 'id' }, { label: 'Date', key: 'date' }, { label: 'Type', key: 'type' }, { label: 'Description', key: 'description' },
+      { label: 'Technician', key: 'technician' }, { label: 'Status', key: 'status' }, { label: 'Cost', value: (w) => this.cost(w), align: 'right' },
+      { label: 'Downtime (min)', key: 'downtimeMin', align: 'right' },
+    ],
+    filters: { Asset: this.asset.tag },
+    rows: () => this.data.workOrders,
+  });
+
+  /** Asset service history events (the Service History card). */
+  serviceHistoryExport = (): ExportRequest => ({
+    title: `Service History - ${this.asset.tag}`,
+    fileBase: 'service-history',
+    columns: [
+      { label: 'Date', key: 'date' }, { label: 'Source', key: 'source' }, { label: 'Reference', key: 'ref' }, { label: 'Type', key: 'kind' },
+      { label: 'Description', key: 'description' }, { label: 'By', key: 'by' }, { label: 'Cost', value: (e) => e.cost ?? '', align: 'right' },
+    ],
+    filters: { Asset: this.asset.tag },
+    rows: () => this.serviceEvents,
+  });
 
   print(): void {
     this.closeMenus();

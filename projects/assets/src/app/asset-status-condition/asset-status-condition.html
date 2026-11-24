@@ -41,7 +41,8 @@
       </div>
       <div class="chip chip--sm"><span>Criticality</span><span class="pill" [ngClass]="'pill--' + criticalityTone(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span></div>
     </div>
-    <div class="menu-wrap">
+    <app-export-menu [source]="exportRequest" [disabled]="!hasData" />
+<div class="menu-wrap">
       <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
         Actions
         <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
@@ -50,7 +51,6 @@
         <ng-container *ngIf="hasData">
         <button type="button" role="menuitem" (click)="openNewAssessment()"><lucide-icon [img]="icons.ClipboardCheck" [size]="15"></lucide-icon>New Condition Assessment</button>
         <button type="button" role="menuitem" (click)="closeMenus(); openOperationalEdit()"><lucide-icon [img]="icons.Power" [size]="15"></lucide-icon>Change Operational Status</button>
-        <button type="button" role="menuitem" (click)="exportAssessments()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export Assessments (CSV)</button>
         </ng-container>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
       </div>
@@ -316,7 +316,7 @@
     <div class="card-head">
       <lucide-icon class="head-icon" [img]="icons.ClipboardCheck" [size]="20"></lucide-icon>
       <h3 class="grow">Condition Assessment History</h3>
-      <button type="button" class="btn btn-outline btn-sm" (click)="exportAssessments()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+      <app-export-menu [source]="exportRequest" [small]="true" />
       <button type="button" class="btn btn-primary btn-sm" (click)="openNewAssessment()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>New Assessment</button>
     </div>
     <div class="table-wrap">

@@ -4,7 +4,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -36,7 +35,7 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
-import { ASSET_TYPE_ICONS, AssetRecord, TODAY, assetLocation, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetRecord, ExportMenu, ExportRequest, TODAY, assetLocation, toIsoDate } from 'shared-ui';
 import { blankAssetRecord } from '../shared/blank-asset';
 import { MaintenanceTask, loadAssetDetail } from '../asset-details/asset-details';
 import { WoDetail, buildWoDetail } from './maintenance-history';
@@ -159,7 +158,7 @@ export function dataFor(a: AssetRecord): MaintenanceData {
 @Component({
   selector: 'app-asset-maintenance',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, PmSchedules, ServiceRequests, SpareParts],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, PmSchedules, ServiceRequests, SpareParts, ExportMenu],
   templateUrl: './asset-maintenance.html',
   styleUrls: ['./asset-maintenance.css', './asset-maintenance-charts.css', './asset-maintenance-overview.css', './asset-maintenance-history.css'],
 })
@@ -1004,18 +1003,18 @@ export class AssetMaintenance implements OnDestroy {
     return { points, path, area, ticks };
   }
 
-  exportHistory(): void {
-    this.menuOpen = '';
-    const rows = this.histRows
-      .filter((w) => !this.histChecked.size || this.histChecked.has(w.id))
-      .map((w, i) => ({
-        '#': i + 1, Date: w.date, 'Work Order #': w.id, Type: w.type, Description: w.description, 'Performed By': w.technician,
-        'Downtime (min)': w.downtimeMin, 'Cost (AED)': this.cost(w), Status: w.status,
-      }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Maintenance History');
-    XLSX.writeFile(book, `${this.asset.tag}_Maintenance_History.xlsx`);
-  }
+  /** Maintenance history: ticked rows, else every row matching the history filters. */
+  historyExportRequest = (): ExportRequest<WorkOrder> => ({
+    title: `Maintenance History - ${this.asset.tag}`,
+    fileBase: 'maintenance-history',
+    columns: [
+      { label: 'Date', key: 'date' }, { label: 'Work Order #', key: 'id' }, { label: 'Type', key: 'type' }, { label: 'Description', key: 'description' },
+      { label: 'Performed By', key: 'technician' }, { label: 'Downtime (min)', key: 'downtimeMin', align: 'right' },
+      { label: 'Cost (AED)', value: (w) => this.cost(w), align: 'right' }, { label: 'Status', key: 'status' },
+    ],
+    filters: { Asset: this.asset.tag, Search: this.histSearch.trim(), Type: this.histType, Status: this.histStatus, Technician: this.histTech, Selected: this.histChecked.size ? `${this.histChecked.size} rows` : '' },
+    rows: () => this.histRows.filter((w) => !this.histChecked.size || this.histChecked.has(w.id)),
+  });
 
   // ===== Other tabs =====
 
@@ -1098,18 +1097,19 @@ export class AssetMaintenance implements OnDestroy {
     });
   }
 
-  export(kind: 'xlsx' | 'csv' = 'xlsx'): void {
-    this.menuOpen = '';
-    const rows = this.detailRows
-      .filter((w) => !this.checked.size || this.checked.has(w.id))
-      .map((w, i) => ({
-        '#': i + 1, Date: w.date, 'Work Order #': w.id, Type: w.type, Description: w.description, 'Cost (AED)': this.cost(w), 'Labor Cost': w.labor, 'Parts Cost': w.parts,
-        'Service Cost': w.service, 'Downtime (min)': w.downtimeMin, 'Downtime Reason': w.reason, Status: w.status, Technician: w.technician,
-      }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Costs & Downtime');
-    XLSX.writeFile(book, `${this.asset.tag}_Maintenance_Costs.${kind}`, { bookType: kind });
-  }
+  /** Costs & downtime table: ticked rows, else every row in the selected period. */
+  costsExportRequest = (): ExportRequest<WorkOrder> => ({
+    title: `Maintenance Costs - ${this.asset.tag}`,
+    fileBase: 'maintenance-costs',
+    columns: [
+      { label: 'Date', key: 'date' }, { label: 'Work Order #', key: 'id' }, { label: 'Type', key: 'type' }, { label: 'Description', key: 'description' },
+      { label: 'Cost (AED)', value: (w) => this.cost(w), align: 'right' }, { label: 'Labor Cost', key: 'labor', align: 'right' }, { label: 'Parts Cost', key: 'parts', align: 'right' },
+      { label: 'Service Cost', key: 'service', align: 'right' }, { label: 'Downtime (min)', key: 'downtimeMin', align: 'right' }, { label: 'Downtime Reason', key: 'reason' },
+      { label: 'Status', key: 'status' }, { label: 'Technician', key: 'technician' },
+    ],
+    filters: { Asset: this.asset.tag, From: this.fromDate, To: this.toDate, Search: this.search.trim(), Selected: this.checked.size ? `${this.checked.size} rows` : '' },
+    rows: () => this.detailRows.filter((w) => !this.checked.size || this.checked.has(w.id)),
+  });
 
   print(): void {
     this.menuOpen = '';

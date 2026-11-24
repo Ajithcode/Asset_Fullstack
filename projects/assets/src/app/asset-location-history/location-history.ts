@@ -3,7 +3,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   Barcode,
@@ -33,6 +32,7 @@ import { Subscription } from 'rxjs';
 import { LocationHistoryService } from './location-history.service';
 import { AssetLookupService, toAssetRecord } from '../asset-maintenance/asset-lookup.service';
 import { apiErrorMessage } from '../services/asset-api';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type MovementType = 'In' | 'Out' | 'Move';
 
@@ -141,7 +141,7 @@ function emptyHistory(asset: AssetRecord): AssetHistory {
 @Component({
   selector: 'app-location-history',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './location-history.html',
   styleUrls: ['./location-history.css', './location-history-table.css'],
 })
@@ -590,16 +590,17 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
 
   // ===== Export =====
 
-  export(): void {
-    const rows = this.filtered.map((r, i) => ({
-      '#': i + 1, 'Date & Time': r.at.replace('T', ' '), Location: r.location, Site: r.place.site, 'Zone / Area': r.place.zone, 'Location Type': r.place.type,
-      'Movement Type': r.movement, Source: r.source, Remarks: r.remarks, 'Dwell Time': this.fmtDwell(r.dwell), 'Recorded By': r.by,
-    }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Location History');
-    XLSX.writeFile(book, `${this.asset.tag}_Location_History.xlsx`);
-    this.menuOpen = '';
-  }
+  exportRequest = (): ExportRequest<Row> => ({
+    title: `Location History - ${this.asset.tag}`,
+    fileBase: `${this.asset.tag}-location-history`,
+    columns: [
+      { label: 'Date & Time', value: (r) => r.at.replace('T', ' ') }, { label: 'Location', key: 'location', width: 2 }, { label: 'Site', value: (r) => r.place.site },
+      { label: 'Zone / Area', value: (r) => r.place.zone }, { label: 'Location Type', value: (r) => r.place.type }, { label: 'Movement Type', key: 'movement' },
+      { label: 'Source', key: 'source' }, { label: 'Remarks', key: 'remarks', width: 2 }, { label: 'Dwell Time', value: (r) => this.fmtDwell(r.dwell) }, { label: 'Recorded By', key: 'by' },
+    ],
+    filters: { Asset: `${this.asset.name} (${this.asset.tag})`, 'Location Type': this.typeFilter, Site: this.siteFilter, Zone: this.zoneFilter, 'Movement Type': this.movementFilter, Search: this.search },
+    rows: () => this.filtered,
+  });
 
   toggleMenu(name: string, event: Event): void {
     event.stopPropagation();

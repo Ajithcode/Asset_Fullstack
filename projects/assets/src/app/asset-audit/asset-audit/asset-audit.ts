@@ -3,7 +3,6 @@ import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   CalendarDays,
@@ -22,6 +21,7 @@ import {
   X,
 } from 'lucide-angular';
 import { AssetAuditService, AuditCounts, AuditListItemDto, AuditLocation, apiDate } from '../asset-audit.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { apiErrorMessage } from '../../services/asset-api';
 
 export type AuditType = 'Periodic' | 'Ad-hoc' | 'Compliance' | 'Annual' | 'Spot Check' | 'Preventive';
@@ -84,7 +84,7 @@ interface CompleteForm {
 
 @Component({
   selector: 'app-asset-audit',
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-audit.html',
   styleUrl: './asset-audit.css',
 })
@@ -388,32 +388,22 @@ export class AssetAudit implements OnInit, OnDestroy {
 
   // ===== Export =====
 
-  /** Excel of the whole filtered list comes from the API; CSV and ticked rows are built here from the loaded data. */
-  export(format: 'xlsx' | 'csv'): void {
-    this.menuOpen = '';
-    if (format === 'xlsx' && !this.checked.size && !this.auditorFilter && !this.findingsFilter) {
-      this.api.export(this.query).subscribe({
-        next: (blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'Asset_Audits.xlsx';
-          link.click();
-          URL.revokeObjectURL(url);
-        },
-        error: (err) => this.showToast(apiErrorMessage(err, 'Export failed.')),
-      });
-      return;
-    }
-    const source = this.checked.size ? this.filtered.filter((a) => this.checked.has(a.id)) : this.filtered;
-    const rows = source.map((a, i) => ({
-      '#': i + 1, 'Audit Reference': a.reference, 'Audit Name': a.name, 'Audit Type': a.type, 'Location / Site': a.location,
-      'Scheduled Date': a.scheduled, 'Completed Date': a.completed, Status: a.status, 'Audited By': a.auditor, Findings: a.findings ?? '', Notes: a.notes,
-    }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Asset Audits');
-    XLSX.writeFile(book, `Asset_Audits.${format}`, { bookType: format });
-  }
+  /** CSV / PDF of the ticked rows, else every audit matching the current filters (the page holds the whole filtered list). */
+  exportRequest = (): ExportRequest<AssetAuditRecord> => ({
+    title: 'Asset Audits',
+    fileBase: 'asset-audits',
+    columns: [
+      { label: 'Audit Reference', key: 'reference' }, { label: 'Audit Name', key: 'name' }, { label: 'Audit Type', key: 'type' },
+      { label: 'Location / Site', key: 'location' }, { label: 'Scheduled Date', key: 'scheduled' }, { label: 'Completed Date', key: 'completed' },
+      { label: 'Status', key: 'status' }, { label: 'Audited By', key: 'auditor' }, { label: 'Findings', value: (a) => a.findings ?? '' }, { label: 'Notes', key: 'notes' },
+    ],
+    filters: {
+      Search: this.search.trim(), Type: this.typeFilter, Status: this.statusFilter, Location: this.locationFilter,
+      From: this.fromDate, To: this.toDate, 'Audited By': this.auditorFilter, Findings: this.findingsFilter,
+      Selected: this.checked.size ? `${this.checked.size} rows` : '',
+    },
+    rows: () => (this.checked.size ? this.filtered.filter((a) => this.checked.has(a.id)) : this.filtered),
+  });
 
   // ===== Menus =====
 

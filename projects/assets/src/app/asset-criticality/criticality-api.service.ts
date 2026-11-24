@@ -168,12 +168,6 @@ export class CriticalityApiService {
     }
     return this.http.get<Paged<CriticalityAssessmentRow>>(`${this.url}/assessments`, { params });
   }
-
-  /** Excel file of the filtered list with the given columns, in that order. */
-  exportXlsx(filters: CriticalityFilters, columns: string[], sortBy: string, sortDir: 'asc' | 'desc'): Observable<Blob> {
-    const params = toParams(filters).set('format', 'xlsx').set('columns', columns.join(',')).set('sortBy', sortBy).set('sortDir', sortDir);
-    return this.http.get(`${this.url}/export`, { params, responseType: 'blob' });
-  }
 }
 
 function toParams(filters: CriticalityFilters): HttpParams {

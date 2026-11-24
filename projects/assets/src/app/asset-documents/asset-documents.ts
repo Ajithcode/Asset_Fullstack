@@ -44,6 +44,7 @@ import { Observable, Subscription, finalize, of, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, AssetOption } from './asset-lookup.service';
 import { ApiDocVersion, ApiDocument, AssetDocumentsService, DocumentFormValue, StoredFile } from './asset-documents.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type DocStatus = 'Active' | 'Expired' | 'Draft';
 type ViewMode = 'list' | 'grid';
@@ -102,7 +103,7 @@ const MB = 1024 * 1024;
 @Component({
   selector: 'app-asset-documents',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-documents.html',
   // Split to keep each stylesheet under the anyComponentStyle budget
   styleUrls: ['./asset-documents.css', './asset-documents-preview.css', './asset-documents-all.css'],
@@ -585,17 +586,22 @@ export class AssetDocuments implements OnDestroy {
     );
   }
 
-  exportCsv(): void {
-    this.closeMenus();
-    const head = ['#', 'Document Name', ...(this.allAssets ? ['Asset Name', 'Asset ID'] : []), 'Document Type', 'Lifecycle Stage', 'Version', 'Upload Date', 'Uploaded By', 'Expiry Date', 'Status', 'Description', 'Tags'];
-    const rows = this.filtered.map((d, i) => {
-      const v = this.current(d);
-      return [i + 1, d.name, ...(this.allAssets ? [this.assetName(d), d.assetTag ?? ''] : []), d.type, d.stage, v?.version ?? '-', v?.uploadedAt.slice(0, 10) ?? '-', v?.uploadedBy ?? '-',
-        d.expiryDate || '-', this.statusOf(d), d.description, d.tags.join('; ')];
-    });
-    const csv = [head, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    saveBlob(new Blob([csv], { type: 'text/csv' }), this.allAssets ? 'asset-documents.csv' : `${this.asset.tag}-documents.csv`);
-  }
+  exportRequest = (): ExportRequest<ApiDocument> => ({
+    title: this.allAssets ? 'Asset Documents' : `Asset Documents - ${this.asset.tag}`,
+    fileBase: this.allAssets ? 'asset-documents' : `${this.asset.tag}-documents`,
+    columns: [
+      { label: 'Document Name', key: 'name', width: 2 },
+      ...(this.allAssets ? [{ label: 'Asset Name', value: (d: ApiDocument) => this.assetName(d) }, { label: 'Asset ID', value: (d: ApiDocument) => d.assetTag ?? '' }] : []),
+      { label: 'Document Type', key: 'type' }, { label: 'Lifecycle Stage', key: 'stage' },
+      { label: 'Version', value: (d) => this.current(d)?.version ?? '-' },
+      { label: 'Upload Date', value: (d) => this.current(d)?.uploadedAt.slice(0, 10) ?? '-' },
+      { label: 'Uploaded By', value: (d) => this.current(d)?.uploadedBy ?? '-' },
+      { label: 'Expiry Date', value: (d) => d.expiryDate || '-' }, { label: 'Status', value: (d) => this.statusOf(d) },
+      { label: 'Description', key: 'description', width: 2 }, { label: 'Tags', value: (d) => d.tags.join('; ') },
+    ],
+    filters: this.allAssets ? { Search: this.search } : { Asset: `${this.asset.name} (${this.asset.tag})`, Search: this.search },
+    rows: () => this.filtered,
+  });
 
   print(): void {
     this.closeMenus();

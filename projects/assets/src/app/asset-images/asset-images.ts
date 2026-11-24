@@ -41,6 +41,7 @@ import { ImageEvent } from '../asset-details/asset-details';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, AssetOption } from '../asset-documents/asset-lookup.service';
 import { ApiImage, AssetImagesService } from './asset-images.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 type AssetImage = ApiImage;
 
@@ -99,7 +100,7 @@ const ASSET_PHOTO = new Map<string, string>();
 @Component({
   selector: 'app-asset-images',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-images.html',
   // Split to keep each stylesheet under the anyComponentStyle budget
   styleUrls: ['./asset-images.css', './asset-images-preview.css', '../asset-documents/asset-documents-all.css'],
@@ -606,18 +607,20 @@ export class AssetImages implements OnDestroy {
     this.showToast(`Downloading ${items.length} image(s).`);
   }
 
-  exportCsv(): void {
-    this.closeMenus();
-    const head = ['#', ...(this.allAssets ? ['Asset Name', 'Asset ID'] : []), 'Image Name', 'Image Type', 'Tags', 'Uploaded By', 'Upload Date', 'Location', 'File Name', 'File Size', 'Resolution', 'Description', 'Remarks'];
-    const rows = this.filtered.map((i, n) => [
-      n + 1, ...(this.allAssets ? [this.assetName(i), i.assetTag ?? ''] : []), i.title, i.type, i.tags.join('; '), i.uploadedBy, i.uploadedAt.replace('T', ' '), i.location, i.fileName,
-      this.formatSize(i.size), i.width ? `${i.width} x ${i.height}` : '-', i.description, i.remarks,
-    ]);
-    const csv = [head, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    saveUrl(url, this.allAssets ? 'asset-images.csv' : `${this.asset.tag}-images.csv`);
-    setTimeout(() => URL.revokeObjectURL(url));
-  }
+  exportRequest = (): ExportRequest<AssetImage> => ({
+    title: this.allAssets ? 'Asset Images' : `Asset Images - ${this.asset.tag}`,
+    fileBase: this.allAssets ? 'asset-images' : `${this.asset.tag}-images`,
+    columns: [
+      ...(this.allAssets ? [{ label: 'Asset Name', value: (i: AssetImage) => this.assetName(i) }, { label: 'Asset ID', value: (i: AssetImage) => i.assetTag ?? '' }] : []),
+      { label: 'Image Name', key: 'title', width: 2 }, { label: 'Image Type', key: 'type' }, { label: 'Tags', value: (i) => i.tags.join('; ') },
+      { label: 'Uploaded By', key: 'uploadedBy' }, { label: 'Upload Date', value: (i) => i.uploadedAt.replace('T', ' ') }, { label: 'Location', key: 'location' },
+      { label: 'File Name', key: 'fileName' }, { label: 'File Size', value: (i) => this.formatSize(i.size) },
+      { label: 'Resolution', value: (i) => (i.width ? `${i.width} x ${i.height}` : '-') },
+      { label: 'Description', key: 'description', width: 2 }, { label: 'Remarks', key: 'remarks' },
+    ],
+    filters: this.allAssets ? { Search: this.search } : { Asset: `${this.asset.name} (${this.asset.tag})`, Search: this.search },
+    rows: () => this.filtered,
+  });
 
   print(): void {
     this.closeMenus();

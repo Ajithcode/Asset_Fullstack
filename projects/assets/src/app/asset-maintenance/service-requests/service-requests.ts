@@ -2,7 +2,6 @@ import { Component, EventEmitter, HostListener, Input, Output, inject } from '@a
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import * as XLSX from 'xlsx';
 import {
   LucideAngularModule,
   Building2,
@@ -31,7 +30,7 @@ import {
   List,
   Package,
 } from 'lucide-angular';
-import { AssetRecord, TODAY, toIsoDate } from 'shared-ui';
+import { AssetRecord, ExportMenu, ExportRequest, TODAY, toIsoDate } from 'shared-ui';
 import {
   SR_CATEGORIES,
   SR_CATEGORY_COLORS,
@@ -79,7 +78,7 @@ const TECHNICIANS: string[] = [];
 @Component({
   selector: 'app-service-requests',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ExportMenu],
   templateUrl: './service-requests.html',
   // shares the page's base styles (cards, tables, buttons, dialogs) with the parent
   styleUrls: ['../asset-maintenance.css', '../asset-maintenance-charts.css', './service-requests.css'],
@@ -497,18 +496,21 @@ export class ServiceRequests {
 
   // ===== Export & menus =====
 
-  export(): void {
-    this.menuOpen = '';
-    const rows = this.rows
-      .filter((r) => !this.checked.size || this.checked.has(r.id))
-      .map((r, i) => ({
-        '#': i + 1, 'SR Number': r.id, Subject: r.title, Category: r.category, Priority: r.priority, Status: r.status, Created: r.createdAt.replace('T', ' '),
-        'Requested By': r.requestedBy, 'Assigned To': r.assignedTo, 'Target Date': r.targetDate, 'Work Order': r.workOrder, Rating: r.rating || '',
-      }));
-    const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), 'Service Requests');
-    XLSX.writeFile(book, `${this.asset.tag}_Service_Requests.xlsx`);
-  }
+  /** Service requests: ticked rows, else every request matching the filters. */
+  exportRequest = (): ExportRequest<ServiceRequest> => ({
+    title: `Service Requests - ${this.asset.tag}`,
+    fileBase: 'service-requests',
+    columns: [
+      { label: 'SR Number', key: 'id' }, { label: 'Subject', key: 'title' }, { label: 'Category', key: 'category' }, { label: 'Priority', key: 'priority' },
+      { label: 'Status', key: 'status' }, { label: 'Created', value: (r) => r.createdAt.replace('T', ' ') }, { label: 'Requested By', key: 'requestedBy' },
+      { label: 'Assigned To', key: 'assignedTo' }, { label: 'Target Date', key: 'targetDate' }, { label: 'Work Order', key: 'workOrder' }, { label: 'Rating', value: (r) => r.rating || '' },
+    ],
+    filters: {
+      Asset: this.asset.tag, Period: this.period, Search: this.search.trim(), Status: this.statusFilter, Category: this.categoryFilter,
+      Priority: this.priorityFilter, Selected: this.checked.size ? `${this.checked.size} rows` : '',
+    },
+    rows: () => this.rows.filter((r) => !this.checked.size || this.checked.has(r.id)),
+  });
 
   print(): void {
     this.menuOpen = '';

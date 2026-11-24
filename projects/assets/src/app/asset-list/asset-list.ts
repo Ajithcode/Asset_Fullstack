@@ -40,7 +40,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import { Observable, Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
-import { TODAY, toIsoDate } from 'shared-ui';
+import { TODAY, ExportMenu, ExportRequest } from 'shared-ui';
 import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
 import { apiErrorMessage } from '../services/asset-api';
 import {
@@ -169,7 +169,7 @@ const AVATAR_COLORS = ['#6d4aff', '#2563eb', '#0891b2', '#db2777', '#7c3aed', '#
 @Component({
   selector: 'app-asset-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect, ExportMenu],
   templateUrl: './asset-list.html',
   styleUrls: ['./asset-list.css', './asset-list-drafts.css'],
 })
@@ -636,36 +636,26 @@ export class AssetList {
 
   // ===== Export / print =====
 
-  /** Exports the selected rows, or else every asset matching the search and filters (all pages). */
-  exportCsv(): void {
-    if (this.selected.size) {
-      this.downloadCsv([...this.selected.values()]);
-      return;
-    }
-    this.api.getAllMatching({ ...this.baseQuery(), status: this.applied.status && this.applied.status !== 'Other' ? this.applied.status : undefined }).subscribe({
-      next: (items) =>
-        this.downloadCsv(
-          items.map(toRow).filter((a) => this.matchesStatus(a, this.applied.status) && this.matchesMaintenanceDue(a, this.applied.maintenanceDue)),
-        ),
-      error: () => this.showToast('Could not export assets. Please try again.'),
-    });
-  }
-
-  private downloadCsv(rows: AssetRow[]): void {
-    const header = ['Asset Name', 'Asset Tag', 'Category', 'Type', 'Site', 'Area', 'Custodian', 'Department', 'Status', 'Criticality', 'Manufacturer', 'Next Maintenance'];
-    const escape = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-    const lines = [header, ...rows.map((a) => [a.name, a.tag, a.category, a.type, a.site, a.area, a.custodian, a.department, a.status, a.criticality, a.manufacturer, a.nextMaintenance ?? ''])]
-      .map((cols) => cols.map(escape).join(','));
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `asset-list-${toIsoDate(new Date())}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    this.showToast(`Exported ${rows.length} asset${rows.length === 1 ? '' : 's'}.`);
-  }
+  /** Export menu source: the selected rows, or else every asset matching the search and filters (all pages). */
+  exportRequest = (): ExportRequest<AssetRow> => ({
+    title: 'Asset List',
+    fileBase: 'asset-list',
+    columns: [
+      { label: 'Asset Name', key: 'name' }, { label: 'Asset Tag', key: 'tag' }, { label: 'Category', key: 'category' }, { label: 'Type', key: 'type' },
+      { label: 'Site', key: 'site' }, { label: 'Area', key: 'area' }, { label: 'Custodian', key: 'custodian' }, { label: 'Department', key: 'department' },
+      { label: 'Status', key: 'status' }, { label: 'Criticality', key: 'criticality' }, { label: 'Manufacturer', key: 'manufacturer' },
+      { label: 'Next Maintenance', value: (a) => a.nextMaintenance ?? '' },
+    ],
+    filters: this.selected.size
+      ? { Selection: `${this.selected.size} selected asset${this.selected.size === 1 ? '' : 's'}` }
+      : { Search: this.search.trim(), Category: this.applied.category, Type: this.applied.type, Status: this.applied.status, Location: this.applied.location, Department: this.applied.department, Criticality: this.applied.criticality, Manufacturer: this.applied.manufacturer, 'Maintenance Due': this.applied.maintenanceDue },
+    rows: () =>
+      this.selected.size
+        ? [...this.selected.values()]
+        : this.api
+            .getAllMatching({ ...this.baseQuery(), status: this.applied.status && this.applied.status !== 'Other' ? this.applied.status : undefined })
+            .pipe(map((items) => items.map(toRow).filter((a) => this.matchesStatus(a, this.applied.status) && this.matchesMaintenanceDue(a, this.applied.maintenanceDue)))),
+  });
 
   print(): void {
     window.print();

@@ -58,13 +58,7 @@
         <lucide-icon class="head-icon" [img]="icons.Recycle" [size]="20"></lucide-icon>
         <h3 id="dp-list" class="grow">Disposal Requests</h3>
         <span *ngIf="checked.size" class="muted dp-selected">{{ checked.size }} selected</span>
-        <span class="menu-wrap">
-          <button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('export', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'export'"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export<lucide-icon [img]="icons.ChevronDown" [size]="15"></lucide-icon></button>
-          <span *ngIf="menuOpen === 'export'" class="menu" role="menu" (click)="$event.stopPropagation()">
-            <button type="button" role="menuitem" (click)="export('xlsx')">Excel (.xlsx)</button>
-            <button type="button" role="menuitem" (click)="export('csv')">CSV (.csv)</button>
-          </span>
-        </span>
+        <app-export-menu [source]="exportRequest" [small]="true" />
         <span class="menu-wrap">
           <button type="button" class="btn btn-outline btn-icon btn-sm" (click)="toggleMenu('table', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'table'" aria-label="Table actions"><lucide-icon [img]="icons.EllipsisVertical" [size]="18"></lucide-icon></button>
           <span *ngIf="menuOpen === 'table'" class="menu" role="menu" (click)="$event.stopPropagation()">

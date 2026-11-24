@@ -42,7 +42,8 @@
         <span class="pill" [ngClass]="'pill--' + criticalityTone(asset.criticality)"><span class="dot"></span>{{ asset.criticality }}</span>
       </div>
     </div>
-    <div class="menu-wrap">
+    <app-export-menu *ngIf="view !== 'overview'" [source]="exportRequest" />
+<div class="menu-wrap">
       <button type="button" class="btn btn-soft" (click)="toggleActions($event)" [attr.aria-expanded]="actionsOpen" aria-haspopup="menu">
         Actions
         <lucide-icon [img]="icons.ChevronDown" [size]="16"></lucide-icon>
@@ -50,7 +51,6 @@
       <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
         <button *ngIf="view === 'components'" type="button" role="menuitem" (click)="go('/assets/components')"><lucide-icon [img]="icons.Puzzle" [size]="15"></lucide-icon>Manage Components</button>
         <button *ngIf="view === 'fields'" type="button" role="menuitem" (click)="go('/assets/custom-fields')"><lucide-icon [img]="icons.LayoutGrid" [size]="15"></lucide-icon>Manage Field Definitions</button>
-        <button *ngIf="view !== 'overview'" type="button" role="menuitem" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export (CSV)</button>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
       </div>
     </div>
@@ -220,7 +220,7 @@
         <div class="card-head">
           <lucide-icon class="head-icon" [img]="icons.Puzzle" [size]="20"></lucide-icon>
           <h3 class="grow">All Components of {{ asset.tag }} <span class="count">({{ components.length }})</span></h3>
-          <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+          <app-export-menu [source]="exportRequest" [small]="true" />
         </div>
         <div class="table-wrap">
           <table class="data-table">
@@ -284,7 +284,7 @@
         <h3 class="grow">Custom Field Values <span class="count">{{ filledCount }} of {{ fieldCount }} filled</span></h3>
         <span *ngIf="missingRequired" class="tag tag--critical">{{ missingRequired }} required missing</span>
         <label class="check"><input type="checkbox" [(ngModel)]="emptyOnly" />Show empty only</label>
-        <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+        <app-export-menu [source]="exportRequest" [small]="true" />
       </div>
       <p class="hint">Values recorded for {{ asset.tag }}. The fields themselves are defined in
         <a routerLink="/assets/custom-fields">Assets › Custom Fields</a>.</p>
@@ -315,7 +315,7 @@
         <lucide-icon class="head-icon" [img]="icons.History" [size]="20"></lucide-icon>
         <h3 class="grow">Asset History <span class="count">({{ filteredHistory.length }} of {{ history.length }} events)</span></h3>
         <input type="search" class="control control--sm search" placeholder="Search history..." [(ngModel)]="search" (ngModelChange)="historyLimit = 15" aria-label="Search history" />
-        <button type="button" class="btn btn-outline btn-sm" (click)="exportCsv()"><lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>Export CSV</button>
+        <app-export-menu [source]="exportRequest" [small]="true" />
       </div>
       <div class="kind-chips" role="group" aria-label="Filter by type">
         <button type="button" class="kind-chip" [class.is-on]="!kindFilter" (click)="kindFilter = ''; historyLimit = 15">All <b>{{ history.length }}</b></button>

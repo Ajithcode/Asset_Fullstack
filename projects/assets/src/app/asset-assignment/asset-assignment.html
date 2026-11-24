@@ -65,7 +65,7 @@
       <div class="panel-head">
         <lucide-icon class="head-icon" [img]="icons.UserRound" [size]="20"></lucide-icon>
         <h3 id="aa-list" class="grow">Asset Assignments</h3>
-        <button type="button" class="btn btn-outline btn-sm" (click)="export()"><lucide-icon [img]="icons.Download" [size]="16"></lucide-icon>Export</button>
+        <app-export-menu [source]="exportRequest" [small]="true" />
         <span class="menu-wrap">
           <button type="button" class="btn btn-outline btn-sm" (click)="toggleMenu('columns', $event)" aria-haspopup="menu" [attr.aria-expanded]="menuOpen === 'columns'"><lucide-icon [img]="icons.Columns3" [size]="16"></lucide-icon>Columns</button>
           <span *ngIf="menuOpen === 'columns'" class="menu" (click)="$event.stopPropagation()">
