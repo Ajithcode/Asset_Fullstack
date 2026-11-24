@@ -73,15 +73,15 @@ export const POSITIONS = ['Footer – left', 'Footer – center', 'Footer – ri
   styleUrls: ['../shared/insp-page.css'],
   styles: [
     `.wrap { display: grid; grid-template-columns: auto 90px repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 12px 18px; padding: 14px 18px; }
-     .wrap h2 { margin: 0; font-size: 18px; font-weight: 800; align-self: center; }
+     .wrap h2 { margin: 0; font-size: 1.125rem; font-weight: 800; align-self: center; }
      .thumb, .page { display: flex; flex-direction: column; gap: 5px; padding: 8px; border: 1px solid var(--ip-border); border-radius: 6px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
      .thumb i, .page > i { display: block; height: 4px; border-radius: 2px; background: #dedbe8; }
      .thumb i.s, .page > i.s { width: 60%; }
      .foot, .pfoot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 4px; min-height: 18px; }
      .foot span { display: flex; align-items: center; justify-content: center; gap: 2px; }
-     .sig { font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 11px; color: #1b1640; }
+     .sig { font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 0.688rem; color: #1b1640; }
      .dot { width: 14px; height: 14px; border: 2px solid #3b2ea8; border-radius: 50%; }
-     .tg { display: inline-flex; align-items: center; gap: 10px; height: 38px; font-size: 13.5px; }
+     .tg { display: inline-flex; align-items: center; gap: 10px; height: 38px; font-size: 0.844rem; }
      .modal { position: fixed; z-index: 901; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(640px, calc(100vw - 32px)); background: #fff; border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.2); }
      .page { margin: 18px 20px 22px; padding: 18px; gap: 10px; }
      .page > i { height: 7px; }
@@ -89,8 +89,8 @@ export const POSITIONS = ['Footer – left', 'Footer – center', 'Footer – ri
      .pfoot { margin-top: 26px; padding-top: 12px; border-top: 1px solid var(--ip-border); min-height: 100px; gap: 10px; }
      .slot { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; text-align: center; }
      .slot img { max-width: 140px; max-height: 54px; object-fit: contain; }
-     .slot small { font-size: 11px; color: var(--ip-muted); }
-     .cursive { font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 26px; color: #1b1640; }
+     .slot small { font-size: 0.688rem; color: var(--ip-muted); }
+     .cursive { font-family: 'Brush Script MT', 'Segoe Script', cursive; font-size: 1.625rem; color: #1b1640; }
      @media (max-width: 1100px) { .wrap { grid-template-columns: repeat(2, minmax(0, 1fr)); } .thumb { display: none; } }
      @media (max-width: 600px) { .wrap { grid-template-columns: minmax(0, 1fr); } }`
   ]

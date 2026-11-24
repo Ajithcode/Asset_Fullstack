@@ -1,11 +1,11 @@
 .admin-container {
   font-family: 'Red Hat Display', sans-serif;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #111827;
 }
 
 .admin-title {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 700;
   margin: 0 0 4px 0;
   color: #111827;
@@ -42,10 +42,10 @@
 }
 
 .admin-card strong {
-  font-size: 15px;
+  font-size: 0.938rem;
 }
 
 .admin-card span {
   color: #6b7280;
-  font-size: 13px;
+  font-size: 0.813rem;
 }

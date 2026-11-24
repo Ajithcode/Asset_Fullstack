@@ -41,7 +41,7 @@
 /* List */
 .nt-sort {
   height: 30px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .panel > .search {
@@ -64,7 +64,7 @@
 .nt-owner,
 .nt-time {
   color: var(--adm-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
   white-space: nowrap;
 }
 

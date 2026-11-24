@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .breadcrumb a {
@@ -40,7 +40,7 @@
 
 .breadcrumb-sep {
   color: #9ca3af;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
@@ -83,13 +83,13 @@
 
 .page-header h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
 }
 
 .page-header p {
   margin: 2px 0 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--tm-text-muted);
 }
 
@@ -102,13 +102,13 @@
 
 .card-head h2 {
   margin: 0;
-  font-size: 15.5px;
+  font-size: 0.969rem;
   font-weight: 800;
 }
 
 .card-head p {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--tm-text-muted);
 }
 
@@ -138,7 +138,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -253,7 +253,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: var(--tm-accent);
   cursor: pointer;
@@ -272,7 +272,7 @@
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   color: #374151;
 }
@@ -291,7 +291,7 @@
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--tm-text);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
@@ -329,7 +329,7 @@ select.control {
 }
 
 .error {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--tm-danger);
 }
 
@@ -362,7 +362,7 @@ select.control {
   outline: none;
   background: transparent;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--tm-text);
 }
 
@@ -391,13 +391,13 @@ select.control {
   width: 100%;
   min-width: 720px;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .data-table th {
   padding: 11px 12px;
   background: #f5f6f8;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
@@ -443,7 +443,7 @@ select.control {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   cursor: pointer;
 }
 
@@ -514,7 +514,7 @@ select.control {
   padding: 1px 7px;
   border-radius: 10px;
   background: #f3f4f6;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   font-weight: 500;
   color: #4b5563;
 }
@@ -528,7 +528,7 @@ select.control {
   padding: 2px 8px;
   border-radius: 5px;
   background: #f3f4f6;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .pill {
@@ -538,7 +538,7 @@ select.control {
   height: 26px;
   padding: 0 12px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -598,7 +598,7 @@ select.control {
   border-radius: 6px;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }
@@ -635,13 +635,13 @@ select.control {
 
 .empty h3 {
   margin: 6px 0 0;
-  font-size: 15px;
+  font-size: 0.938rem;
   color: var(--tm-text);
 }
 
 .empty p {
   margin: 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ============ Pagination ============ */
@@ -659,7 +659,7 @@ select.control {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #4b5563;
 }
 
@@ -676,7 +676,7 @@ select.control {
 }
 
 .range {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #4b5563;
 }
 
@@ -696,7 +696,7 @@ select.control {
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }
@@ -752,7 +752,7 @@ select.control {
 
 .modal-head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
@@ -761,7 +761,7 @@ select.control {
   flex-direction: column;
   gap: 14px;
   padding: 18px 20px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .modal-body p {
@@ -794,7 +794,7 @@ select.control {
   border-radius: 8px;
   background: #1f2937;
   color: #fff;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
 }
 
@@ -864,7 +864,7 @@ select.control {
 }
 
 .hint {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--tm-text-muted);
 }
 
@@ -898,7 +898,7 @@ select.control {
   border-bottom: 3px solid transparent;
   background: none;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #1f2937;
   white-space: nowrap;
   cursor: pointer;
@@ -919,7 +919,7 @@ select.control {
   padding: 1px 7px;
   border-radius: 10px;
   background: #f1f2f6;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   text-align: center;
   color: #4b5563;
@@ -960,7 +960,7 @@ select.control {
   padding: 7px 12px;
   border-radius: 6px;
   background: var(--tm-accent-soft);
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .link-btn--muted {
@@ -1012,7 +1012,7 @@ select.control {
 
 .desc {
   max-width: 200px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ============ Responsive ============ */
@@ -1083,7 +1083,7 @@ select.control {
 
 .load-msg {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--tm-danger);
 }
 
@@ -1099,7 +1099,7 @@ select.control.page-size-select {
   width: 54px;
   height: 26px;
   padding: 0 20px 0 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
   border-radius: 5px;
   background-position: right 5px center;
   background-size: 12px;
@@ -1114,7 +1114,7 @@ select.control.page-size-select {
   height: 24px;
   padding: 0 6px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* Delete button on the left of the edit-type popup footer */

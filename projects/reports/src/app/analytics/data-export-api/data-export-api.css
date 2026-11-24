@@ -40,7 +40,7 @@
 
 .dx-select-sm {
   height: 30px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* ===== KPI cards ===== */
@@ -103,7 +103,7 @@
   border: 1px solid var(--ra-border);
   border-radius: 6px;
   font-weight: 600;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .dx-dest {
@@ -125,7 +125,7 @@
 .dx-two small {
   display: block;
   color: var(--ra-muted);
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .dx-actions {
@@ -183,7 +183,7 @@
   height: 34px;
   flex-shrink: 0;
   border-radius: 9px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
   background: var(--tone-soft, var(--ra-purple-soft));
   color: var(--tone, var(--ra-purple));
@@ -207,7 +207,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ra-muted);
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .dx-con-status {
@@ -266,7 +266,7 @@
   border-radius: 50%;
   border: 2px solid var(--ra-border);
   background: #fff;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--ra-muted);
 }
@@ -279,7 +279,7 @@
 }
 
 .dx-step-label {
-  font-size: 10.5px;
+  font-size: 0.656rem;
   color: var(--ra-muted);
   line-height: 1.2;
 }
@@ -305,7 +305,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #334155;
 }
@@ -379,7 +379,7 @@
 
 .dx-field-list strong {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .dx-field-list strong:first-child {
@@ -404,7 +404,7 @@
 .dx-filter-row .select {
   min-width: 0;
   height: 32px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .dx-builder-actions {
@@ -418,7 +418,7 @@
 .dx-error {
   margin: 8px 0 0;
   color: #dc2626;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -442,12 +442,12 @@
 
 .dx-dl--tight {
   grid-template-columns: 70px minmax(0, 1fr);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .dx-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   overflow-wrap: anywhere;
 }
 
@@ -457,7 +457,7 @@
 }
 
 .dx-small {
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .dx-form-grid {
@@ -475,7 +475,7 @@
 
 .dx-h3 {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 700;
 }
 
@@ -524,7 +524,7 @@
 .dx-sec-list small {
   display: block;
   color: var(--ra-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .dx-sec-list a.btn {
@@ -548,7 +548,7 @@
 }
 
 .dx-insights .insight h3 {
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ===== Tabs content ===== */
@@ -596,7 +596,7 @@
   background: #1e1b2e;
   color: #e9e5f5;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 

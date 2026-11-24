@@ -28,9 +28,9 @@
   border-radius: 999px;
   background: var(--adm-purple);
   color: #fff;
-  font-size: 10.5px;
+  font-size: 0.656rem;
   font-weight: 700;
-  line-height: 17px;
+  line-height: 1.063rem;
 }
 
 .more-filters {
@@ -45,7 +45,7 @@
 
 /* ===== Jobs list ===== */
 .jobs .panel__head h2 {
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .plus {
@@ -68,7 +68,7 @@
   gap: 2px 12px;
   margin-top: 4px;
   color: var(--adm-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .job-meta span {
@@ -110,20 +110,20 @@
 }
 
 .summary b {
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 800;
 }
 
 .summary span {
   color: var(--adm-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .progress-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -148,7 +148,7 @@
 .kv--tight {
   grid-template-columns: 112px minmax(0, 1fr);
   gap: 5px 10px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .file-title {
@@ -187,14 +187,14 @@
 }
 
 .vsum b {
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 800;
 }
 
 .vsum span {
   grid-column: 1 / -1;
   color: #334155;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* Stepper */
@@ -238,7 +238,7 @@
 
 .stepper__text small {
   color: var(--adm-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .stepper__line {
@@ -279,14 +279,14 @@
 .select--sm {
   height: 32px;
   min-width: 170px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 code {
   padding: 2px 6px;
   border-radius: 6px;
   background: #f1f5f9;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .note + .note,
@@ -318,12 +318,12 @@ code {
 
 .rules__body small {
   color: #94a3b8;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .small-note {
   margin: 12px 0 0;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .schedule__modes {
@@ -355,7 +355,7 @@ code {
 
 .schedule__modes small {
   color: var(--adm-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .schedule__foot {
@@ -385,7 +385,7 @@ code {
   display: block;
   margin: -6px 0 10px 120px;
   color: var(--adm-red);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .file-box {
@@ -410,7 +410,7 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .file-box__clear {
@@ -419,7 +419,7 @@ code {
 }
 
 .file-box__pick {
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .recipients {

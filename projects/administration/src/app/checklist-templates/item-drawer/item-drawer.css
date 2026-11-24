@@ -59,7 +59,7 @@
 
 .toggle small {
   color: var(--adm-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .preview {
@@ -72,7 +72,7 @@
 
 .preview > p.muted {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .preview__q {

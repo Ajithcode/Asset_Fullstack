@@ -14,13 +14,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .link--end {
   display: inline-block;
   margin-top: 10px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   text-decoration: none;
 }
 
@@ -28,7 +28,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 14px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .addr div {
@@ -44,7 +44,7 @@
 
 .addr small {
   color: #64748b;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .addr span {
@@ -83,7 +83,7 @@
   gap: 6px;
   min-height: 26px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #0f172a;
 }
 
@@ -152,7 +152,7 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  font-size: 10.5px;
+  font-size: 0.656rem;
   color: #4f2bd8;
   cursor: pointer;
   text-align: center;
@@ -166,7 +166,7 @@
 }
 
 .muted {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #94a3b8;
   margin: 6px 0 0;
 }
@@ -174,7 +174,7 @@
 .menu__link {
   padding: 8px 10px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #0f172a;
   text-decoration: none;
 }

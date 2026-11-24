@@ -42,12 +42,12 @@ import { Lock, LucideAngularModule } from 'lucide-angular';
     .module-locked h2 {
       margin: 0;
       color: var(--piq-text-brand, #3b0764);
-      font-size: 20px;
+      font-size: 1.25rem;
       font-weight: 600;
     }
     .module-locked p {
       margin: 0;
-      font-size: 14px;
+      font-size: 0.875rem;
     }
     .module-locked__btn {
       margin-top: 12px;
@@ -56,7 +56,7 @@ import { Lock, LucideAngularModule } from 'lucide-angular';
       border-radius: 8px;
       background: var(--piq-primary, #4f2bd8);
       color: #fff;
-      font-size: 14px;
+      font-size: 0.875rem;
       font-weight: 500;
       cursor: pointer;
     }

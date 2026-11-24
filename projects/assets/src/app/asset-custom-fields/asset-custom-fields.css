@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .breadcrumb a {
@@ -40,7 +40,7 @@
 
 .breadcrumb-sep {
   color: #9ca3af;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
@@ -83,13 +83,13 @@
 
 .page-header h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
 }
 
 .page-header p {
   margin: 2px 0 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--cf-text-muted);
 }
 
@@ -102,13 +102,13 @@
 
 .card-head h2 {
   margin: 0;
-  font-size: 15.5px;
+  font-size: 0.969rem;
   font-weight: 800;
 }
 
 .card-head p {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--cf-text-muted);
 }
 
@@ -138,7 +138,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -253,7 +253,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: var(--cf-accent);
   cursor: pointer;
@@ -272,7 +272,7 @@
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   color: #374151;
 }
@@ -291,7 +291,7 @@
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--cf-text);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
@@ -329,7 +329,7 @@ select.control {
 }
 
 .error {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--cf-danger);
 }
 
@@ -362,7 +362,7 @@ select.control {
   outline: none;
   background: transparent;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--cf-text);
 }
 
@@ -391,13 +391,13 @@ select.control {
   width: 100%;
   min-width: 720px;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .data-table th {
   padding: 11px 12px;
   background: #f5f6f8;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
@@ -443,7 +443,7 @@ select.control {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   cursor: pointer;
 }
 
@@ -514,7 +514,7 @@ select.control {
   padding: 1px 7px;
   border-radius: 10px;
   background: #f3f4f6;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   font-weight: 500;
   color: #4b5563;
 }
@@ -528,7 +528,7 @@ select.control {
   padding: 2px 8px;
   border-radius: 5px;
   background: #f3f4f6;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .pill {
@@ -538,7 +538,7 @@ select.control {
   height: 26px;
   padding: 0 12px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -598,7 +598,7 @@ select.control {
   border-radius: 6px;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }
@@ -635,13 +635,13 @@ select.control {
 
 .empty h3 {
   margin: 6px 0 0;
-  font-size: 15px;
+  font-size: 0.938rem;
   color: var(--cf-text);
 }
 
 .empty p {
   margin: 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ============ Pagination ============ */
@@ -659,7 +659,7 @@ select.control {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #4b5563;
 }
 
@@ -676,7 +676,7 @@ select.control {
 }
 
 .range {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #4b5563;
 }
 
@@ -696,7 +696,7 @@ select.control {
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }
@@ -752,7 +752,7 @@ select.control {
 
 .modal-head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
@@ -761,7 +761,7 @@ select.control {
   flex-direction: column;
   gap: 14px;
   padding: 18px 20px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .modal-body p {
@@ -794,7 +794,7 @@ select.control {
   border-radius: 8px;
   background: #1f2937;
   color: #fff;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
 }
 
@@ -807,7 +807,7 @@ select.control {
   border: 1px solid #fecaca;
   background: #fef2f2;
   color: #b91c1c;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 
@@ -825,12 +825,12 @@ select.control {
 
 .card-head h3 {
   margin: 0;
-  font-size: 15.5px;
+  font-size: 0.969rem;
   font-weight: 800;
 }
 
 .hint {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--cf-text-muted);
 }
 
@@ -868,7 +868,7 @@ select.control {
   border: 0;
   background: none;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #1f2937;
   cursor: pointer;
 }
@@ -924,7 +924,7 @@ select.control {
   padding: 7px 12px;
   border-radius: 6px;
   background: var(--cf-accent-soft);
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .data-table {
@@ -950,7 +950,7 @@ select.control {
   min-width: 74px;
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 500;
   text-align: center;
 }
@@ -1010,7 +1010,7 @@ select.control {
   align-items: center;
   gap: 4px;
   align-self: flex-start;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .inline-add {
@@ -1021,7 +1021,7 @@ select.control {
 
 .control--sm {
   height: 32px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .icon-btn--sm {
@@ -1036,7 +1036,7 @@ select.control {
 
 .counter {
   align-self: flex-end;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   color: var(--cf-text-muted);
 }
 
@@ -1098,13 +1098,13 @@ select.control {
 
 .toggle strong {
   display: block;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 500;
 }
 
 .toggle small {
   display: block;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--cf-text-muted);
 }
 
@@ -1117,7 +1117,7 @@ select.control {
 
 .preview-section legend {
   padding: 0 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 700;
 }
 
@@ -1130,7 +1130,7 @@ select.control {
   align-items: center;
   gap: 8px;
   height: 38px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ============ Responsive ============ */
@@ -1183,7 +1183,7 @@ select.control {
   border: 1px solid var(--cf-border);
   border-radius: 999px;
   background: #fafafa;
-  font-size: 12px;
+  font-size: 0.75rem;
   white-space: nowrap;
 }
 
@@ -1225,13 +1225,13 @@ select.control {
 
 .check-opt strong {
   display: block;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 500;
 }
 
 .check-opt small {
   display: block;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--cf-text-muted);
 }
 
@@ -1261,7 +1261,7 @@ select.control {
 .data-table--compact th,
 .data-table--compact td {
   padding: 7px 8px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .col-grip {
@@ -1347,7 +1347,7 @@ tr.drop-before td {
 
 .assign-head h4 {
   margin: 0;
-  font-size: 14.5px;
+  font-size: 0.906rem;
   font-weight: 800;
 }
 
@@ -1365,7 +1365,7 @@ tr.drop-before td {
 .assign-empty {
   margin: 0;
   padding: 14px 10px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--cf-text-muted);
   text-align: center;
 }
@@ -1407,13 +1407,13 @@ tr.drop-before td {
 }
 
 .picker-row strong {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 500;
 }
 
 .picker-group {
   width: 150px;
-  font-size: 12px;
+  font-size: 0.75rem;
   text-align: right;
 }
 

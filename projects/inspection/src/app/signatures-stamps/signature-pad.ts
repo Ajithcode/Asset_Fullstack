@@ -18,8 +18,8 @@ import { AfterViewInit, Component, ElementRef, output, viewChild } from '@angula
     `:host { display: flex; flex-direction: column; gap: 8px; width: 100%; }
      canvas { width: 100%; height: 130px; border: 1px dashed #cdbcfa; border-radius: 8px; background: #fff; touch-action: none; cursor: crosshair; }
      .row { display: flex; align-items: center; gap: 8px; }
-     .hint { flex: 1; font-size: 12px; color: #6b6880; }
-     .b { height: 30px; padding: 0 12px; border: 1px solid #d6d3e0; border-radius: 6px; background: #fff; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+     .hint { flex: 1; font-size: 0.75rem; color: #6b6880; }
+     .b { height: 30px; padding: 0 12px; border: 1px solid #d6d3e0; border-radius: 6px; background: #fff; font: inherit; font-size: 0.781rem; font-weight: 600; cursor: pointer; }
      .b:disabled { opacity: 0.5; cursor: default; }
      .b-p { background: #5b21e6; border-color: #5b21e6; color: #fff; }`
   ]

@@ -32,7 +32,7 @@
 }
 
 .pd-label {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #334155;
 }
@@ -49,19 +49,19 @@
 }
 
 .pd-users .btn--link {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   text-decoration: underline;
 }
 
 .pd-more {
   background: #f1f5f9 !important;
   color: #475569 !important;
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .pd-none {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .pd-summary {
@@ -75,7 +75,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--adm-purple);
 }
 
@@ -95,13 +95,13 @@
 }
 
 .pd-summary__grid b {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 800;
 }
 
 .pd-summary__grid span {
   color: var(--adm-muted);
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .pd-green { color: #059669; }

@@ -9,7 +9,7 @@
   gap: 6px 16px;
   margin-bottom: 10px;
   color: #475569;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .mt-legend span {
@@ -117,7 +117,7 @@
   border: 0;
   border-radius: 6px;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -132,4 +132,4 @@
 .mt-scope[data-tone='purple'] { background: var(--adm-purple-soft); color: var(--adm-purple); }
 .mt-scope[data-tone='pink'] { background: var(--adm-pink-soft); color: #db2777; }
 
-.mt-unlicensed { margin-left: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 3px; }
+.mt-unlicensed { margin-left: 6px; font-size: 0.688rem; display: inline-flex; align-items: center; gap: 3px; }

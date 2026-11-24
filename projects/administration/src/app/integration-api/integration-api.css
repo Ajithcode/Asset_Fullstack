@@ -11,7 +11,7 @@
 
 code {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12px;
+  font-size: 0.75rem;
   overflow-wrap: anywhere;
 }
 
@@ -23,7 +23,7 @@ code {
   height: 40px;
   border-radius: 10px;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
@@ -31,7 +31,7 @@ code {
 .int-logo--lg {
   width: 48px;
   height: 48px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .int-list {
@@ -70,7 +70,7 @@ code {
   grid-template-columns: 150px minmax(0, 1fr);
   gap: 12px 10px;
   margin: 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .int-kv dt {
@@ -139,7 +139,7 @@ code {
 }
 
 .int-small {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .int-select-sm {
@@ -173,7 +173,7 @@ code {
 .int-mapping td small {
   display: block;
   color: var(--adm-red);
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .int-add {
@@ -223,7 +223,7 @@ code {
   align-items: center;
   gap: 8px;
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #065f46;
 }
 
@@ -233,7 +233,7 @@ code {
   align-items: center;
   gap: 8px;
   padding: 5px 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .int-check b {

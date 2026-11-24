@@ -111,7 +111,7 @@ const CLOSE_MS = 140;
       border-radius: 6px;
       background: #fff;
       font: inherit;
-      font-size: 13.5px;
+      font-size: 0.844rem;
       color: var(--fs-text);
       text-align: left;
       cursor: pointer;
@@ -214,7 +214,7 @@ const CLOSE_MS = 140;
       border: 0;
       background: transparent;
       font: inherit;
-      font-size: 13px;
+      font-size: 0.813rem;
       color: var(--fs-text);
       outline: none;
     }
@@ -245,7 +245,7 @@ const CLOSE_MS = 140;
       min-height: 34px;
       padding: 6px 10px;
       border-radius: 6px;
-      font-size: 13.5px;
+      font-size: 0.844rem;
       color: var(--fs-text);
       cursor: pointer;
       animation: fs-option-in 0.22s ease-out both;
@@ -283,7 +283,7 @@ const CLOSE_MS = 140;
 
     .fs-empty {
       padding: 14px 10px;
-      font-size: 13px;
+      font-size: 0.813rem;
       color: var(--fs-muted);
       text-align: center;
     }

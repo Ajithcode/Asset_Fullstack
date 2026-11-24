@@ -68,7 +68,7 @@
   border-radius: 999px;
   background: transparent;
   color: #475569;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -93,7 +93,7 @@
 .tab-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
 .tab-icon-btn svg { width: 13px; height: 13px; }
 .tab-icon-btn:hover { background: rgba(255, 255, 255, 0.25); }
-.dash-tab-add { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border: 0; background: transparent; color: #4f2bd8; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.dash-tab-add { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border: 0; background: transparent; color: #4f2bd8; font-size: 0.875rem; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .dash-tab-add:hover { text-decoration: underline; }
 .dash-tab-footer { display: none; }
 
@@ -107,7 +107,7 @@
 
 @media (max-width: 560px) {
   .dash-tabs { width: 100%; box-sizing: border-box; }
-  .dash-tab { flex: 1; justify-content: center; padding: 0 10px; font-size: 13px; }
+  .dash-tab { flex: 1; justify-content: center; padding: 0 10px; font-size: 0.813rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

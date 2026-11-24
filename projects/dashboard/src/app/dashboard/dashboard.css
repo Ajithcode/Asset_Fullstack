@@ -17,7 +17,7 @@
   height: 36px;
   padding: 0 16px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 700;
   cursor: pointer;
   border: none;
@@ -60,7 +60,7 @@
 }
 .dashboard-header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -68,7 +68,7 @@
 .dashboard-header p {
   margin: 4px 0 0;
   color: #64748b;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .header-actions {
@@ -115,7 +115,7 @@
 
 .chevron {
   color: #64748b;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1;
 }
 
@@ -130,7 +130,7 @@
   width: 100%;
   min-width: 0;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #0f172a;
 }
 
@@ -208,7 +208,7 @@
 }
 
 .stat-copy span {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 700;
   color: #0f172a;
   white-space: nowrap;
@@ -217,7 +217,7 @@
 }
 
 .stat-copy strong {
-  font-size: 28px;
+  font-size: 1.75rem;
   line-height: 1;
   font-weight: 800;
   color: #0f172a;
@@ -226,7 +226,7 @@
 .stat-copy small,
 .cost-grid small {
   color: #16a34a;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .stat-copy small.negative,
@@ -238,7 +238,7 @@
   grid-column: 2;
   color: #1d4ed8;
   text-decoration: none;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   align-self: end;
 }
@@ -259,7 +259,7 @@
 .panel h2 {
   margin: 0;
   padding: 16px 18px 10px;
-  font-size: 15px;
+  font-size: 0.938rem;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -313,7 +313,7 @@
   border-top: 1px solid #eef3f8;
   color: #1d4ed8;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 700;
   padding: 13px 18px;
 }
@@ -347,12 +347,12 @@
 }
 
 .donut-chart strong {
-  font-size: 28px;
+  font-size: 1.75rem;
 }
 
 .donut-chart span {
   color: #64748b;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .legend-list {
@@ -369,7 +369,7 @@
   gap: 10px;
   align-items: center;
   color: #334155;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .legend-dot {
@@ -391,7 +391,7 @@
   gap: 20px;
   justify-content: flex-end;
   color: #334155;
-  font-size: 12px;
+  font-size: 0.75rem;
   
 }
 
@@ -470,7 +470,7 @@
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   color: #64748b;
-  font-size: 11px;
+  font-size: 0.688rem;
   padding-left: 30px;
   text-align: center;
 }
@@ -527,13 +527,13 @@
 }
 
 .gauge strong {
-  font-size: 32px;
+  font-size: 2rem;
   line-height: 1;
 }
 
 .gauge span {
   color: #64748b;
-  font-size: 13px;
+  font-size: 0.813rem;
   margin-bottom: 4px;
 }
 
@@ -542,7 +542,7 @@
   padding-top: 8px;
   border-top: 1px dashed #cbd5e1;
   color: #334155;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .large-panel {
@@ -556,7 +556,7 @@
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 th,
@@ -569,7 +569,7 @@ td {
 
 th {
   color: #475569;
-  font-size: 12px;
+  font-size: 0.75rem;
   background: #f8fafc;
   font-weight: 800;
 }
@@ -585,7 +585,7 @@ td {
   min-height: 24px;
   padding: 3px 9px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -633,18 +633,18 @@ td {
 }
 
 .work-order strong {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .work-order p {
   
   color: #0f172a;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .work-order small {
   color: #64748b;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .side-stack {
@@ -663,7 +663,7 @@ td {
   grid-template-columns: minmax(110px, 1fr) 1.8fr 26px;
   gap: 10px;
   align-items: center;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .asset-bar div,
@@ -703,11 +703,11 @@ td {
 
 .cost-grid span {
   color: #475569;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .cost-grid strong {
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .quick-actions {
@@ -722,7 +722,7 @@ td {
   text-decoration: none;
   padding: 10px 18px;
   border-top: 1px solid #edf2f7;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .alerts-panel {
@@ -746,7 +746,7 @@ td {
   display: grid;
   place-items: center;
   font-weight: 900;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .alert-row .danger {
@@ -762,19 +762,19 @@ td {
 }
 
 .alert-row strong {
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .alert-row p {
   margin: 2px 0 0;
   color: #64748b;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .alert-row a {
   color: #1d4ed8;
   text-decoration: none;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -788,7 +788,7 @@ td {
   gap: 12px;
   align-items: center;
   padding: 10px 18px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .load-row i {
@@ -847,7 +847,7 @@ td {
 
 @media (max-width: 560px) {
   .dashboard-header h1 {
-    font-size: 21px;
+    font-size: 1.313rem;
   }
 
   .stat-grid {
@@ -890,7 +890,7 @@ td {
 }
 
 .date-filter-text {
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #0f172a;
   font-weight: 600;
 }
@@ -944,7 +944,7 @@ td {
   background: transparent;
   padding: 8px 12px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #334155;
   cursor: pointer;
   font-weight: 600;
@@ -972,13 +972,13 @@ td {
   align-items: center;
   justify-content: space-between;
   padding: 4px 4px 10px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #0f172a;
 }
 
 .cal-header strong {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .nav-spacer {
@@ -1011,7 +1011,7 @@ td {
 .weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 700;
   color: #94a3b8;
   text-align: center;
@@ -1030,7 +1030,7 @@ td {
   background: transparent;
   height: 32px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #0f172a;
   cursor: pointer;
@@ -1115,7 +1115,7 @@ td {
   background: transparent;
   color: #1d4ed8;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 0.813rem;
   cursor: pointer;
   padding: 6px 8px;
 }
@@ -1127,7 +1127,7 @@ td {
 .btn {
   border-radius: 6px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 700;
   cursor: pointer;
   border: 1px solid transparent;
@@ -1215,14 +1215,14 @@ td {
 
 .card-popup-title h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 800;
 }
 
 .card-popup-title p {
   margin: 4px 0 0;
   color: #64748b;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .card-popup-icon {
@@ -1251,7 +1251,7 @@ td {
   cursor: pointer;
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 1.375rem;
   line-height: 1;
 }
 
@@ -1268,7 +1268,7 @@ td {
 .card-popup-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .card-popup-table th,
@@ -1321,7 +1321,7 @@ td {
   }
 
   .card-popup-table {
-    font-size: 12px;
+    font-size: 0.75rem;
   }
 }
 
@@ -1347,7 +1347,7 @@ td {
 
 .db-board-header h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 500;
   color: #0f172a;
 }
@@ -1369,7 +1369,7 @@ td {
   background: #dcd9e8;
   color: #1e1b3a;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -1410,7 +1410,7 @@ td {
 
 .db-empty h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #0f172a;
 }
@@ -1418,7 +1418,7 @@ td {
 .db-empty p {
   margin: 0 0 8px;
   max-width: 320px;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.5;
   color: #64748b;
 }
@@ -1453,7 +1453,7 @@ td {
   border-radius: 8px;
   background: #1f2937;
   color: #fff;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
 }
 
@@ -1461,7 +1461,7 @@ td {
   border: 0;
   background: none;
   color: inherit;
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
 }
@@ -1472,6 +1472,6 @@ td {
   padding: 18px;
   text-align: center;
   color: #64748b;
-  font-size: 13px;
+  font-size: 0.813rem;
   list-style: none;
 }

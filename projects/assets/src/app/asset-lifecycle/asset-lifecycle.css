@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .breadcrumb a {
@@ -40,7 +40,7 @@
 
 .breadcrumb-sep {
   color: #9ca3af;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
@@ -83,13 +83,13 @@
 
 .page-header h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
 }
 
 .page-header p {
   margin: 2px 0 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--lc-text-muted);
 }
 
@@ -102,13 +102,13 @@
 
 .card-head h2 {
   margin: 0;
-  font-size: 15.5px;
+  font-size: 0.969rem;
   font-weight: 800;
 }
 
 .card-head p {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--lc-text-muted);
 }
 
@@ -138,7 +138,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -253,7 +253,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: var(--lc-accent);
   cursor: pointer;
@@ -272,7 +272,7 @@
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   color: #374151;
 }
@@ -291,7 +291,7 @@
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--lc-text);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
@@ -329,7 +329,7 @@ select.control {
 }
 
 .error {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--lc-danger);
 }
 
@@ -362,7 +362,7 @@ select.control {
   outline: none;
   background: transparent;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--lc-text);
 }
 
@@ -391,13 +391,13 @@ select.control {
   width: 100%;
   min-width: 720px;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .data-table th {
   padding: 11px 12px;
   background: #f5f6f8;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
@@ -443,7 +443,7 @@ select.control {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 0.813rem;
   cursor: pointer;
 }
 
@@ -514,7 +514,7 @@ select.control {
   padding: 1px 7px;
   border-radius: 10px;
   background: #f3f4f6;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   font-weight: 500;
   color: #4b5563;
 }
@@ -528,7 +528,7 @@ select.control {
   padding: 2px 8px;
   border-radius: 5px;
   background: #f3f4f6;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .pill {
@@ -538,7 +538,7 @@ select.control {
   height: 26px;
   padding: 0 12px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -598,7 +598,7 @@ select.control {
   border-radius: 6px;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }
@@ -635,13 +635,13 @@ select.control {
 
 .empty h3 {
   margin: 6px 0 0;
-  font-size: 15px;
+  font-size: 0.938rem;
   color: var(--lc-text);
 }
 
 .empty p {
   margin: 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ============ Pagination ============ */
@@ -659,7 +659,7 @@ select.control {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #4b5563;
 }
 
@@ -676,7 +676,7 @@ select.control {
 }
 
 .range {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #4b5563;
 }
 
@@ -696,7 +696,7 @@ select.control {
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }
@@ -752,7 +752,7 @@ select.control {
 
 .modal-head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
@@ -761,7 +761,7 @@ select.control {
   flex-direction: column;
   gap: 14px;
   padding: 18px 20px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .modal-body p {
@@ -794,7 +794,7 @@ select.control {
   border-radius: 8px;
   background: #1f2937;
   color: #fff;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
 }
 
@@ -818,7 +818,7 @@ select.control {
 
 .card-head h3 {
   margin: 0;
-  font-size: 15.5px;
+  font-size: 0.969rem;
   font-weight: 800;
 }
 
@@ -828,7 +828,7 @@ select.control {
 }
 
 .hint {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--lc-text-muted);
 }
 
@@ -887,7 +887,7 @@ select.control {
 .empty-line {
   margin: 0;
   padding: 14px 4px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--lc-text-muted);
 }
 
@@ -910,13 +910,13 @@ select.control {
 
 .asset-title h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 800;
 }
 
 .asset-title p {
   margin: 2px 0 0;
-  font-size: 16px;
+  font-size: 1rem;
   color: #1f2937;
 }
 
@@ -943,12 +943,12 @@ select.control {
 }
 
 .chip > span:first-child {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #4b5563;
 }
 
 .chip strong {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 500;
 }
 
@@ -961,7 +961,7 @@ select.control {
 .pill--xs {
   height: 22px;
   padding: 0 9px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .pill--excellent,
@@ -1033,12 +1033,12 @@ select.control {
 }
 
 .kpi span {
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
 }
 
 .kpi strong {
-  font-size: 17px;
+  font-size: 1.063rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1146,7 +1146,7 @@ select.control {
 .step--current .step-dot { background: #7c4dff; box-shadow: 0 0 0 4px #e7defe; }
 
 .step strong {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 700;
 }
 
@@ -1155,7 +1155,7 @@ select.control {
 }
 
 .step-date {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #374151;
 }
 
@@ -1163,7 +1163,7 @@ select.control {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -1192,7 +1192,7 @@ select.control {
   border: 0;
   background: none;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #1f2937;
   white-space: nowrap;
   cursor: pointer;
@@ -1244,7 +1244,7 @@ select.control {
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 5px 12px;
   margin: 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .facts dt {
@@ -1280,7 +1280,7 @@ select.control {
 }
 
 .facts--money dd {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -1291,7 +1291,7 @@ select.control {
 }
 
 dd.total {
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .facts--tags {
@@ -1325,7 +1325,7 @@ dd.total {
 
 .info-body h4 {
   margin: 0;
-  font-size: 15.5px;
+  font-size: 0.969rem;
   font-weight: 800;
   line-height: 1.4;
 }
@@ -1366,7 +1366,7 @@ dd.total {
   border-radius: 5px;
   background: #e8f7ee;
   color: #17803d;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -1414,7 +1414,7 @@ dd.total {
   grid-template-columns: 12px 96px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .ev-dot {
@@ -1448,7 +1448,7 @@ dd.total {
 .ev-text small,
 .event-list small {
   display: block;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--lc-text-muted);
 }
 
@@ -1462,11 +1462,11 @@ dd.total {
   grid-template-columns: max-content max-content;
   gap: 12px 24px;
   align-items: baseline;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .maint-grid strong {
-  font-size: 15px;
+  font-size: 0.938rem;
 }
 
 .maint-grid .danger {
@@ -1485,7 +1485,7 @@ dd.total {
 }
 
 .axis-label {
-  font-size: 9.5px;
+  font-size: 0.594rem;
   fill: #4b5563;
 }
 
@@ -1551,7 +1551,7 @@ dd.total {
   display: grid;
   grid-template-columns: 12px 96px minmax(0, 1fr);
   gap: 12px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .history-filters {
@@ -1657,6 +1657,6 @@ dd.total {
 }
 
 /* API load state */
-.load-note, .load-error { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; font-size: 13.5px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.load-note, .load-error { margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; font-size: 0.844rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .load-note { background: #f3f4f6; color: #4b5563; }
 .load-error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }

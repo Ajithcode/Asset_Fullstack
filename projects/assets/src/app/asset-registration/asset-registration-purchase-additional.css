@@ -11,7 +11,7 @@
   padding: 0 14px;
   border-left: 1px solid var(--reg-control-border);
   background: #f9fafb;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #4b5563;
 }
 
@@ -77,7 +77,7 @@
 
 .side-grid .control,
 .side-grid .date-control {
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ----- Documents ----- */
@@ -106,7 +106,7 @@
 
 .dropzone p {
   margin: 2px 0 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #4b5563;
 }
 
@@ -116,7 +116,7 @@
 }
 
 .dropzone small {
-  font-size: 11px;
+  font-size: 0.688rem;
   color: var(--reg-text-muted);
 }
 
@@ -175,12 +175,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--reg-text);
 }
 
 .doc-meta {
-  font-size: 11.5px;
+  font-size: 0.719rem;
   color: var(--reg-text-muted);
 }
 
@@ -236,7 +236,7 @@
   border-radius: 6px;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--reg-text);
   text-align: left;
   cursor: pointer;
@@ -256,7 +256,7 @@
 
 .docs-empty {
   margin: 12px 2px 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--reg-text-muted);
 }
 
@@ -332,7 +332,7 @@
   border-radius: 8px;
   background: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: var(--reg-text);
   white-space: nowrap;
   cursor: pointer;
@@ -372,7 +372,7 @@
 
 .sub-head--desc p {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--reg-text-muted);
 }
 
@@ -388,7 +388,7 @@
 }
 
 .card-head--action h2 {
-  font-size: 15px;
+  font-size: 0.938rem;
 }
 
 .spec-grid {
@@ -412,7 +412,7 @@
 }
 
 .dims-x {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--reg-text-muted);
 }
 
@@ -431,7 +431,7 @@
   background: transparent;
   appearance: none;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--reg-text-muted);
   cursor: pointer;
 }
@@ -452,7 +452,7 @@
   border-top: none;
   border-radius: 8px 8px 0 0;
   background: #f3f4f6;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -466,7 +466,7 @@
   min-width: 0;
   padding: 4px 10px;
   border-right: 1px solid #eef0f3;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #374151;
 }
 
@@ -486,7 +486,7 @@
 .control--sm {
   height: 30px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .select-wrap select.control--sm {
@@ -507,7 +507,7 @@ textarea.control--sm {
   height: 30px;
   gap: 8px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .cf-remove {
@@ -540,7 +540,7 @@ textarea.control--sm {
   border: 1px solid transparent;
   border-radius: 6px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -550,13 +550,13 @@ textarea.control--sm {
 .btn-sm {
   height: 32px;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .btn-lg {
   height: 42px;
   padding: 0 24px;
-  font-size: 14.5px;
+  font-size: 0.906rem;
 }
 
 .btn-outline {
@@ -665,7 +665,7 @@ textarea.control--sm {
   background: #fff;
   color: var(--reg-accent);
   font: inherit;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   font-weight: 500;
   cursor: pointer;
 }
@@ -701,7 +701,7 @@ textarea.control--sm {
   margin: 0;
   padding: 12px 14px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .id-details dt {
@@ -725,7 +725,7 @@ textarea.control--sm {
 /* ============ Quick actions ============ */
 .quick-note {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #6b7280;
 }
 
@@ -761,7 +761,7 @@ textarea.control--sm {
   border-radius: 8px;
   background: #111827;
   color: #fff;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
   animation: toast-in 0.2s ease;
 }

@@ -69,7 +69,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #1f2937;
 }
 
@@ -83,7 +83,7 @@
 
 .dz-hint {
   grid-column: 1 / -1;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--cm-text-muted);
   text-align: center;
 }
@@ -96,7 +96,7 @@
   padding: 8px 10px;
   border-radius: 6px;
   background: #fdecee;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #9f1239;
 }
 
@@ -176,7 +176,7 @@
   grid-template-columns: 100px minmax(0, 1fr);
   align-items: baseline;
   gap: 8px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .file-details .span-2 {
@@ -195,7 +195,7 @@
 
 .mono-name {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .desc-box {
@@ -219,11 +219,11 @@
   flex: 0 0 auto;
   padding: 0 10px;
   height: 38px;
-  line-height: 38px;
+  line-height: 2.375rem;
   border: 1px solid var(--cm-border);
   border-radius: 6px;
   background: #f5f6f8;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #4b5563;
 }
 

@@ -61,7 +61,7 @@ app-map-viewer {
 .field-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #334155;
 }
@@ -102,13 +102,13 @@ app-map-viewer {
   flex-wrap: wrap;
   gap: 8px;
   margin: 0;
-  font-size: 17px;
+  font-size: 1.063rem;
   font-weight: 800;
 }
 
 .map-head__text p {
   margin: 2px 0 0;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   color: var(--adm-muted);
 }
 
@@ -130,7 +130,7 @@ app-map-viewer {
 .map-tools .btn {
   height: 32px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .map-tools .btn.on {
@@ -155,7 +155,7 @@ app-map-viewer {
   border-radius: 8px;
   background: #fff;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .placing-hint {
@@ -169,7 +169,7 @@ app-map-viewer {
   flex-wrap: wrap;
   gap: 18px;
   margin-top: 10px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .map-foot label {
@@ -251,7 +251,7 @@ app-map-viewer {
 .rhead h3 {
   flex: 1;
   margin: 0;
-  font-size: 15px;
+  font-size: 0.938rem;
   font-weight: 800;
 }
 
@@ -270,7 +270,7 @@ app-map-viewer {
   align-items: center;
   justify-content: space-between;
   margin: 4px 0 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 700;
 }
 
@@ -288,7 +288,7 @@ app-map-viewer {
   grid-template-columns: 120px minmax(0, 1fr);
   gap: 9px 10px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .rows dt {
@@ -312,7 +312,7 @@ app-map-viewer {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   cursor: pointer;
 }
 
@@ -337,7 +337,7 @@ app-map-viewer {
 }
 
 .action-grid .btn {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .action-grid .btn--full {
@@ -402,7 +402,7 @@ app-map-viewer {
 
 .item-row__body b {
   display: block;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -413,7 +413,7 @@ app-map-viewer {
   align-items: center;
   gap: 5px;
   color: var(--adm-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .dot {
@@ -481,7 +481,7 @@ app-map-viewer {
 }
 
 .mstats .stat__value {
-  font-size: 20px;
+  font-size: 1.25rem;
 }
 
 /* ===== Table extras ===== */
@@ -511,7 +511,7 @@ app-map-viewer {
 .changes {
   margin: 0;
   padding-left: 14px;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.55;
 }
 
@@ -541,7 +541,7 @@ app-map-viewer {
   display: flex;
   justify-content: space-between;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--adm-muted);
 }
 
@@ -562,7 +562,7 @@ app-map-viewer {
 
 .modal h2 {
   margin: 0 0 14px;
-  font-size: 17px;
+  font-size: 1.063rem;
 }
 
 .modal .rform {

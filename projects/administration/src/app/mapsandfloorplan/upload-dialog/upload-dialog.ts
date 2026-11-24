@@ -95,7 +95,7 @@ const MAX_FILE_MB = 50;
     </div>
   `,
   styleUrls: ['../../shared/admin-workspace.css', '../maps.css'],
-  styles: `.dropzone.invalid { border-color: #ef4444; } .err { color: #b91c1c; font-size: 12px; margin-top: -6px; }`
+  styles: `.dropzone.invalid { border-color: #ef4444; } .err { color: #b91c1c; font-size: 0.75rem; margin-top: -6px; }`
 })
 export class UploadDialog {
   readonly store = inject(MapsStore);

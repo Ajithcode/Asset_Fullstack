@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .breadcrumb a {
@@ -40,7 +40,7 @@
 
 .breadcrumb-sep {
   color: #9ca3af;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
@@ -92,13 +92,13 @@
 
 .title-block h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
 }
 
 .title-block p {
   margin: 2px 0 0;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--al-text-muted);
 }
 
@@ -113,7 +113,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -162,8 +162,8 @@
   border-radius: 9px;
   background: var(--al-accent);
   color: #fff;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 0.688rem;
+  line-height: 1.125rem;
   text-align: center;
 }
 
@@ -172,7 +172,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: var(--al-accent);
   cursor: pointer;
@@ -221,7 +221,7 @@
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   color: #374151;
 }
@@ -235,7 +235,7 @@
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--al-text);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -275,7 +275,7 @@ select.control {
   border: 0;
   outline: none;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--al-text);
   background: transparent;
 }
@@ -340,12 +340,12 @@ select.control {
 }
 
 .total span {
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #4b5563;
 }
 
 .total strong {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
 }
 
@@ -379,7 +379,7 @@ select.control {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
 }
 
@@ -391,7 +391,7 @@ select.control {
 
 .stat-card strong {
   padding-left: 18px;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -434,7 +434,7 @@ select.control {
   padding: 8px 14px;
   border-radius: 8px;
   background: var(--al-accent-soft);
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ============ Table ============ */
@@ -448,7 +448,7 @@ select.control {
   width: 100%;
   min-width: 1180px;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .asset-table th {
@@ -457,7 +457,7 @@ select.control {
   z-index: 1;
   padding: 12px 10px;
   background: #f5f6f8;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
@@ -573,7 +573,7 @@ select.control {
 
 .two-line small {
   margin-top: 1px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--al-text-muted);
 }
 
@@ -592,7 +592,7 @@ select.control {
   height: 24px;
   border-radius: 50%;
   color: #fff;
-  font-size: 10.5px;
+  font-size: 0.656rem;
   font-weight: 700;
 }
 
@@ -606,7 +606,7 @@ select.control {
   border: 1px solid var(--al-border);
   border-radius: 6px;
   background: #fff;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -689,7 +689,7 @@ dd.is-overdue {
   border-radius: 6px;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }
@@ -762,14 +762,14 @@ dd.is-overdue {
 
 .card-main .mono {
   margin-top: 2px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .asset-card dl {
   display: grid;
   gap: 8px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .asset-card dl div {
@@ -800,13 +800,13 @@ dd.is-overdue {
 
 .empty h3 {
   margin: 6px 0 0;
-  font-size: 16px;
+  font-size: 1rem;
   color: var(--al-text);
 }
 
 .empty p {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ============ Pagination ============ */
@@ -824,7 +824,7 @@ dd.is-overdue {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #4b5563;
 }
 
@@ -841,7 +841,7 @@ dd.is-overdue {
 }
 
 .range {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: #4b5563;
 }
 
@@ -862,7 +862,7 @@ dd.is-overdue {
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }
@@ -898,7 +898,7 @@ dd.is-overdue {
   border-radius: 8px;
   background: #1f2937;
   color: #fff;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
 }
 
@@ -962,7 +962,7 @@ dd.is-overdue {
 
   .asset-table {
     min-width: 0;
-    font-size: 11px;
+    font-size: 0.688rem;
   }
 }
 
@@ -979,7 +979,7 @@ select.control.page-size-select {
   width: 54px;
   height: 26px;
   padding: 0 20px 0 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
   border-radius: 5px;
   background-position: right 5px center;
   background-size: 12px;
@@ -994,11 +994,11 @@ select.control.page-size-select {
   height: 24px;
   padding: 0 6px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .page-gap {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* ============ Status cards fill the row (Total Assets removed) ============ */
@@ -1087,7 +1087,7 @@ select.control.page-size-select {
   select.control option {
     padding: 7px 10px;
     border-radius: 6px;
-    font-size: 13.5px;
+    font-size: 0.844rem;
     color: var(--al-text);
     cursor: pointer;
   }

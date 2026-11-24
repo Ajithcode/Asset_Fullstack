@@ -23,7 +23,7 @@
   border-radius: 999px;
   background: var(--adm-purple);
   color: #fff;
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .rac-filters {
@@ -39,7 +39,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #334155;
 }
@@ -55,7 +55,7 @@
   align-items: center;
   gap: 6px 10px;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .rac-meta lucide-icon {
@@ -121,7 +121,7 @@
   gap: 6px;
   padding-bottom: 10px;
   color: var(--adm-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .rac-inherit lucide-icon {

@@ -7,7 +7,7 @@
   border-radius: 999px;
   background: #f1f5f9;
   color: #94a3b8;
-  font-size: 10.5px;
+  font-size: 0.656rem;
   font-weight: 600;
 }
 
@@ -81,7 +81,7 @@
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .te-para {
@@ -113,7 +113,7 @@
   padding: 12px 14px;
   border: 0;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   line-height: 1.75;
   letter-spacing: normal;
   white-space: pre-wrap;
@@ -164,7 +164,7 @@
   display: flex;
   justify-content: space-between;
   color: var(--adm-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .te-counter.over {

@@ -106,7 +106,7 @@
   grid-template-columns: 110px minmax(0, 1fr);
   align-items: baseline;
   gap: 8px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .doc-details .span-2 {
@@ -125,7 +125,7 @@
 
 .file-name {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .desc-box {
@@ -147,7 +147,7 @@
   border: 1.5px dashed var(--cm-accent-border);
   border-radius: 8px;
   background: var(--cm-accent-soft);
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   cursor: pointer;
 }

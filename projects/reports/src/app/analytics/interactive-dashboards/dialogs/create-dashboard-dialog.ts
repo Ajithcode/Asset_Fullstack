@@ -58,7 +58,7 @@ export interface NewDashboard {
   styles: [
     `
       .idb-fieldset { border: 0; padding: 0; margin: 0 0 12px; gap: 8px; }
-      .idb-fieldset legend { font-size: 12.5px; font-weight: 600; color: #334155; margin-bottom: 6px; }
+      .idb-fieldset legend { font-size: 0.781rem; font-weight: 600; color: #334155; margin-bottom: 6px; }
       .idb-radio { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-weight: 400 !important; }
       .idb-radio span { display: flex; flex-direction: column; }
       .idb-radio b { font-weight: 600; color: #0f172a; }
