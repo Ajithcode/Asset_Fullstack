@@ -85,7 +85,7 @@
         <table class="rtl-table">
           <thead><tr><th>Asset</th><th>Zone</th><th>Status</th><th>Last seen</th><th>Accuracy</th></tr></thead>
           <tbody>
-            <tr *ngFor="let a of filtered; trackBy: byAsset" [class.is-sel]="a.assetId === selectedId" (click)="select(a.assetId)">
+            <tr *ngFor="let a of filtered; trackBy: byAsset" [class.is-sel]="a.assetId === selectedId" (click)="select(a.assetId); focusAsset(a.assetId)">
               <td><b>{{ a.name }}</b><small>{{ a.assetTag || a.assetId }}<ng-container *ngIf="a.locationSource !== 'Unknown'"> · {{ a.locationSource }}</ng-container></small></td>
               <td>{{ a.location?.zoneName || (a.location ? 'Gateway ' + a.location.gatewayId : '—') }}</td>
               <td><span class="mv" [ngClass]="moveClass(a.movement)">{{ a.movement }}</span><small class="fr" [ngClass]="freshClass(a.freshness)">{{ a.freshness }}</small>

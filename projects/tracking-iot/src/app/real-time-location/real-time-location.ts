@@ -129,6 +129,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   signalling: { assetId: string; name: string; tagId: string; command: string; state: 'sent' | 'on'; until: number; gatewayId: string } | null = null;
   signalPoint: LivePoint | null = null;
   signalMsg = '';
+  private signalFocused: unknown = null;
   private ctlSock?: LocateSocket;
   private ctlSub?: Subscription;
   private signalTimer?: ReturnType<typeof setTimeout>;
@@ -141,6 +142,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   followError = '';
   live: LiveSnapshot | null = null;
   livePoint: LivePoint | null = null;
+  private liveFocusKey = '';
   liveTrail: { x: number; y: number }[] = [];
   mapFocus: MapFocus | null = null;
   private liveSub?: Subscription;
@@ -565,8 +567,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     const here = placed.filter((a) => this.floorOfPlan(a.location!.floorPlanId) === floor);
     if (floor !== this.mapFloorId) this.setFloor(floor);
     if (here.length === 1) this.select(here[0].assetId);
-    // a new key restarts the animation even for the same assets
-    this.assetFocus = { key: `${Date.now()}`, ids: here.map((a) => a.assetId) };
+    this.focusAssets(here.map((a) => a.assetId));
     const other = placed.length - here.length;
     if (other || missingMsg) this.showToast([missingMsg, other ? `${other} on other floors (showing ${this.floors.find((f) => f.id === floor)?.label ?? 'this floor'}).` : ''].filter(Boolean).join(' '));
   }
@@ -578,6 +579,37 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   @HostListener('document:keydown.escape')
   onEscape(): void {
     if (this.assetFocus && !this.locateOpen) this.assetFocus = null;
+  }
+
+  /**
+   * The one way the map goes to an asset: switch to its floor plan, then zoom and centre on the asset's own marker (its spot in
+   * the zone grid, the same spot as the red locate marker) with the zone filling ~2/3 of the view, ripple + steady highlight.
+   * Used by the Locate icon, Locate selected, Send to tag / Turn off, live follow and a click on an asset row.
+   * The gateway position is only the fallback for an asset that is not drawn in a zone.
+   */
+  focusAsset(assetId: string): void {
+    this.focusAssets([assetId]);
+  }
+
+  focusAssets(ids: string[]): void {
+    const all = [...(this.locateAll ?? []), ...this.assets];
+    const picked = ids.map((id) => all.find((a) => a.assetId === id)).filter((a): a is RtlAsset => !!a);
+    if (!picked.length) return;
+    const withZone = picked.filter((a) => !!a.location?.zoneId && !!a.location?.floorPlanId);
+    const first = (withZone[0] ?? picked[0]).location;
+    const floor = this.floorOfPlan(first?.floorPlanId);
+    if (floor && floor !== this.mapFloorId) this.setFloor(floor);
+    if (withZone.length) {
+      const onFloor = withZone.filter((a) => this.floorOfPlan(a.location!.floorPlanId) === (floor ?? ''));
+      this.mapFocus = null;
+      // a new key restarts the zoom + highlight even for the same assets; the map retries until the markers are drawn
+      this.assetFocus = { key: `${Date.now()}`, ids: (onFloor.length ? onFloor : withZone).map((a) => a.assetId) };
+      return;
+    }
+    // not in a zone: the gateway that hears it
+    const gw = first?.gatewayId?.toLowerCase();
+    const plot = gw ? this.planPlots.find((p) => p.kind === 'device' && p.itemId?.toLowerCase() === gw) : undefined;
+    if (plot) this.mapFocus = { key: `${picked[0].assetId}:gw:${Date.now()}`, x: plot.x, y: plot.y };
   }
 
   /** Locate: go to the asset's floor (all floors first, so it is in view), highlight it, open its details. */
@@ -686,6 +718,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     const buzzer = { beepMs: Number(c.buzzer.beepMs), pauseMs: Number(c.buzzer.pauseMs), cycles: Number(c.buzzer.cycles), level: 0 };
     this.ensureCtlSocket();
     this.ctlSock!.send({ type: c.mode, tagid: c.tagId, ...(c.mode !== 'buzzer' ? { led } : {}), ...(c.mode !== 'led' ? { buzzer } : {}) });
+    this.focusAsset(c.asset.assetId);
     c.busy = true;
     c.status = 'Sending to the gateway…';
     c.statusKind = 'wait';
@@ -697,6 +730,8 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   turnOffSignal(): void {
     const tag = this.ctl?.tagId ?? this.signalling?.tagId;
     if (!tag) return;
+    const offAsset = this.ctl?.asset.assetId ?? this.signalling?.assetId;
+    if (offAsset) this.focusAsset(offAsset);
     this.ensureCtlSocket();
     this.ctlSock!.send({ type: 'off', tagid: tag });
     if (this.ctl) {
@@ -728,7 +763,10 @@ export class RealTimeLocation implements OnInit, OnDestroy {
       if (floor && floor !== this.mapFloorId) this.setFloor(floor);
       const what = s.command === 'buzzer' ? 'beeping' : s.command === 'both' ? 'blinking + beeping' : 'blinking';
       this.signalPoint = { x: spot.x, y: spot.y, label: s.state === 'on' ? `${s.name} · ${what}` : `${s.name} · sending…`, state: s.state === 'on' ? 'Live' : 'Waiting', assetId: s.assetId };
-      if (!this.followId) this.mapFocus = { key: `signal:${s.tagId}:${spot.floorPlanId}`, x: spot.x, y: spot.y };
+      if (!this.followId && this.signalFocused !== s) {
+        this.signalFocused = s;
+        this.focusAsset(s.assetId);
+      }
     });
   }
 
@@ -738,7 +776,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     this.signalPoint = null;
     this.signalMsg = '';
     if (message) this.showToast(message);
-    if (!this.followId && this.mapFocus?.key.startsWith('signal:')) this.mapFocus = null;
+    this.signalFocused = null;
     if (!this.ctl) this.closeCtlSocket();
   }
 
@@ -851,9 +889,9 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     this.followName = a.name;
     this.followState = 'connecting';
     this.followError = '';
-    // Zoom in straight away on the gateway hearing it (when it is plotted on this floor); live replies then move it
-    const plot = this.planPlots.find((p) => p.kind === 'device' && p.itemId?.toLowerCase() === a.location?.gatewayId?.toLowerCase());
-    if (plot) this.mapFocus = { key: `${a.assetId}:start`, x: plot.x, y: plot.y };
+    // Zoom in straight away on the asset's own marker; live replies then move it
+    this.liveFocusKey = '';
+    this.focusAsset(a.assetId);
     const tag = (a.tags[0] ?? a.tracker ?? '').trim();
     if (!tag) {
       this.followState = 'error';
@@ -938,9 +976,13 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     this.livePoint = { x: d.x, y: d.y, label: d.name, state: d.state, assetId: a.assetId };
     const last = this.liveTrail[this.liveTrail.length - 1];
     if (!last || Math.hypot(last.x - d.x, last.y - d.y) > 0.3) this.liveTrail = [...this.liveTrail, { x: d.x, y: d.y }].slice(-60);
-    // Zoom in once per asset and floor
-    const key = `${d.assetId}:${d.floorPlanId ?? ''}`;
-    if (this.mapFocus?.key !== key) this.mapFocus = { key, x: d.x, y: d.y };
+    // Zoom to the asset's marker once per asset, floor and zone (it glides to the new zone when it moves)
+    const key = `${d.assetId}:${d.floorPlanId ?? ''}:${d.zoneName ?? ''}`;
+    if (this.liveFocusKey !== key) {
+      const first = !this.liveFocusKey;
+      this.liveFocusKey = key;
+      if (!first) setTimeout(() => this.focusAsset(d.assetId), 400);
+    }
   }
 
   /** Stop: closes the socket (the server stops streaming) and removes the live marker. */
@@ -953,6 +995,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     this.livePoint = null;
     this.liveTrail = [];
     this.mapFocus = null;
+    this.liveFocusKey = '';
   }
 
   get liveAgo(): string {

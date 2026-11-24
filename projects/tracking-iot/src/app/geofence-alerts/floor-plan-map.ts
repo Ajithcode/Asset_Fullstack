@@ -548,17 +548,30 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       clearTimeout(this.hlTimer);
       this.hlTimer = setTimeout(() => els.forEach((el) => el?.classList.remove('fp-am--hl-anim')), 3000);
     }
-    let bounds: Leaflet.LatLngBounds | null = null;
-    for (const e of found) {
-      const z = zones.get(e.zoneId);
-      if (!z) continue;
+    // the zone fills ~2/3 of the view (17 % padding each side); one asset: centred on its own marker, several: fit their markers
+    const map = this.map!;
+    const size = map.getSize();
+    const pad = L.point(size.x * 0.17, size.y * 0.17);
+    const maxZoom = map.getMaxZoom() || 4;
+    const go = (to: Leaflet.LatLngExpression, zoom: number) => {
+      const z = Math.min(zoom, maxZoom);
+      if (reducedMotion()) map.setView(to, z, { animate: false });
+      else map.flyTo(to, z, { duration: 0.8 });
+    };
+    const zoneBounds = (zoneId: string): Leaflet.LatLngBounds | null => {
+      const z = zones.get(zoneId);
+      if (!z) return null;
       const g = this.zoneGeom(z);
-      const b = L.latLngBounds([g.s, g.w], [g.n, g.e]);
-      bounds = bounds ? bounds.extend(b) : b;
-    }
-    if (bounds) {
-      if (reducedMotion()) this.map!.fitBounds(bounds, { padding: [40, 40], maxZoom: 2, animate: false });
-      else this.map!.flyToBounds(bounds, { padding: [40, 40], maxZoom: 2, duration: 0.8 });
+      return L.latLngBounds([g.s, g.w], [g.n, g.e]);
+    };
+    if (found.length === 1) {
+      const zb = zoneBounds(found[0].zoneId);
+      go(found[0].m.getLatLng(), zb ? map.getBoundsZoom(zb, false, pad) : Math.max(map.getZoom(), 1.5));
+    } else {
+      let b = L.latLngBounds(found.map((e) => e.m.getLatLng()));
+      const flat = b.getNorth() - b.getSouth() < 1 && b.getEast() - b.getWest() < 1;
+      if (flat) for (const e of found) { const zb = zoneBounds(e.zoneId); if (zb) b = b.extend(zb); }
+      go(b.getCenter(), map.getBoundsZoom(b, false, pad));
     }
   }
 
