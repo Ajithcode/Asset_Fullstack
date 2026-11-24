@@ -116,7 +116,8 @@
   @if (menuOpen) {
     <div class="menu" role="menu">
       <button type="button" (click)="act('expand')">Expand</button>
-      <button type="button" (click)="act('export')">Export CSV</button>
+      <button type="button" (click)="act('csv')">Export CSV</button>
+      <button type="button" (click)="act('pdf')">Export PDF</button>
       @if (editMode) {
         <button type="button" (click)="act('wider')">Make wider</button>
         <button type="button" (click)="act('narrower')">Make narrower</button>

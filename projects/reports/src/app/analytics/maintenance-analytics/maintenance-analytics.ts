@@ -7,7 +7,7 @@ import {
   ArrowDown, ArrowUp, ArrowUpDown, Bookmark, ChartColumn, Clock, Download, FileText, GitCompareArrows, GripVertical, House, Info,
   LucideAngularModule, Package, RefreshCw, Settings, ShieldCheck, TriangleAlert, Wrench
 } from 'lucide-angular';
-import { downloadCsv, money, percent } from '../shared/analytics-common';
+import { exportTable, money, percent, tablesRequest } from '../shared/analytics-common';
 import { AnalyticsGroup, AnalyticsQuery, apiMessage, filterValue, periodQuery } from '../shared/analytics-api.service';
 import { CartesianChart, DonutChart, GaugeChart, RA_COLORS, compactNumber } from '../shared/charts';
 import { RaInsight, RaInsightCard, RaKpiCard } from '../asset-performance/kit/ra-cards';
@@ -18,6 +18,7 @@ import {
   BacklogRow, MAINTENANCE_TYPES, MaBacklogDto, MaCompareDto, MaFiltersDto, MaInsightDto, MaOverviewDto, MaintenanceView, PRIORITY_RANK, TechnicianRow,
   emptyMaintenance, mapMaintenance, toBacklogRow
 } from './maintenance-analytics.data';
+import { ExportMenu } from 'shared-ui';
 
 type BacklogSortKey = 'priority' | 'id' | 'asset' | 'location' | 'age' | 'technician' | 'status';
 type TechSortKey = 'name' | 'completed' | 'firstTimeFix' | 'response' | 'sla';
@@ -49,7 +50,7 @@ const INSIGHT_TONES: Record<string, RaInsight['tone']> = { critical: 'red', warn
   imports: [
     FormsModule, RouterLink, NgTemplateOutlet, LucideAngularModule, CartesianChart, DonutChart, GaugeChart, RaMenu, RaKpiCard, RaInsightCard,
     RaRecordsDialog, RaDetailDialog, RaActionDialog, RaSaveViewDialog, RaExpandDialog
-  ],
+  , ExportMenu],
   templateUrl: './maintenance-analytics.html',
   styleUrls: ['../shared/analytics-page.css', '../asset-performance/kit/ra-page.css', './maintenance-analytics.css']
 })
@@ -390,28 +391,27 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
     return targets[id] ?? 'ma-cost';
   }
 
-  /** Excel workbook of every section for the current filters (GET api/maintenance-analytics/export). */
-  exportPage(): void {
-    this.analyticsApi.export(GROUP, this.query).subscribe({
-      next: () => this.notify(`Exported ${this.view.total} work orders.`),
-      error: (err) => this.notify(apiMessage(err, 'Export failed.'))
+  /** Page Export (CSV / PDF): maintenance backlog + technician performance in one table (Section column). */
+  exportRequest = () =>
+    tablesRequest({ title: 'Maintenance Analytics', fileBase: 'maintenance-analytics', filters: this.exportFilters() }, () => {
+      this.exportWidget('backlog');
+      this.exportWidget('technicians');
     });
-  }
 
   exportWidget(id: string): void {
     const v = this.view;
     const months = v.labels.map((l) => l.replace('\n', ' '));
     const series = (file: string, list: { name: string; values: number[] }[]) =>
-      downloadCsv(file, ['Month', ...list.map((s) => s.name)], months.map((m, i) => [m, ...list.map((s) => s.values[i])]));
+      exportTable(file, ['Month', ...list.map((s) => s.name)], months.map((m, i) => [m, ...list.map((s) => s.values[i])]));
     switch (id) {
       case 'cost':
         series('maintenance-cost-trend.csv', v.costTrend);
         break;
       case 'types':
-        downloadCsv('work-orders-by-type.csv', ['Type', 'Work Orders'], v.typeSeries.map((s, i) => [s.name, s.values[i]]));
+        exportTable('work-orders-by-type.csv', ['Type', 'Work Orders'], v.typeSeries.map((s, i) => [s.name, s.values[i]]));
         break;
       case 'status':
-        downloadCsv('work-order-status.csv', ['Status', 'Work Orders'], v.statusSlices.map((s) => [s.name, s.value]));
+        exportTable('work-order-status.csv', ['Status', 'Work Orders'], v.statusSlices.map((s) => [s.name, s.value]));
         break;
       case 'pm':
         series('preventive-maintenance-compliance.csv', v.pmTrend);
@@ -423,11 +423,11 @@ export class MaintenanceAnalyticsPage extends ScopedAnalyticsPage {
         series('downtime-by-cause.csv', v.downtimeByCause);
         break;
       case 'backlog':
-        downloadCsv('maintenance-backlog.csv', ['Priority', 'Work Order', 'Asset', 'Location', 'Age (days)', 'Assigned To', 'Status'],
+        exportTable('maintenance-backlog.csv', ['Priority', 'Work Order', 'Asset', 'Location', 'Age (days)', 'Assigned To', 'Status'],
           v.backlog.map((o) => [o.priority, o.id, o.asset, o.location, o.ageDays, o.technician, o.status]));
         break;
       case 'technicians':
-        downloadCsv('technician-performance.csv', ['Technician', 'Completed', 'First-Time Fix %', 'Avg. Response (hrs)', 'SLA Compliance %'],
+        exportTable('technician-performance.csv', ['Technician', 'Completed', 'First-Time Fix %', 'Avg. Response (hrs)', 'SLA Compliance %'],
           v.technicians.map((t) => [t.name, t.completed, t.firstTimeFix, t.response, t.sla]));
         break;
     }

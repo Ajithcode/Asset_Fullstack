@@ -5,7 +5,7 @@ import {
   Award, Bookmark, ClipboardCheck, FileSearch, GitCompareArrows, LucideAngularModule, LucideIconData, RefreshCw, ShieldCheck,
   TriangleAlert, Upload
 } from 'lucide-angular';
-import { AnalyticsPage, downloadCsv, percent } from '../shared/analytics-common';
+import { AnalyticsPage, exportTable, percent, tablesRequest, isExportAction, withExportFormat, formatOfAction } from '../shared/analytics-common';
 import { CartesianChart, ChartSeries, ChartSlice, DonutChart, GaugeChart, RA_COLORS } from '../shared/charts';
 import {
   ActionPlan, DetailField, RaActionPlanDialog, RaDetailDialog, RaKpiCard, RaListDialog, RaSaveViewDialog, RaWidget
@@ -15,6 +15,7 @@ import {
   ExpiringItem, LocationRow, REGULATION_OPTIONS, RISK_LEVELS, RiskLevel, SCORE_TARGET, buildComplianceView
 } from './compliance-analytics.data';
 import { ComplianceFindingsTable, ComplianceLocationTable } from './compliance-tables';
+import { ExportMenu } from 'shared-ui';
 
 interface KpiTile {
   key: 'score' | 'findings' | 'expiring' | 'capa' | 'risks';
@@ -66,7 +67,7 @@ const EXPIRY_HEADER = ['ID', 'Item', 'Type', 'Regulation', 'Location', 'Expires'
   imports: [
     FormsModule, RouterLink, LucideAngularModule, CartesianChart, DonutChart, GaugeChart, RaWidget, RaKpiCard, RaListDialog,
     RaDetailDialog, RaActionPlanDialog, RaSaveViewDialog, ComplianceFindingsTable, ComplianceLocationTable
-  ],
+  , ExportMenu],
   templateUrl: './compliance-analytics.html',
   styleUrls: ['../shared/analytics-page.css', './compliance-analytics.css']
 })
@@ -222,10 +223,11 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
 
   // ===== Header actions =====
 
-  exportAll(): void {
-    downloadCsv('compliance-analytics-open-findings.csv', FINDING_HEADER, this.findingRows(this.view.findings));
-    this.notify(`Exported ${this.view.findings.length} open compliance findings.`);
-  }
+  /** Page Export (CSV / PDF): the open compliance findings. */
+  exportRequest = () =>
+    tablesRequest({ title: 'Compliance Analytics', fileBase: 'compliance-analytics-open-findings', filters: this.exportFilters() }, () =>
+      exportTable('compliance-analytics-open-findings', FINDING_HEADER, this.findingRows(this.view.findings))
+    );
 
   saveNamedView(name: string): void {
     this.saveOpen = false;
@@ -235,8 +237,8 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
   // ===== KPI cards =====
 
   kpiAction(kpi: KpiTile, action: string): void {
-    if (action === 'Export CSV') {
-      downloadCsv(`compliance-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.periodLabel, this.locationLabel]]);
+    if (isExportAction(action)) {
+      withExportFormat(formatOfAction(action), () => exportTable(`compliance-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.periodLabel, this.locationLabel]]));
       return;
     }
     const v = this.view;
@@ -276,37 +278,37 @@ export class ComplianceAnalyticsPage extends AnalyticsPage {
 
   exportScore(): void {
     const s = this.view.scoreSeries;
-    downloadCsv('compliance-score-trend.csv', ['Month', 'Overall %', 'Regulatory %', 'Safety %', 'Environmental %', 'Overall 2025 %'],
+    exportTable('compliance-score-trend.csv', ['Month', 'Overall %', 'Regulatory %', 'Safety %', 'Environmental %', 'Overall 2025 %'],
       this.monthRows(this.view.labels, s.overall, s.regulatory, s.safety, s.environmental, s.previous));
   }
 
   exportSeverity(): void {
     const r = this.view.raised;
-    downloadCsv('audit-findings-by-severity.csv', ['Month', ...LEVELS], this.monthRows(this.view.labels, r.Critical, r.High, r.Medium, r.Low));
+    exportTable('audit-findings-by-severity.csv', ['Month', ...LEVELS], this.monthRows(this.view.labels, r.Critical, r.High, r.Medium, r.Low));
   }
 
   exportStatus(): void {
-    downloadCsv('compliance-status.csv', ['Status', 'Assets'], this.statusSlices.map((s) => [s.name, s.value]));
+    exportTable('compliance-status.csv', ['Status', 'Assets'], this.statusSlices.map((s) => [s.name, s.value]));
   }
 
   exportAreas(): void {
-    downloadCsv('findings-by-compliance-area.csv', ['Area', 'Open findings'], COMPLIANCE_AREAS.map((a, i) => [a, this.areaSeries[0].values[i]]));
+    exportTable('findings-by-compliance-area.csv', ['Area', 'Open findings'], COMPLIANCE_AREAS.map((a, i) => [a, this.areaSeries[0].values[i]]));
   }
 
   exportCapa(): void {
-    downloadCsv('capa-closure-rate.csv', ['Month', 'Closure rate %', 'Target %'], this.monthRows(this.view.labels, this.view.capaSeries, this.view.capaSeries.map(() => CAPA_TARGET)));
+    exportTable('capa-closure-rate.csv', ['Month', 'Closure rate %', 'Target %'], this.monthRows(this.view.labels, this.view.capaSeries, this.view.capaSeries.map(() => CAPA_TARGET)));
   }
 
   exportExpiry(): void {
-    downloadCsv('permit-certification-expiry.csv', EXPIRY_HEADER, this.expiryRows(this.view.expiring));
+    exportTable('permit-certification-expiry.csv', EXPIRY_HEADER, this.expiryRows(this.view.expiring));
   }
 
   exportFindings(): void {
-    downloadCsv('open-compliance-findings.csv', FINDING_HEADER, this.findingRows(this.view.findings));
+    exportTable('open-compliance-findings.csv', FINDING_HEADER, this.findingRows(this.view.findings));
   }
 
   exportLocations(): void {
-    downloadCsv('regulatory-compliance-by-location.csv', ['Location', 'Score %', 'Open Findings', 'Expiring Items (90 days)', 'Risk', 'Status'],
+    exportTable('regulatory-compliance-by-location.csv', ['Location', 'Score %', 'Open Findings', 'Expiring Items (90 days)', 'Risk', 'Status'],
       this.view.locations.map((r) => [r.site, r.score, r.openFindings, r.expiring, r.risk, r.status]));
   }
 

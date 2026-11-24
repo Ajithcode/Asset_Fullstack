@@ -22,7 +22,7 @@
     <button type="button" class="btn" [class.ra-compare-on]="compare" [attr.aria-pressed]="compare" (click)="toggleCompare()">
       <lucide-icon [img]="icons.GitCompareArrows" [size]="16" /> Compare Periods
     </button>
-    <button type="button" class="btn" (click)="exportPage()"><lucide-icon [img]="icons.Download" [size]="16" /> Export</button>
+    <app-export-menu [source]="exportRequest" />
     <button type="button" class="btn btn--primary" (click)="savingView = true"><lucide-icon [img]="icons.Bookmark" [size]="16" /> Save View</button>
   </div>
 </header>

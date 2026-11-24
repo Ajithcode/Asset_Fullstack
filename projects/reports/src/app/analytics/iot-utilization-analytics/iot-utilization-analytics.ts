@@ -6,7 +6,8 @@ import {
   ArrowDown, ArrowUp, ArrowUpDown, Bookmark, ChartColumn, Download, Ellipsis, GitCompareArrows, GripVertical, Info,
   LucideAngularModule, Maximize2, RadioTower, RefreshCw, Signal, TriangleAlert, Wifi, X
 } from 'lucide-angular';
-import { AnalyticsPage, RA_CATEGORIES, downloadCsv, percent } from '../shared/analytics-common';
+import { ExportFormat, ExportMenu, ExportRequest } from 'shared-ui';
+import { AnalyticsPage, RA_CATEGORIES, exportTable, percent, tablesRequest, withExportFormat } from '../shared/analytics-common';
 import { CartesianChart, ChartSeries, ChartSlice, DonutChart, GaugeChart, RA_COLORS, Sparkline } from '../shared/charts';
 import { IotActionPlanDialog, ActionPlan } from './iot-action-plan/iot-action-plan';
 import { IotSiteMap, MapPoint } from './iot-site-map/iot-site-map';
@@ -101,7 +102,7 @@ function round1(v: number): number {
 @Component({
   selector: 'app-ra-iot-utilization-analytics',
   standalone: true,
-  imports: [FormsModule, RouterLink, NgTemplateOutlet, LucideAngularModule, CartesianChart, DonutChart, GaugeChart, Sparkline, IotSiteMap, IotActionPlanDialog],
+  imports: [FormsModule, RouterLink, NgTemplateOutlet, LucideAngularModule, CartesianChart, DonutChart, GaugeChart, Sparkline, IotSiteMap, IotActionPlanDialog, ExportMenu],
   templateUrl: './iot-utilization-analytics.html',
   styleUrls: ['../shared/analytics-page.css', './iot-utilization-analytics.css']
 })
@@ -465,9 +466,13 @@ export class IotUtilizationAnalyticsPage extends AnalyticsPage implements OnInit
     }).filter((r) => r.connected > 0);
   }
 
-  exportKpi(k: Kpi): void {
+  exportKpi(k: Kpi, format: ExportFormat = 'csv'): void {
     this.menu = null;
-    downloadCsv(`iot-${k.key}-by-location.csv`, ['Location', 'Connected Assets', 'Average Utilization %', 'Telemetry Availability %', 'Active Alerts'],
+    withExportFormat(format, () => this.exportKpiTable(k));
+  }
+
+  private exportKpiTable(k: Kpi): void {
+    exportTable(`iot-${k.key}-by-location.csv`, ['Location', 'Connected Assets', 'Average Utilization %', 'Telemetry Availability %', 'Active Alerts'],
       this.siteRows.map((r) => [r.site, r.connected, r.utilization, r.availability, r.alerts]));
   }
 
@@ -510,33 +515,56 @@ export class IotUtilizationAnalyticsPage extends AnalyticsPage implements OnInit
 
   // ===== Export / save view =====
 
-  exportAll(): void {
-    downloadCsv('iot-utilization-assets.csv',
-      ['Asset ID', 'Asset Name', 'Category', 'Location', 'Device Type', 'Device ID', 'Connectivity', 'Sensor Health', 'Utilization %', 'Target %', 'Variance (pts)', 'Telemetry Availability %', 'Avg Signal (dBm)', 'Last Telemetry'],
-      this.assets.map((a) => {
-        const r = this.utilRows.find((u) => u.asset === a);
-        return [a.id, a.name, a.category, a.site, a.deviceType, a.deviceId, a.status, a.health, r ? r.utilization : '', a.target, r ? r.variance : '',
-          a.availability ?? '', a.signal ?? '', telemetryTime(a.lastSeenMin)];
-      }));
-    this.notify(`Exported ${this.num(this.assets.length)} assets to CSV.`);
+  /** Page Export (CSV / PDF): every connected asset with its utilization and telemetry figures. */
+  exportRequest = () =>
+    tablesRequest({ title: 'IoT Utilization Analytics', fileBase: 'iot-utilization-assets', filters: this.exportFilters() }, () =>
+      exportTable('iot-utilization-assets',
+        ['Asset ID', 'Asset Name', 'Category', 'Location', 'Device Type', 'Device ID', 'Connectivity', 'Sensor Health', 'Utilization %', 'Target %', 'Variance (pts)', 'Telemetry Availability %', 'Avg Signal (dBm)', 'Last Telemetry'],
+        this.assets.map((a) => {
+          const r = this.utilRows.find((u) => u.asset === a);
+          return [a.id, a.name, a.category, a.site, a.deviceType, a.deviceId, a.status, a.health, r ? r.utilization : '', a.target, r ? r.variance : '',
+            a.availability ?? '', a.signal ?? '', telemetryTime(a.lastSeenMin)];
+        }))
+    );
+
+  private readonly sources = new Map<string, () => ExportRequest>();
+
+  private cached(id: string, make: () => () => ExportRequest): () => ExportRequest {
+    let fn = this.sources.get(id);
+    if (!fn) this.sources.set(id, (fn = make()));
+    return fn;
   }
 
-  exportWidget(key: WidgetKey): void {
+  /** Export menu source of one widget's table (dialog footer). */
+  widgetSource(key: WidgetKey): () => ExportRequest {
+    return this.cached(`w-${key}`, () => () => tablesRequest({ title: this.titleOf(key), fileBase: `iot-${key}`, filters: this.exportFilters() }, () => this.exportWidgetTable(key)));
+  }
+
+  /** Export menu source of one KPI's by-location table (dialog footer). */
+  kpiSource(k: Kpi): () => ExportRequest {
+    return this.cached(`k-${k.key}`, () => () => tablesRequest({ title: `${k.label} by location`, fileBase: `iot-${k.key}-by-location`, filters: this.exportFilters() }, () => this.exportKpiTable(k)));
+  }
+
+  exportWidget(key: WidgetKey, format: ExportFormat = 'csv'): void {
     this.menu = null;
+    withExportFormat(format, () => this.exportWidgetTable(key));
+  }
+
+  private exportWidgetTable(key: WidgetKey): void {
     const file = `iot-${key}.csv`;
     const series = (labels: string[], list: ChartSeries[]) =>
-      downloadCsv(file, ['Label', ...list.map((s) => s.name)], labels.map((l, i) => [l.replace('\n', ' '), ...list.map((s) => s.values[i])]));
+      exportTable(file, ['Label', ...list.map((s) => s.name)], labels.map((l, i) => [l.replace('\n', ' '), ...list.map((s) => s.values[i])]));
     switch (key) {
       case 'trend': return series(this.trendLabels, this.trendSeries);
       case 'telemetry': return series(this.trendLabels, this.telemetrySeries);
       case 'events': return series(this.trendLabels, this.eventSeries);
       case 'category': return series(this.categoryLabels, this.categorySeries);
-      case 'connectivity': return downloadCsv(file, ['Status', 'Assets'], this.connectivitySlices.map((s) => [s.name, s.value]));
-      case 'health': return downloadCsv(file, ['Sensor Health', 'Sensors'], [['Healthy', this.healthCounts.Healthy], ['Warning', this.healthCounts.Warning], ['Failed', this.healthCounts.Failed]]);
-      case 'map': return downloadCsv(file, ['Location', 'Connected', 'Avg Utilization %', 'Availability %', 'Active Alerts'], this.siteRows.map((r) => [r.site, r.connected, r.utilization, r.availability, r.alerts]));
-      case 'variance': return downloadCsv(file, ['Asset ID', 'Asset Name', 'Location', 'Utilization %', 'Target %', 'Variance (pts)', 'Last Telemetry', 'Status'],
+      case 'connectivity': return exportTable(file, ['Status', 'Assets'], this.connectivitySlices.map((s) => [s.name, s.value]));
+      case 'health': return exportTable(file, ['Sensor Health', 'Sensors'], [['Healthy', this.healthCounts.Healthy], ['Warning', this.healthCounts.Warning], ['Failed', this.healthCounts.Failed]]);
+      case 'map': return exportTable(file, ['Location', 'Connected', 'Avg Utilization %', 'Availability %', 'Active Alerts'], this.siteRows.map((r) => [r.site, r.connected, r.utilization, r.availability, r.alerts]));
+      case 'variance': return exportTable(file, ['Asset ID', 'Asset Name', 'Location', 'Utilization %', 'Target %', 'Variance (pts)', 'Last Telemetry', 'Status'],
         this.belowTarget.map((r) => [r.asset.id, r.asset.name, r.asset.site, r.utilization, r.asset.target, r.variance, telemetryTime(r.asset.lastSeenMin), r.asset.status]));
-      case 'devices': return downloadCsv(file, ['Device Type', 'Connected', 'Availability %', 'Avg Signal (dBm)', 'Failed Sensors'],
+      case 'devices': return exportTable(file, ['Device Type', 'Connected', 'Availability %', 'Avg Signal (dBm)', 'Failed Sensors'],
         this.deviceRows.map((r) => [r.type, r.connected, r.availability, r.signal, r.failed]));
     }
   }

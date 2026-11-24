@@ -7,6 +7,7 @@ import {
 import { CartesianChart, DonutChart, HBarChart, compactNumber } from '../../shared/charts';
 import { IotSiteMap } from '../../iot-utilization-analytics/iot-site-map/iot-site-map';
 import { AttentionAsset, DashFilters, MetricKey, WidgetConfig, WidgetData } from '../interactive-dashboards.data';
+import { withExportFormat } from '../../shared/analytics-common';
 
 const KPI_ICONS: Partial<Record<MetricKey, typeof Box>> = {
   total_assets: Box,
@@ -93,10 +94,10 @@ export class DashboardWidget {
     this.rowMenu = null;
   }
 
-  act(kind: 'expand' | 'export' | 'remove' | 'wider' | 'narrower'): void {
+  act(kind: 'expand' | 'csv' | 'pdf' | 'remove' | 'wider' | 'narrower'): void {
     this.menuOpen = false;
     if (kind === 'expand') this.expand.emit();
-    else if (kind === 'export') this.exportCsv.emit();
+    else if (kind === 'csv' || kind === 'pdf') withExportFormat(kind, () => this.exportCsv.emit());
     else if (kind === 'remove') this.remove.emit();
     else this.resize.emit(kind === 'wider' ? 1 : -1);
   }

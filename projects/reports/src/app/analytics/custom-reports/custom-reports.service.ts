@@ -34,6 +34,7 @@ export function cloneReport(r: CustomReport): CustomReport {
 const SCHEDULE_TIME_ZONE = 'Asia/Dubai';
 const DEFAULT_ROW_LIMIT = 1000;
 const PREVIEW_LIMIT = 50;
+const EXPORT_LIMIT = 100000;
 
 // ----- API shapes (System.Text.Json camelCase) -----
 
@@ -286,9 +287,11 @@ export class CustomReportsService {
     return req$.pipe(map((body) => toPreview(body)));
   }
 
-  /** GET /{id}/export: the report's data (every row up to its row limit). */
-  exportData(id: string, format: 'xlsx' | 'csv'): Observable<Blob> {
-    return this.http.get(`${this.api}/${encodeURIComponent(id)}/export`, { params: new HttpParams().set('format', format), responseType: 'blob' });
+  /** GET /{id}/preview with a large limit: every row of the saved report (CSV / PDF export). */
+  exportRows(id: string): Observable<PreviewResult> {
+    return this.http
+      .get<ApiPreview>(`${this.api}/${encodeURIComponent(id)}/preview`, { params: new HttpParams().set('limit', EXPORT_LIMIT) })
+      .pipe(map((body) => toPreview(body)));
   }
 
   /** GET /export?format=json: the listed reports as importable templates. */

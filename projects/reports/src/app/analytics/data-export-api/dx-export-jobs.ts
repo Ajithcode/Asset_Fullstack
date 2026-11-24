@@ -1,5 +1,6 @@
 import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { Download, Ellipsis, LoaderCircle, Lock, LucideAngularModule, Play } from 'lucide-angular';
 import { ExportJob } from './data-export-api.model';
 import { JOB_TONES, MODULE_TONES, destinationIcon, formatStamp, moduleIcon } from './dx-format';
@@ -8,7 +9,7 @@ import { JOB_TONES, MODULE_TONES, destinationIcon, formatStamp, moduleIcon } fro
 @Component({
   standalone: true,
   selector: 'dx-export-jobs',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, ExportMenu],
   styleUrls: ['../shared/analytics-page.css', './data-export-api.css'],
   template: `
     <section class="widget dx-jobs">
@@ -89,9 +90,7 @@ import { JOB_TONES, MODULE_TONES, destinationIcon, formatStamp, moduleIcon } fro
                     <button type="button" class="icon-btn dx-act" [disabled]="j.status === 'Running'" (click)="run.emit(j)" [attr.aria-label]="'Run ' + j.name" title="Run now">
                       <lucide-icon [img]="icons.Play" [size]="15"></lucide-icon>
                     </button>
-                    <button type="button" class="icon-btn dx-act" (click)="download.emit(j)" [attr.aria-label]="'Download sample of ' + j.name" title="Download sample (CSV)">
-                      <lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>
-                    </button>
+                    <app-export-menu [small]="true" label="Sample" [source]="sampleSource(j)" />
                     <span class="row-menu">
                       <button type="button" class="icon-btn" (click)="toggleMenu(j, $event)" [attr.aria-label]="'More actions for ' + j.name" aria-haspopup="menu">
                         <lucide-icon [img]="icons.Ellipsis" [size]="15"></lucide-icon>
@@ -124,7 +123,8 @@ export class ExportJobsTable {
   @Input({ required: true }) jobs: ExportJob[] = [];
   @Input() highlightId = '';
   @Output() run = new EventEmitter<ExportJob>();
-  @Output() download = new EventEmitter<ExportJob>();
+  /** Export menu source (CSV / PDF) of a job's sample table. */
+  @Input({ required: true }) sampleSource!: (j: ExportJob) => () => ExportRequest;
   @Output() edit = new EventEmitter<ExportJob>();
   @Output() pause = new EventEmitter<ExportJob>();
   @Output() resume = new EventEmitter<ExportJob>();

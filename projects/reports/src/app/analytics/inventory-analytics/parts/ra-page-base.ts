@@ -1,5 +1,5 @@
 import { Directive } from '@angular/core';
-import { AnalyticsPage, CURRENT_USER, RA_PEOPLE, downloadCsv } from '../../shared/analytics-common';
+import { AnalyticsPage, CURRENT_USER, RA_PEOPLE, exportTable } from '../../shared/analytics-common';
 import { KpiMenuAction } from './kpi-card';
 import { DetailsDialogData, FormDialogData, KpiCardData, ListDialogData } from './ra-parts';
 
@@ -87,7 +87,7 @@ export abstract class RaDashboardPage extends AnalyticsPage {
         ]
       });
     } else {
-      downloadCsv(`${this.slug}-${k.id}.csv`, ['KPI', 'Value', 'Previous period', 'Change', 'Period', 'Organization', 'Location'], [
+      exportTable(`${this.slug}-${k.id}.csv`, ['KPI', 'Value', 'Previous period', 'Change', 'Period', 'Organization', 'Location'], [
         [k.label, k.value, k.previous, change, this.period, this.organization, this.location]
       ]);
     }

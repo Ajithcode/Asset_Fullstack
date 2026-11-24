@@ -2,6 +2,7 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, injec
 import { ArrowDown, ArrowUp, Ellipsis, Info, LucideAngularModule, LucideIconData } from 'lucide-angular';
 import { Sparkline } from '../shared/charts';
 import { KpiState, STATUS_TONE } from './kpi-dashboard.data';
+import { formatOfAction, withExportFormat } from '../shared/analytics-common';
 
 const SPARK_COLORS: Record<string, string> = { green: '#10b981', orange: '#f59e0b', red: '#ef4444', pink: '#ec4899', grey: '#94a3b8' };
 
@@ -53,7 +54,7 @@ const SPARK_COLORS: Record<string, string> = { green: '#10b981', orange: '#f59e0
 export class KpiTile {
   private readonly host = inject(ElementRef<HTMLElement>);
   readonly icons = { ArrowDown, ArrowUp, Ellipsis, Info };
-  readonly menuItems = ['View details', 'Edit KPI', 'Hide tile', 'Export CSV'];
+  readonly menuItems = ['View details', 'Edit KPI', 'Hide tile', 'Export CSV', 'Export PDF'];
 
   @Input({ required: true }) state!: KpiState;
   @Input({ required: true }) icon!: LucideIconData;
@@ -76,7 +77,7 @@ export class KpiTile {
 
   choose(item: string): void {
     this.menuOpen = false;
-    this.action.emit(item);
+    withExportFormat(formatOfAction(item), () => this.action.emit(item));
   }
 
   @HostListener('document:click', ['$event'])

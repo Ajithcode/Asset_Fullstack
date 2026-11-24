@@ -33,13 +33,7 @@
           </svg>
         </button>
         <!-- Download (all reports currently shown in this tab) -->
-        <button class="icon-btn" title="Download all" (click)="downloadAllReports()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v13"></path>
-            <path d="M6 12l6 6 6-6"></path>
-            <path d="M5 21h14"></path>
-          </svg>
-        </button>
+        <app-export-menu [small]="true" [source]="exportAll" />
         <!-- Refresh -->
         <button class="icon-btn" title="Refresh" (click)="refreshReports()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -115,13 +109,7 @@
               }">{{ report.status }}</span>
             </td>
             <td class="row-actions-cell">
-              <button class="icon-btn icon-btn--row" title="Download this report" (click)="downloadReport(report)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 5v13"></path>
-                  <path d="M6 12l6 6 6-6"></path>
-                  <path d="M5 21h14"></path>
-                </svg>
-              </button>
+              <app-export-menu [small]="true" [source]="exportFor(report)" />
               <app-row-actions (edit)="editReport(report)" (delete)="deleteRow(report)"></app-row-actions>
             </td>
           </tr>

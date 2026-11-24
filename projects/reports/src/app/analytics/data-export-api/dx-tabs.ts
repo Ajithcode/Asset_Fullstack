@@ -1,7 +1,8 @@
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Download, Eye, LucideAngularModule, Play, Plus } from 'lucide-angular';
-import { downloadCsv } from '../shared/analytics-common';
+import { ExportMenu, ExportRequest } from 'shared-ui';
+import { tableSource } from '../shared/analytics-common';
 import { AccessLog, ApiConnection, Dataset, LogResult } from './data-export-api.model';
 import { DataExportService } from './data-export-api.service';
 import { CONNECTION_TONES, MODULE_TONES, formatStamp } from './dx-format';
@@ -89,7 +90,7 @@ export class ConnectionsTab {
 @Component({
   standalone: true,
   selector: 'dx-datasets-tab',
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ExportMenu],
   styleUrls: ['../shared/analytics-page.css', './data-export-api.css'],
   template: `
     <section class="widget">
@@ -126,9 +127,7 @@ export class ConnectionsTab {
                     <button type="button" class="icon-btn" (click)="preview = d" [attr.aria-label]="'Preview ' + d.name" title="Preview sample">
                       <lucide-icon [img]="icons.Eye" [size]="15"></lucide-icon>
                     </button>
-                    <button type="button" class="icon-btn" (click)="download(d)" [attr.aria-label]="'Download sample of ' + d.name" title="Download sample (CSV)">
-                      <lucide-icon [img]="icons.Download" [size]="15"></lucide-icon>
-                    </button>
+                    <app-export-menu [small]="true" label="Sample" [source]="sampleSource(d)" />
                     <button type="button" class="btn btn--sm btn--outline" (click)="createExport.emit(d)">
                       <lucide-icon [img]="icons.Play" [size]="12"></lucide-icon> Create export
                     </button>
@@ -171,7 +170,7 @@ export class ConnectionsTab {
             </table>
           </div>
           <div class="dialog__actions">
-            <button type="button" class="btn" (click)="download(preview)">Download CSV</button>
+            <app-export-menu [source]="sampleSource(preview)" />
             <button type="button" class="btn btn--primary" (click)="preview = null">Close</button>
           </div>
         </div>
@@ -183,7 +182,6 @@ export class DatasetsTab {
   private readonly service = inject(DataExportService);
   @Input() search = '';
   @Output() createExport = new EventEmitter<Dataset>();
-  @Output() downloaded = new EventEmitter<string>();
 
   readonly icons = { Eye, Download, Play };
   preview: Dataset | null = null;
@@ -219,11 +217,19 @@ export class DatasetsTab {
     return formatStamp(s);
   }
 
-  download(d: Dataset): void {
-    const s = this.service.sample(d.id, null, 25);
-    downloadCsv(`${d.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-sample.csv`, s.header, s.rows);
-    this.service.log('Sample downloaded', d.name, 'Web console');
-    this.downloaded.emit(d.name);
+  private readonly sources = new Map<string, () => ExportRequest>();
+
+  /** Export menu (CSV / PDF) of a dataset's sample table. */
+  sampleSource(d: Dataset): () => ExportRequest {
+    let fn = this.sources.get(d.id);
+    if (!fn) {
+      fn = () => {
+        const s = this.service.sample(d.id, null, 25);
+        return tableSource(`${d.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-sample`, s.header, () => s.rows)();
+      };
+      this.sources.set(d.id, fn);
+    }
+    return fn;
   }
 }
 
@@ -233,7 +239,7 @@ const LOG_PAGE = 15;
 @Component({
   standalone: true,
   selector: 'dx-access-logs-tab',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, ExportMenu],
   styleUrls: ['../shared/analytics-page.css', './data-export-api.css'],
   template: `
     <section class="widget">
@@ -250,9 +256,7 @@ const LOG_PAGE = 15;
           <option value="Failed">Failed</option>
           <option value="Denied">Denied</option>
         </select>
-        <button type="button" class="btn btn--sm" (click)="exportCsv()">
-          <lucide-icon [img]="icons.Download" [size]="13"></lucide-icon> Export CSV
-        </button>
+        <app-export-menu [small]="true" [source]="exportSource" />
       </div>
       <div class="table-wrap">
         <table class="table">
@@ -330,11 +334,12 @@ export class AccessLogsTab {
     this.resourceCleared.emit();
   }
 
-  exportCsv(): void {
-    downloadCsv(
-      'reporting-access-logs.csv',
+  /** Export menu (CSV / PDF): every access log entry matching the filters. */
+  exportSource = (): ExportRequest =>
+    tableSource(
+      'reporting-access-logs',
       ['Time (GST)', 'Actor', 'Action', 'Resource', 'Client', 'IP address', 'Result'],
-      this.filtered.map((l) => [l.at.replace('T', ' '), l.actor, l.action, l.resource, l.client, l.ip, l.result])
-    );
-  }
+      () => this.filtered.map((l) => [l.at.replace('T', ' '), l.actor, l.action, l.resource, l.client, l.ip, l.result]),
+      { Result: this.result, Resource: this.resource, Search: this.search }
+    )();
 }

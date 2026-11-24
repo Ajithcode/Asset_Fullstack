@@ -1,5 +1,5 @@
 import { Directive, TemplateRef, inject } from '@angular/core';
-import { AnalyticsPage, downloadCsv } from '../../shared/analytics-common';
+import { AnalyticsPage, exportTable, isExportAction } from '../../shared/analytics-common';
 import {
   AnalyticsApiService, AnalyticsGroup, FilterOptionDto, apiMessage, filterValue, optionLabels, viewDates, viewFilters
 } from '../../shared/analytics-api.service';
@@ -151,7 +151,7 @@ export abstract class ScopedAnalyticsPage extends AnalyticsPage {
 
   // ----- Menus -----
   kpiAction(item: string, kpi: RaKpi): void {
-    if (item === 'Export') {
+    if (isExportAction(item)) {
       this.exportKpis();
       return;
     }
@@ -164,7 +164,7 @@ export abstract class ScopedAnalyticsPage extends AnalyticsPage {
   }
 
   exportKpis(): void {
-    downloadCsv(`${this.fileStem}-kpis.csv`, ['KPI', 'Value', 'Change vs previous period (%)', 'Period'], this.kpis.map((k) => [k.label, k.value, k.delta, this.periodLabel]));
+    exportTable(`${this.fileStem}-kpis.csv`, ['KPI', 'Value', 'Change vs previous period (%)', 'Period'], this.kpis.map((k) => [k.label, k.value, k.delta, this.periodLabel]));
     this.notify('KPI summary exported.');
   }
 

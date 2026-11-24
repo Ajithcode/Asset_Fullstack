@@ -26,7 +26,7 @@
       </button>
     }
     <button type="button" class="btn btn--outline" (click)="openShare()"><lucide-icon [img]="icons.Share2" [size]="16" /> Share</button>
-    <button type="button" class="btn btn--outline" (click)="exportDashboard()"><lucide-icon [img]="icons.Download" [size]="16" /> Export</button>
+    <app-export-menu [disabled]="!hasDashboard" [source]="exportDashboard" />
     <button type="button" class="btn btn--primary" (click)="createOpen = true"><lucide-icon [img]="icons.CirclePlus" [size]="16" /> Create Dashboard</button>
     <div class="row-menu">
       <button type="button" class="icon-btn" (click)="toggleMenu('more', $event)" aria-label="More actions"><lucide-icon [img]="icons.Ellipsis" [size]="18" /></button>
@@ -235,7 +235,7 @@
       <p class="muted">{{ periodLabel }} · {{ organizationLabel }} · {{ locationLabel }} · {{ categoryLabel }}</p>
       <app-idb-widget [config]="expanded" [filters]="filters" [data]="dataFor(expanded)" [height]="400" [bare]="true" (viewAsset)="detail = $event" (notice)="onNotice($event)" />
       <div class="dialog__actions">
-        <button type="button" class="btn" (click)="exportWidget(expanded)"><lucide-icon [img]="icons.Download" [size]="16" /> Export CSV</button>
+        <app-export-menu [source]="widgetExport(expanded)" />
         <button type="button" class="btn btn--primary" (click)="expanded = null">Close</button>
       </div>
     </div>

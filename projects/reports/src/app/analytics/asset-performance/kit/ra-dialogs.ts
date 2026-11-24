@@ -1,7 +1,8 @@
 import { Component, EventEmitter, HostListener, Input, OnChanges, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, LucideAngularModule, X } from 'lucide-angular';
-import { RA_PEOPLE, downloadCsv } from '../../shared/analytics-common';
+import { ExportMenu, ExportRequest } from 'shared-ui';
+import { RA_PEOPLE, tableSource } from '../../shared/analytics-common';
 
 export interface RaColumn {
   key: string;
@@ -64,7 +65,7 @@ const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
 @Component({
   selector: 'ra-records-dialog',
   standalone: true,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ExportMenu],
   styleUrls: ['../../shared/analytics-page.css'],
   template: `
     <div class="overlay" (click)="close.emit()">
@@ -99,9 +100,7 @@ const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
         </div>
         <div class="dialog__actions">
           <span class="muted ra-count">{{ data.rows.length }} records</span>
-          <button type="button" class="btn" (click)="exportCsv()" [disabled]="!data.rows.length">
-            <lucide-icon [img]="icons.Download" [size]="16" /> Export CSV
-          </button>
+          <app-export-menu [disabled]="!data.rows.length" [source]="exportSource" />
           <button type="button" class="btn btn--primary" (click)="close.emit()">Close</button>
         </div>
       </div>
@@ -137,9 +136,9 @@ export class RaRecordsDialog implements OnChanges {
     return this.sortKey !== key ? this.icons.ArrowUpDown : this.sortDir === 1 ? this.icons.ArrowUp : this.icons.ArrowDown;
   }
 
-  exportCsv(): void {
-    downloadCsv(this.data.file, this.data.columns.map((c) => c.label), this.rows.map((r) => this.data.columns.map((c) => r[c.key])));
-  }
+  /** CSV / PDF export of the records in the current sort order. */
+  exportSource = (): ExportRequest =>
+    tableSource(this.data.file, this.data.columns.map((c) => c.label), () => this.rows.map((r) => this.data.columns.map((c) => r[c.key])))();
 
   @HostListener('document:keydown.escape')
   onEscape(): void {

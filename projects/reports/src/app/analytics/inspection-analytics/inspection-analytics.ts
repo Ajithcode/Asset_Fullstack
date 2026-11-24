@@ -6,7 +6,7 @@ import {
   ArrowUp, Bookmark, ChartColumn, CircleCheck, ClipboardList, FileText, GitCompareArrows, LucideAngularModule, LucideIconData,
   RefreshCw, Repeat, ShieldCheck, TriangleAlert, Upload, Wrench
 } from 'lucide-angular';
-import { AnalyticsPage, downloadCsv, percent } from '../shared/analytics-common';
+import { AnalyticsPage, exportTable, isExportAction, percent, tablesRequest } from '../shared/analytics-common';
 import {
   AnalyticsApiService, AnalyticsGroup, AnalyticsQuery, KpiDto, apiMessage, filterValue, optionLabels, periodQuery, previousQuery, viewDates
 } from '../shared/analytics-api.service';
@@ -20,6 +20,7 @@ import {
 } from './inspection-analytics.data';
 import { InspectionFindingsTable } from './findings-table/findings-table';
 import { InspectorTable } from './inspector-table/inspector-table';
+import { ExportMenu } from 'shared-ui';
 
 interface KpiTile {
   key: 'total' | 'rate' | 'open' | 'critical' | 'due';
@@ -79,7 +80,7 @@ const INSIGHT_CARDS: Record<string, { icon: LucideIconData; primary: Insight['pr
   imports: [
     FormsModule, RouterLink, LucideAngularModule, CartesianChart, DonutChart, GaugeChart, RaWidget, RaKpiCard, RaListDialog,
     RaDetailDialog, RaActionPlanDialog, RaSaveViewDialog, InspectionFindingsTable, InspectorTable
-  ],
+  , ExportMenu],
   templateUrl: './inspection-analytics.html',
   styleUrls: ['../shared/analytics-page.css', './inspection-analytics.css']
 })
@@ -261,13 +262,12 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   // ===== Header actions =====
 
-  /** Excel workbook of every section for the current filters (GET api/inspection-analytics/export). */
-  exportAll(): void {
-    this.api.export(GROUP, this.query).subscribe({
-      next: () => this.notify('Inspection analytics exported.'),
-      error: (err) => this.notify(apiMessage(err, 'Export failed.'))
+  /** Page Export (CSV / PDF): open inspection findings + inspector performance in one table (Section column). */
+  exportRequest = () =>
+    tablesRequest({ title: 'Inspection Analytics', fileBase: 'inspection-analytics', filters: this.exportFilters() }, () => {
+      this.exportFindings();
+      this.exportInspectors();
     });
-  }
 
   /** Save View: POST api/inspection-analytics/views with the current filters. */
   saveNamedView(name: string): void {
@@ -289,8 +289,8 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
   // ===== KPI cards =====
 
   kpiAction(kpi: KpiTile, action: string): void {
-    if (action === 'Export CSV') {
-      downloadCsv(`inspection-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.periodLabel, this.locationLabel]]);
+    if (isExportAction(action)) {
+      exportTable(`inspection-${kpi.key}.csv`, ['KPI', 'Value', 'Change vs previous period', 'Period', 'Location'], [[kpi.label, kpi.value, kpi.delta || '—', this.periodLabel, this.locationLabel]]);
       return;
     }
     const v = this.view;
@@ -339,37 +339,37 @@ export class InspectionAnalyticsPage extends AnalyticsPage {
 
   exportTrend(): void {
     const v = this.view;
-    downloadCsv('inspection-completion-trend.csv', ['Month', 'Planned', 'Completed', 'Overdue', 'Completed (previous period)'], this.monthRows(v.planned, v.completed, v.overdue, v.completedPrevious));
+    exportTable('inspection-completion-trend.csv', ['Month', 'Planned', 'Completed', 'Overdue', 'Completed (previous period)'], this.monthRows(v.planned, v.completed, v.overdue, v.completedPrevious));
   }
 
   exportSeverity(): void {
     const s = this.view.severity;
-    downloadCsv('findings-by-severity.csv', ['Month', ...SEVERITIES], this.monthRows(s.Critical, s.High, s.Medium, s.Low));
+    exportTable('findings-by-severity.csv', ['Month', ...SEVERITIES], this.monthRows(s.Critical, s.High, s.Medium, s.Low));
   }
 
   exportStatus(): void {
-    downloadCsv('inspection-status.csv', ['Status', 'Inspections'], this.statusSlices.map((s) => [s.name, s.value]));
+    exportTable('inspection-status.csv', ['Status', 'Inspections'], this.statusSlices.map((s) => [s.name, s.value]));
   }
 
   exportCategories(): void {
-    downloadCsv('findings-by-category.csv', ['Category', 'Findings'], this.view.findingTypes.map((t, i) => [t, this.view.byFindingType[i]]));
+    exportTable('findings-by-category.csv', ['Category', 'Findings'], this.view.findingTypes.map((t, i) => [t, this.view.byFindingType[i]]));
   }
 
   exportCompliance(): void {
     const v = this.view;
-    downloadCsv('inspection-compliance.csv', ['Month', 'Compliance %', 'Target %'], this.monthRows(v.rateSeries, v.rateSeries.map(() => v.complianceTarget)));
+    exportTable('inspection-compliance.csv', ['Month', 'Compliance %', 'Target %'], this.monthRows(v.rateSeries, v.rateSeries.map(() => v.complianceTarget)));
   }
 
   exportRepeat(): void {
-    downloadCsv('repeat-findings.csv', ['Month', 'Repeated', 'Resolved'], this.monthRows(this.view.repeated, this.view.resolved));
+    exportTable('repeat-findings.csv', ['Month', 'Repeated', 'Resolved'], this.monthRows(this.view.repeated, this.view.resolved));
   }
 
   exportFindings(): void {
-    downloadCsv('open-inspection-findings.csv', FINDING_HEADER, this.findingRows(this.view.findings));
+    exportTable('open-inspection-findings.csv', FINDING_HEADER, this.findingRows(this.view.findings));
   }
 
   exportInspectors(): void {
-    downloadCsv('inspector-performance.csv', ['Inspector', 'Inspections Completed', 'Avg Duration (hrs)', 'Finding Rate %', 'Closure Rate %'],
+    exportTable('inspector-performance.csv', ['Inspector', 'Inspections Completed', 'Avg Duration (hrs)', 'Finding Rate %', 'Closure Rate %'],
       this.view.inspectors.map((r) => [r.name, r.inspections, r.avgHours, r.findingRate, r.closureRate]));
   }
 

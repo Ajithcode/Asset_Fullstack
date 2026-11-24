@@ -18,7 +18,7 @@
     </span>
     <button type="button" class="btn" (click)="layoutOpen = true"><lucide-icon [img]="icons.Settings" [size]="16" /> Edit KPI Layout</button>
     <button type="button" class="btn" (click)="shareOpen = true"><lucide-icon [img]="icons.Share2" [size]="16" /> Share</button>
-    <button type="button" class="btn" (click)="exportAll()"><lucide-icon [img]="icons.Upload" [size]="16" /> Export</button>
+    <app-export-menu [source]="exportRequest" />
     <button type="button" class="btn btn--primary" (click)="form = 'new'"><lucide-icon [img]="icons.CirclePlus" [size]="16" /> Create KPI</button>
   </div>
 </header>

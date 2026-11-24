@@ -7,7 +7,7 @@ import {
   ArrowDown, ArrowUp, ArrowUpDown, Bookmark, Box, Calendar, ChartColumn, Clock, Download, GitCompareArrows, GripVertical, Heart, House, Info,
   LucideAngularModule, RefreshCw, Settings, ShieldCheck, TriangleAlert, Wrench
 } from 'lucide-angular';
-import { downloadCsv, percent } from '../shared/analytics-common';
+import { exportTable, percent, tablesRequest } from '../shared/analytics-common';
 import { AnalyticsGroup, AnalyticsQuery, apiMessage, filterValue, periodQuery, previousQuery } from '../shared/analytics-api.service';
 import { CartesianChart, HBarChart } from '../shared/charts';
 import { RaAsset } from './kit/asset-universe';
@@ -19,6 +19,7 @@ import {
   ApAssetDto, ApAssetRow, ApFiltersDto, ApInsightDto, ApLocationRow, ApOverviewDto, AssetPerformanceView, emptyAssetPerformance, insightAsset,
   mapAssetPerformance, toRaAsset
 } from './asset-performance.data';
+import { ExportMenu } from 'shared-ui';
 
 type AssetSortKey = 'id' | 'name' | 'location' | 'health' | 'utilization' | 'availability';
 type LocationSortKey = 'name' | 'health' | 'utilization' | 'availability';
@@ -36,7 +37,7 @@ const INSIGHT_TONES: Record<string, RaInsight['tone']> = { critical: 'red', warn
   imports: [
     FormsModule, RouterLink, NgTemplateOutlet, LucideAngularModule, CartesianChart, HBarChart, RaMenu, RaKpiCard, RaInsightCard,
     RaRecordsDialog, RaDetailDialog, RaActionDialog, RaSaveViewDialog, RaExpandDialog
-  ],
+  , ExportMenu],
   templateUrl: './asset-performance.html',
   styleUrls: ['../shared/analytics-page.css', './kit/ra-page.css', './asset-performance.css']
 })
@@ -358,40 +359,39 @@ export class AssetPerformancePage extends ScopedAnalyticsPage {
     return targets[id] ?? 'ap-trend';
   }
 
-  /** Excel workbook of every section for the current filters (GET api/asset-performance/export). */
-  exportPage(): void {
-    this.analyticsApi.export(GROUP, this.query).subscribe({
-      next: () => this.notify(`Exported ${this.view.total.toLocaleString('en-US')} assets.`),
-      error: (err) => this.notify(apiMessage(err, 'Export failed.'))
+  /** Page Export (CSV / PDF): top/bottom assets + performance by location in one table (Section column). */
+  exportRequest = () =>
+    tablesRequest({ title: 'Asset Performance', fileBase: 'asset-performance', filters: this.exportFilters() }, () => {
+      this.exportWidget('assets');
+      this.exportWidget('locations');
     });
-  }
 
   exportWidget(id: string): void {
     const v = this.view;
     const months = v.labels.map((l) => l.replace('\n', ' '));
     switch (id) {
       case 'trend':
-        downloadCsv('asset-health-trend.csv', ['Month', ...v.healthTrend.map((s) => `${s.name} (%)`)], months.map((m, i) => [m, ...v.healthTrend.map((s) => s.values[i])]));
+        exportTable('asset-health-trend.csv', ['Month', ...v.healthTrend.map((s) => `${s.name} (%)`)], months.map((m, i) => [m, ...v.healthTrend.map((s) => s.values[i])]));
         break;
       case 'category':
-        downloadCsv('utilization-by-category.csv', ['Category', ...v.categoryUtilization.map((s) => `${s.name} (%)`)],
+        exportTable('utilization-by-category.csv', ['Category', ...v.categoryUtilization.map((s) => `${s.name} (%)`)],
           v.categoryLabels.map((l, i) => [l.split('\n')[0], ...v.categoryUtilization.map((s) => s.values[i])]));
         break;
       case 'distribution':
-        downloadCsv('performance-score-distribution.csv', ['Band', 'Assets', 'Share'], v.distribution.map((r) => [r.label, r.value, r.display ?? '']));
+        exportTable('performance-score-distribution.csv', ['Band', 'Assets', 'Share'], v.distribution.map((r) => [r.label, r.value, r.display ?? '']));
         break;
       case 'reliability':
-        downloadCsv('reliability-availability.csv', ['Month', ...v.reliability.map((s) => s.name)], months.map((m, i) => [m, ...v.reliability.map((s) => s.values[i])]));
+        exportTable('reliability-availability.csv', ['Month', ...v.reliability.map((s) => s.name)], months.map((m, i) => [m, ...v.reliability.map((s) => s.values[i])]));
         break;
       case 'downtime':
-        downloadCsv('downtime-analysis.csv', ['Month', 'Planned (hrs)', 'Unplanned (hrs)'], months.map((m, i) => [m, v.downtime[0]?.values[i] ?? 0, v.downtime[1]?.values[i] ?? 0]));
+        exportTable('downtime-analysis.csv', ['Month', 'Planned (hrs)', 'Unplanned (hrs)'], months.map((m, i) => [m, v.downtime[0]?.values[i] ?? 0, v.downtime[1]?.values[i] ?? 0]));
         break;
       case 'assets':
-        downloadCsv('top-bottom-assets.csv', ['Asset ID', 'Asset Name', 'Location', 'Health Score', 'Utilization %', 'Availability %', 'Status'],
+        exportTable('top-bottom-assets.csv', ['Asset ID', 'Asset Name', 'Location', 'Health Score', 'Utilization %', 'Availability %', 'Status'],
           this.assetRows.map((r) => [r.id, r.name, r.location, r.health, r.utilization, r.availability, r.status]));
         break;
       case 'locations':
-        downloadCsv('asset-performance-by-location.csv', ['Location', 'Assets', 'Avg Health Score', 'Utilization %', 'Availability %'],
+        exportTable('asset-performance-by-location.csv', ['Location', 'Assets', 'Avg Health Score', 'Utilization %', 'Availability %'],
           this.locationRows.map((l) => [l.name, l.assets, l.health, l.utilization, l.availability]));
         break;
     }

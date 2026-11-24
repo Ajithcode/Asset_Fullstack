@@ -5,7 +5,8 @@ import { Router } from '@angular/router';
 import { environment } from 'shared-ui';
 import { ImportColumn, ImportFileModal } from 'shared-ui';
 import { RowActions } from 'shared-ui';
-import { downloadReportAsExcel, downloadReportsAsWorkbook, GeneratedReportService, Report } from '../generated-report.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
+import { GeneratedReportService, Report, reportExportRequest, reportsExportRequest } from '../generated-report.service';
 
 export type { Report };
 export type FrequencyFilter = 'Monthly' | 'Weekly' | 'Daily' | 'Once';
@@ -13,7 +14,7 @@ export type FrequencyFilter = 'Monthly' | 'Weekly' | 'Daily' | 'Once';
 @Component({
   standalone: true,
   selector: 'app-reports',
-  imports: [CommonModule, ImportFileModal, RowActions],
+  imports: [CommonModule, ImportFileModal, RowActions, ExportMenu],
   templateUrl: './reports.html',
   styleUrls: ['./reports.css']
 })
@@ -119,15 +120,16 @@ export class Reports {
     this.showImportModal = false;
   }
 
-  downloadReport(report: Report): void {
-    downloadReportAsExcel({ headers: [], rows: [], ...report });
-  }
+  /** "Download all" (CSV / PDF): the reports currently shown in this tab. */
+  exportAll = (): ExportRequest => reportsExportRequest(this.filteredReports);
 
-  downloadAllReports(): void {
-    downloadReportsAsWorkbook(
-      this.filteredReports.map((report) => ({ headers: [], rows: [], ...report })),
-      `reports-export-${new Date().toISOString().slice(0, 10)}.xlsx`
-    );
+  private readonly rowExports = new Map<string, () => ExportRequest>();
+
+  /** Per-report download (CSV / PDF); cached per report so the menu input stays stable. */
+  exportFor(report: Report): () => ExportRequest {
+    let fn = this.rowExports.get(report.id);
+    if (!fn) this.rowExports.set(report.id, (fn = () => reportExportRequest({ headers: [], rows: [], ...report })));
+    return fn;
   }
 
   refreshReports() {

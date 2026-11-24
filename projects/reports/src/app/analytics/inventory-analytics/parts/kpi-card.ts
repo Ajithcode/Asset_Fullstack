@@ -1,6 +1,8 @@
 import { Component, ElementRef, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { ArrowDown, ArrowUp, Ellipsis, LucideAngularModule } from 'lucide-angular';
 import { KpiCardData } from './ra-parts';
+import { ExportFormat } from 'shared-ui';
+import { withExportFormat } from '../../shared/analytics-common';
 
 export type KpiMenuAction = 'details' | 'export';
 
@@ -32,7 +34,8 @@ export type KpiMenuAction = 'details' | 'export';
         @if (menuOpen) {
           <div class="menu" role="menu">
             <button type="button" role="menuitem" (click)="pick('details')">View details</button>
-            <button type="button" role="menuitem" (click)="pick('export')">Export CSV</button>
+            <button type="button" role="menuitem" (click)="pick('export', 'csv')">Export CSV</button>
+            <button type="button" role="menuitem" (click)="pick('export', 'pdf')">Export PDF</button>
           </div>
         }
       </div>
@@ -58,9 +61,9 @@ export class RaKpiCard {
     return `${this.kpi.delta > 0 ? '+' : ''}${this.kpi.delta.toFixed(1)}%`;
   }
 
-  pick(a: KpiMenuAction): void {
+  pick(a: KpiMenuAction, format: ExportFormat = 'csv'): void {
     this.menuOpen = false;
-    this.action.emit(a);
+    withExportFormat(format, () => this.action.emit(a));
   }
 
   @HostListener('document:click', ['$event'])

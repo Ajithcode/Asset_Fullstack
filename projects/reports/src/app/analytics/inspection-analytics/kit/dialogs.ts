@@ -1,7 +1,8 @@
 import { Component, EventEmitter, HostListener, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X } from 'lucide-angular';
-import { RA_PEOPLE, downloadCsv } from '../../shared/analytics-common';
+import { RA_PEOPLE, tableSource } from '../../shared/analytics-common';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 
 // Dialogs shared by the Inspection, Compliance and KPI dashboards. Each closes on Escape or a backdrop click.
 
@@ -109,7 +110,7 @@ export class RaActionPlanDialog implements OnInit {
 /** Read-only table of rows (e.g. "View findings") with CSV export. */
 @Component({
   selector: 'app-ra-list-dialog',
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ExportMenu],
   template: `
     <div class="overlay" (click)="backdrop($event)">
       <div class="dialog dialog--wide" role="dialog" aria-modal="true" [attr.aria-label]="title">
@@ -135,7 +136,7 @@ export class RaActionPlanDialog implements OnInit {
           <div class="empty">Nothing matches the current filters.</div>
         }
         <div class="dialog__actions">
-          <button type="button" class="btn" [disabled]="!rows.length" (click)="exportCsv()">Export CSV</button>
+          <app-export-menu [disabled]="!rows.length" [source]="exportSource" />
           <button type="button" class="btn btn--primary" (click)="closed.emit()">Close</button>
         </div>
       </div>
@@ -152,9 +153,7 @@ export class RaListDialog {
   @Input() fileName = 'report.csv';
   @Output() closed = new EventEmitter<void>();
 
-  exportCsv(): void {
-    downloadCsv(this.fileName, this.header, this.rows);
-  }
+  exportSource = (): ExportRequest => tableSource(this.fileName, this.header, () => this.rows)();
 
   backdrop(event: MouseEvent): void {
     if (isBackdrop(event)) this.closed.emit();

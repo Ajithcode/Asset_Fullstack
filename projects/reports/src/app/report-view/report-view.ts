@@ -1,7 +1,8 @@
 import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { downloadReportAsExcel, GeneratedReport, GeneratedReportService } from '../generated-report.service';
+import { ExportMenu, ExportRequest } from 'shared-ui';
+import { GeneratedReport, GeneratedReportService, reportExportRequest } from '../generated-report.service';
 
 interface ViewColumn {
   key: string;
@@ -12,7 +13,7 @@ interface ViewColumn {
 @Component({
   standalone: true,
   selector: 'app-report-view',
-  imports: [CommonModule],
+  imports: [CommonModule, ExportMenu],
   templateUrl: './report-view.html',
   styleUrls: ['./report-view.css']
 })
@@ -52,10 +53,9 @@ export class ReportView {
     col.visible = !col.visible;
   }
 
-  onDownload(): void {
-    if (!this.report) return;
-    downloadReportAsExcel(this.report);
-  }
+  /** Download (CSV / PDF): the report's rows in the columns currently shown. */
+  exportSource = (): ExportRequest =>
+    reportExportRequest(this.report as GeneratedReport, this.report?.headers.length ? this.columns.filter((c) => c.visible).map((c) => c.label) : []);
 
   onRefresh(): void {
     // No backend to re-fetch from — mirrors the stub Refresh actions used

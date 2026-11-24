@@ -41,8 +41,8 @@ export class ReportLibrary {
   @Output() duplicate = new EventEmitter<CustomReport>();
   @Output() remove = new EventEmitter<CustomReport>();
   @Output() togglePublish = new EventEmitter<CustomReport>();
-  /** GET /api/custom-reports/{id}/export */
-  @Output() exportData = new EventEmitter<CustomReport>();
+  /** The report's rows as CSV or PDF (GET /api/custom-reports/{id}/preview, all rows). */
+  @Output() exportData = new EventEmitter<{ report: CustomReport; format: 'csv' | 'pdf' }>();
 
   readonly Star = Star;
   readonly Ellipsis = Ellipsis;
@@ -103,13 +103,13 @@ export class ReportLibrary {
     this.favourite.emit(r);
   }
 
-  act(event: Event, kind: 'open' | 'duplicate' | 'remove' | 'publish' | 'export', r: CustomReport): void {
+  act(event: Event, kind: 'open' | 'duplicate' | 'remove' | 'publish' | 'csv' | 'pdf', r: CustomReport): void {
     event.stopPropagation();
     this.menuId = null;
     if (kind === 'open') this.open.emit(r);
     else if (kind === 'duplicate') this.duplicate.emit(r);
     else if (kind === 'remove') this.remove.emit(r);
-    else if (kind === 'export') this.exportData.emit(r);
+    else if (kind === 'csv' || kind === 'pdf') this.exportData.emit({ report: r, format: kind });
     else this.togglePublish.emit(r);
   }
 }

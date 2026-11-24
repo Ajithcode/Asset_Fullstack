@@ -1,8 +1,9 @@
 import { Component, ElementRef, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { Ellipsis, LucideAngularModule } from 'lucide-angular';
+import { formatOfAction, withExportFormat } from '../../shared/analytics-common';
 
-export const WIDGET_MENU = ['Export CSV', 'Expand'];
-export const KPI_MENU = ['View details', 'Export'];
+export const WIDGET_MENU = ['Export CSV', 'Export PDF', 'Expand'];
+export const KPI_MENU = ['View details', 'Export CSV', 'Export PDF'];
 
 /** "⋯" button with a small dropdown; closes on outside click or Escape. */
 @Component({
@@ -40,7 +41,7 @@ export class RaMenu {
 
   pick(item: string): void {
     this.open = false;
-    this.select.emit(item);
+    withExportFormat(formatOfAction(item), () => this.select.emit(item));
   }
 
   @HostListener('document:click', ['$event'])

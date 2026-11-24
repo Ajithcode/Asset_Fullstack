@@ -1,11 +1,12 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Bookmark, GitCompareArrows, House, LucideAngularModule, RefreshCw, Upload } from 'lucide-angular';
+import { ExportMenu, ExportRequest } from 'shared-ui';
+import { Bookmark, GitCompareArrows, House, LucideAngularModule, RefreshCw } from 'lucide-angular';
 
 /** Breadcrumb, title and the Updated / Compare Periods / Export / Save View actions. */
 @Component({
   selector: 'ra-c-page-head',
-  imports: [RouterLink, LucideAngularModule],
+  imports: [RouterLink, LucideAngularModule, ExportMenu],
   template: `
     <nav class="crumbs" aria-label="Breadcrumb">
       <lucide-icon [img]="icons.House" [size]="14"></lucide-icon>
@@ -31,9 +32,7 @@ import { Bookmark, GitCompareArrows, House, LucideAngularModule, RefreshCw, Uplo
           <lucide-icon [img]="icons.GitCompareArrows" [size]="16"></lucide-icon>
           {{ compare ? 'Comparing Periods' : 'Compare Periods' }}
         </button>
-        <button type="button" class="btn" (click)="exportCsv.emit()">
-          <lucide-icon [img]="icons.Upload" [size]="16"></lucide-icon> Export
-        </button>
+        <app-export-menu [source]="exportSource" />
         <button type="button" class="btn btn--primary" (click)="saveView.emit()">
           <lucide-icon [img]="icons.Bookmark" [size]="16"></lucide-icon> Save View
         </button>
@@ -51,8 +50,9 @@ export class RaPageHead {
   @Input() compare = false;
   @Output() refresh = new EventEmitter<void>();
   @Output() compareChange = new EventEmitter<boolean>();
-  @Output() exportCsv = new EventEmitter<void>();
+  /** Builds the page's CSV / PDF export (read when the user picks a format). */
+  @Input({ required: true }) exportSource!: () => ExportRequest;
   @Output() saveView = new EventEmitter<void>();
 
-  readonly icons = { House, RefreshCw, GitCompareArrows, Upload, Bookmark };
+  readonly icons = { House, RefreshCw, GitCompareArrows, Bookmark };
 }

@@ -1,5 +1,7 @@
 import { Component, ElementRef, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { Ellipsis, GripVertical, Info, LucideAngularModule, X } from 'lucide-angular';
+import { ExportFormat } from 'shared-ui';
+import { withExportFormat } from '../../shared/analytics-common';
 
 /**
  * Widget frame: grip, title with info tip and a ⋯ menu (Export CSV / Expand).
@@ -32,7 +34,8 @@ import { Ellipsis, GripVertical, Info, LucideAngularModule, X } from 'lucide-ang
               </button>
               @if (menuOpen) {
                 <div class="menu" role="menu">
-                  <button type="button" role="menuitem" (click)="doExport()">Export CSV</button>
+                  <button type="button" role="menuitem" (click)="doExport('csv')">Export CSV</button>
+                  <button type="button" role="menuitem" (click)="doExport('pdf')">Export PDF</button>
                   <button type="button" role="menuitem" (click)="expand()">Expand</button>
                 </div>
               }
@@ -58,9 +61,9 @@ export class RaWidget {
   expanded = false;
   readonly icons = { GripVertical, Info, Ellipsis, X };
 
-  doExport(): void {
+  doExport(format: ExportFormat): void {
     this.menuOpen = false;
-    this.exportCsv.emit();
+    withExportFormat(format, () => this.exportCsv.emit());
   }
 
   expand(): void {

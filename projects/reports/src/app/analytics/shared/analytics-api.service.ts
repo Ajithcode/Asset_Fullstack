@@ -252,21 +252,6 @@ export class AnalyticsApiService {
     });
   }
 
-  /** GET api/{group}/export?format=xlsx and saves the workbook. */
-  export(group: AnalyticsGroup, query: AnalyticsQuery): Observable<void> {
-    return this.http.get(`${this.base}${group}/export`, { params: this.params({ ...query, format: 'xlsx' }), observe: 'response', responseType: 'blob' }).pipe(
-      map((res) => {
-        const name = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(res.headers.get('content-disposition') ?? '')?.[1];
-        const url = URL.createObjectURL(res.body as Blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = name ? decodeURIComponent(name) : `${group}.xlsx`;
-        a.click();
-        URL.revokeObjectURL(url);
-      })
-    );
-  }
-
   /** Names work orders can be assigned to: Maintenance technicians plus technicians already assigned on work orders. */
   assignees(): Observable<string[]> {
     const none = catchError(() => of([]));

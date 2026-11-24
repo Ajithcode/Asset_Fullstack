@@ -262,11 +262,6 @@ export class DashboardStore {
       .pipe(map((x) => toWidgetData(type, x)));
   }
 
-  /** GET /{id}/export: every widget as an xlsx workbook. */
-  export(d: Dashboard, f: DashFilters): Observable<Blob> {
-    return this.http.get(`${this.api}/${encodeURIComponent(d.id)}/export`, { params: filterParams(f).set('format', 'xlsx'), responseType: 'blob' });
-  }
-
   // ----- Mapping -----
 
   private scope(): HttpParams {

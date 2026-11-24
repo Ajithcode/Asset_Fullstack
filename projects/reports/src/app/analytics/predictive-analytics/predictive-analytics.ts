@@ -6,7 +6,7 @@ import {
   ArrowDown, ArrowUp, ArrowUpDown, Bookmark, CircleCheck, Database, Download, GitCompareArrows, GripVertical, House, Info, LucideAngularModule,
   RefreshCw, Settings, Sparkles, Target, TriangleAlert
 } from 'lucide-angular';
-import { downloadCsv, money, percent } from '../shared/analytics-common';
+import { exportTable, money, percent, tablesRequest } from '../shared/analytics-common';
 import { CartesianChart, DonutChart, GaugeChart, RA_COLORS, compactNumber } from '../shared/charts';
 import { RaAsset } from '../asset-performance/kit/asset-universe';
 import { RaInsight, RaInsightCard, RaKpiCard } from '../asset-performance/kit/ra-cards';
@@ -17,6 +17,7 @@ import {
   ACCURACY_TARGET, ALL_RISK_LEVELS, ModelRow, PA_DELTAS, PredictiveView, REVIEW_CONFIDENCE, RISK_OPTIONS, buildPredictive, failureWindow,
   recommendedAction
 } from './predictive-analytics.data';
+import { ExportMenu } from 'shared-ui';
 
 type ActionSortKey = 'id' | 'name' | 'location' | 'riskScore' | 'rulHours' | 'owner';
 type ModelSortKey = 'type' | 'monitored' | 'accuracy' | 'precision' | 'recall' | 'status';
@@ -30,7 +31,7 @@ const RISK_TONES: Record<string, string> = { Critical: 'red', High: 'orange', Me
   imports: [
     FormsModule, RouterLink, NgTemplateOutlet, LucideAngularModule, CartesianChart, DonutChart, GaugeChart, RaMenu, RaKpiCard, RaInsightCard,
     RaRecordsDialog, RaDetailDialog, RaActionDialog, RaSaveViewDialog, RaExpandDialog
-  ],
+  , ExportMenu],
   templateUrl: './predictive-analytics.html',
   styleUrls: ['../shared/analytics-page.css', '../asset-performance/kit/ra-page.css', './predictive-analytics.css']
 })
@@ -275,21 +276,22 @@ export class PredictiveAnalyticsPage extends ScopedAnalyticsPage {
     return targets[id] ?? 'pa-risk';
   }
 
-  exportPage(): void {
-    const list = [...this.view.monitored].sort((a, b) => b.riskScore - a.riskScore);
-    downloadCsv(
-      'predictive-analytics.csv',
-      ['Asset ID', 'Asset Name', 'Location', 'Category', 'Asset Type', 'Risk Level', 'Risk Score', 'Failure Window', 'Remaining Life (hrs)', 'Confidence %', 'Recommended Action', 'Owner'],
-      list.map((a) => [a.id, a.name, a.site.name, a.category, a.type, a.risk ?? '', a.riskScore, failureWindow(a), a.rulHours, a.confidence, recommendedAction(a), a.owner])
-    );
-    this.notify(`Exported predictions for ${list.length.toLocaleString('en-US')} monitored assets.`);
-  }
+  /** Page Export (CSV / PDF): the monitored assets, highest risk first. */
+  exportRequest = () =>
+    tablesRequest({ title: 'Predictive Analytics', fileBase: 'predictive-analytics', filters: this.exportFilters() }, () => {
+      const list = [...this.view.monitored].sort((a, b) => b.riskScore - a.riskScore);
+      exportTable(
+        'predictive-analytics.csv',
+        ['Asset ID', 'Asset Name', 'Location', 'Category', 'Asset Type', 'Risk Level', 'Risk Score', 'Failure Window', 'Remaining Life (hrs)', 'Confidence %', 'Recommended Action', 'Owner'],
+        list.map((a) => [a.id, a.name, a.site.name, a.category, a.type, a.risk ?? '', a.riskScore, failureWindow(a), a.rulHours, a.confidence, recommendedAction(a), a.owner])
+      );
+    });
 
   exportWidget(id: string): void {
     const v = this.view;
     const months = v.labels.map((l) => l.replace('\n', ' '));
     const series = (file: string, list: { name: string; values: number[] }[]) =>
-      downloadCsv(file, ['Month', ...list.map((s) => s.name)], months.map((m, i) => [m, ...list.map((s) => s.values[i])]));
+      exportTable(file, ['Month', ...list.map((s) => s.name)], months.map((m, i) => [m, ...list.map((s) => s.values[i])]));
     switch (id) {
       case 'risk':
         series('failure-risk-trend.csv', v.riskTrend);
@@ -298,23 +300,23 @@ export class PredictiveAnalyticsPage extends ScopedAnalyticsPage {
         series('remaining-useful-life.csv', v.rulForecast);
         break;
       case 'distribution':
-        downloadCsv('risk-distribution.csv', ['Risk Level', 'Assets'], v.riskSlices.map((s) => [s.name, s.value]));
+        exportTable('risk-distribution.csv', ['Risk Level', 'Assets'], v.riskSlices.map((s) => [s.name, s.value]));
         break;
       case 'anomalies':
         series('anomaly-detection-events.csv', v.anomalies);
         break;
       case 'accuracy':
-        downloadCsv('prediction-accuracy.csv', ['Metric', 'Value %'], [['Accuracy', v.accuracy], ['Precision', v.precision], ['Recall', v.recall], ['False Positive Rate', v.falsePositiveRate]]);
+        exportTable('prediction-accuracy.csv', ['Metric', 'Value %'], [['Accuracy', v.accuracy], ['Precision', v.precision], ['Recall', v.recall], ['False Positive Rate', v.falsePositiveRate]]);
         break;
       case 'cost':
         series('predicted-maintenance-cost.csv', v.costForecast);
         break;
       case 'actions':
-        downloadCsv('high-risk-assets.csv', ['Asset ID', 'Asset Name', 'Location', 'Risk Score', 'Failure Window', 'Remaining Life (hrs)', 'Recommended Action', 'Owner', 'Status'],
+        exportTable('high-risk-assets.csv', ['Asset ID', 'Asset Name', 'Location', 'Risk Score', 'Failure Window', 'Remaining Life (hrs)', 'Recommended Action', 'Owner', 'Status'],
           v.actionList.map((a) => [a.id, a.name, a.site.name, a.riskScore, failureWindow(a), a.rulHours, recommendedAction(a), a.owner, a.risk ?? '']));
         break;
       case 'models':
-        downloadCsv('model-performance-by-asset-type.csv', ['Asset Type', 'Monitored', 'Accuracy %', 'Precision %', 'Recall %', 'Model Status'],
+        exportTable('model-performance-by-asset-type.csv', ['Asset Type', 'Monitored', 'Accuracy %', 'Precision %', 'Recall %', 'Model Status'],
           this.modelRows.map((m) => [m.type, m.monitored, m.accuracy, m.precision, m.recall, m.status]));
         break;
     }

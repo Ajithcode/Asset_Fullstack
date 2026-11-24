@@ -1,13 +1,14 @@
 import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Subject, Subscription, debounceTime } from 'rxjs';
+import { Subject, Subscription, debounceTime, firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   ArrowDown, ArrowUp, ArrowUpDown, Box, CalendarClock, CalendarDays, CircleAlert, CircleCheck, CircleDollarSign, CircleX, ClipboardCheck,
   Eye, Factory, FileCheck, FileText, Funnel, Info, LucideAngularModule, MapPin, Package, Plus, Radio, RefreshCw, Search, ShieldCheck, Upload, Wrench, X
 } from 'lucide-angular';
-import { AnalyticsPage, downloadCsv } from '../shared/analytics-common';
+import { ExportMenu, ExportRequest } from 'shared-ui';
+import { AnalyticsPage } from '../shared/analytics-common';
 import { ReportCalendar } from './report-calendar';
 import { ReportCreateDialog } from './report-create-dialog';
 import { ReportScheduleDialog } from './report-schedule-dialog';
@@ -73,7 +74,7 @@ const MAX_ALERTS = 4;
 @Component({
   selector: 'app-ra-standard-reports',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideAngularModule, ReportingPeriodPanel, ReportCalendar, ReportViewerDialog, ReportScheduleDialog, ReportCreateDialog],
+  imports: [FormsModule, RouterLink, LucideAngularModule, ReportingPeriodPanel, ReportCalendar, ReportViewerDialog, ReportScheduleDialog, ReportCreateDialog, ExportMenu],
   templateUrl: './standard-reports.html',
   // Alerts split out to keep each stylesheet under the anyComponentStyle budget
   styleUrls: ['../shared/analytics-page.css', './standard-reports.css', './standard-reports-alerts.css']
@@ -95,7 +96,6 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
   editing: StandardReport | null = null;
   /** Generate / delete in progress from the viewer. */
   rowBusy = false;
-  exporting = false;
   readonly frequencyOptions = FREQUENCY_ORDER;
   readonly statusOptions = SR_STATUSES;
   readonly columns: { key: SortKey; label: string }[] = [
@@ -329,22 +329,67 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
     });
   }
 
-  /** GET /api/standard-reports/export: the filtered table (every page) as xlsx. */
-  exportList(): void {
-    if (this.exporting) return;
-    this.exporting = true;
-    this.service.exportList(this.query(), 'xlsx').subscribe({
-      next: (blob) => {
-        this.exporting = false;
-        downloadBlob(blob, `standard-reports-${this.service.today}.xlsx`);
-        this.notify('Standard reports exported.');
+  /** List Export (CSV / PDF): every report matching the current search, filters, period and sort (all pages). */
+  exportList = (): ExportRequest<StandardReport> => {
+    const q = this.query();
+    return {
+      title: 'Standard Reports',
+      fileBase: 'standard-reports',
+      columns: [
+        { label: 'Report ID', key: 'id' },
+        { label: 'Report Name', key: 'name' },
+        { label: 'Category', key: 'module' },
+        { label: 'Report Type', key: 'reportType' },
+        { label: 'Report Period', value: (r) => formatPeriod(r.period) },
+        { label: 'Generated On', key: 'generatedOn' },
+        { label: 'Next Scheduled', key: 'nextScheduled' },
+        { label: 'Frequency', key: 'frequency' },
+        { label: 'Status', key: 'status' },
+        { label: 'Owner', key: 'owner' }
+      ],
+      filters: {
+        Search: q.search,
+        Category: q.category,
+        Frequency: q.frequency,
+        Status: q.status,
+        Period: formatPeriod(this.service.period)
       },
-      error: (err: HttpErrorResponse) => {
-        this.exporting = false;
-        this.showAlert('error', apiMessage(err, 'Could not export the reports.'));
-      }
-    });
-  }
+      rows: () => this.service.loadAll(q)
+    };
+  };
+
+  private readonly rowExports = new Map<string, () => ExportRequest>();
+
+  /** Per-report Export (CSV / PDF): the report's own rows from GET /api/standard-reports/{id}/details (one line per reading). */
+  exportFor = (r: StandardReport): (() => ExportRequest) => {
+    let fn = this.rowExports.get(r.id);
+    if (!fn) {
+      fn = () => ({
+        title: r.name,
+        fileBase: `${r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}_${r.period.start}_${r.period.end}`,
+        columns: [
+          { label: 'Timestamp', key: 'timestamp' },
+          { label: 'Local time', key: 'localTime' },
+          { label: 'Tag ID', key: 'tagId' },
+          { label: 'Asset ID', key: 'assetId' },
+          { label: 'Asset name', key: 'assetName' },
+          { label: 'Category', key: 'category' },
+          { label: 'Sub-category', key: 'subCategory' },
+          { label: 'Device ID', key: 'deviceId' },
+          { label: 'Zone', key: 'zoneName' },
+          { label: 'Zone code', key: 'zoneCode' }
+        ],
+        filters: { Report: r.id, Category: r.module, Period: formatPeriod(r.period) },
+        rows: () =>
+          firstValueFrom(this.service.details(r)).then((d) => {
+            if (!d.hasData) throw new Error(`“${r.name}” has no data to export for its report type.`);
+            return d.records;
+          })
+      });
+      this.rowExports.set(r.id, fn);
+    }
+    return fn;
+  };
 
   monthChanged(month: { year: number; month: number }): void {
     this.loadCalendar(month);
@@ -525,26 +570,6 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
     });
   }
 
-  /** Row data from GET /api/standard-reports/{id}/details as CSV (one line per reading). */
-  exportCsv(r: StandardReport): void {
-    const file = `${r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}_${r.period.start}_${r.period.end}.csv`;
-    this.service.details(r).subscribe({
-      next: (d) => {
-        if (!d.hasData) {
-          this.showAlert('info', `“${r.name}” has no data to export for its report type.`);
-          return;
-        }
-        downloadCsv(
-          file,
-          ['Timestamp', 'Local time', 'Tag ID', 'Asset ID', 'Asset name', 'Category', 'Sub-category', 'Device ID', 'Zone', 'Zone code'],
-          d.records.map((x) => [x.timestamp, x.localTime, x.tagId, x.assetId ?? '', x.assetName ?? '', x.category ?? '', x.subCategory ?? '', x.deviceId ?? '', x.zoneName ?? '', x.zoneCode ?? ''])
-        );
-        this.notify(`Exported “${r.name}” as CSV.`);
-      },
-      error: (err: HttpErrorResponse) => this.showAlert('error', apiMessage(err, 'Could not export the report.'))
-    });
-  }
-
   // ===== Alerts (top-right) =====
   /** Success messages from the base page (create, export, schedule, ...) go to the alert stack. */
   override notify(message: string): void {
@@ -613,15 +638,6 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
         return r.name;
     }
   }
-}
-
-function downloadBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function apiMessage(err: HttpErrorResponse, fallback: string): string {

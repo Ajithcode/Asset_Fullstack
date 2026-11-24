@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ChartColumnIncreasing, Coins, LucideAngularModule, Package, RefreshCw, Target, TriangleAlert, Warehouse as WarehouseIcon } from 'lucide-angular';
-import { downloadCsv, money } from '../shared/analytics-common';
+import { exportTable, money, tablesRequest } from '../shared/analytics-common';
 import { CartesianChart, ChartSeries, ChartSlice, DonutChart, RA_COLORS } from '../shared/charts';
 import {
   ALL_CATEGORIES, ALL_STATUSES, ALL_STORES, ALL_WAREHOUSES, INV_CATEGORIES, InventoryView, ReorderItem, STOCK_STATUSES, STORES, Supplier,
@@ -291,25 +291,26 @@ export class InventoryAnalyticsPage extends RaDashboardPage implements OnInit {
 
   // ===== Exports =====
 
-  exportPage(): void {
-    this.exportReorder();
-    this.exportSuppliers();
-    this.notify('Exported items below reorder level and top suppliers (CSV).');
-  }
+  /** Page Export (CSV / PDF): items below reorder level + top suppliers in one table (Section column). */
+  exportRequest = () =>
+    tablesRequest({ title: 'Inventory Analytics', fileBase: 'inventory-analytics', filters: this.exportFilters() }, () => {
+      this.exportReorder();
+      this.exportSuppliers();
+    });
 
   exportReorder(): void {
-    downloadCsv('inventory-items-below-reorder.csv', ['Item Code', 'Item Name', 'Category', 'Warehouse', 'Store', 'Available', 'Reorder Level', 'Lead Time (days)', 'Supplier', 'Risk'],
+    exportTable('inventory-items-below-reorder.csv', ['Item Code', 'Item Name', 'Category', 'Warehouse', 'Store', 'Available', 'Reorder Level', 'Lead Time (days)', 'Supplier', 'Risk'],
       this.view.reorderItems.map((r) => [r.code, r.name, r.category, r.warehouseName, r.store, r.available, r.reorderLevel, r.leadTime, r.supplier, r.risk]));
   }
 
   exportSuppliers(): void {
-    downloadCsv('inventory-top-suppliers.csv', ['Supplier', 'Category', 'Items', 'On-Time Delivery %', 'Fill Rate %', 'Open POs'],
+    exportTable('inventory-top-suppliers.csv', ['Supplier', 'Category', 'Items', 'On-Time Delivery %', 'Fill Rate %', 'Open POs'],
       this.view.suppliers.map((s) => [s.name, s.category, s.items, s.onTime, s.fillRate, s.openPos]));
   }
 
   private exportSeries(file: string, series: ChartSeries[]): void {
     const labels = this.view.window.labels.map((l) => l.replace('\n', ' '));
-    downloadCsv(file, ['Period', ...series.map((s) => s.name)], labels.map((l, i) => [l, ...series.map((s) => Math.round(s.values[i] ?? 0))]));
+    exportTable(file, ['Period', ...series.map((s) => s.name)], labels.map((l, i) => [l, ...series.map((s) => Math.round(s.values[i] ?? 0))]));
   }
 
   exportTrend(): void {
@@ -325,10 +326,10 @@ export class InventoryAnalyticsPage extends RaDashboardPage implements OnInit {
   }
 
   exportStatus(): void {
-    downloadCsv('stock-status.csv', ['Status', 'Items'], this.statusSlices.map((s) => [s.name, s.value]));
+    exportTable('stock-status.csv', ['Status', 'Items'], this.statusSlices.map((s) => [s.name, s.value]));
   }
 
   exportUtilization(): void {
-    downloadCsv('warehouse-utilization.csv', ['Code', 'Warehouse', 'Site', 'Utilization %'], this.view.warehouses.map((w) => [w.code, w.name, w.site, w.utilization]));
+    exportTable('warehouse-utilization.csv', ['Code', 'Warehouse', 'Site', 'Utilization %'], this.view.warehouses.map((w) => [w.code, w.name, w.site, w.utilization]));
   }
 }

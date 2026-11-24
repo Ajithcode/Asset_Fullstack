@@ -6,7 +6,7 @@ import {
   HeartPulse, LucideAngularModule, LucideIconData, Package, RefreshCw, Settings, Share2, Shield, ShieldCheck, Target, TriangleAlert,
   Upload, Users, Wrench
 } from 'lucide-angular';
-import { AnalyticsPage, RA_MONTH_LABELS, downloadCsv, money } from '../shared/analytics-common';
+import { AnalyticsPage, RA_MONTH_LABELS, exportTable, money, tablesRequest } from '../shared/analytics-common';
 import { CartesianChart, ChartSeries, HBarChart, HBarRow, RA_COLORS } from '../shared/charts';
 import {
   ActionPlan, DetailField, RaActionPlanDialog, RaDetailDialog, RaListDialog, RaSaveViewDialog, RaShareDialog, RaWidget
@@ -18,6 +18,7 @@ import { KpiTile } from './kpi-tile';
 import { KpiLayoutDialog, LayoutItem } from './kpi-layout-dialog';
 import { KpiFormDialog, KpiFormValue } from './kpi-form-dialog';
 import { KpiExceptionsTable } from './kpi-exceptions-table';
+import { ExportMenu } from 'shared-ui';
 
 interface TileVm {
   state: KpiState;
@@ -64,7 +65,7 @@ const EXPORT_HEADER = ['KPI', 'Module', 'Current', 'Target', 'Variance', 'Change
   imports: [
     FormsModule, RouterLink, LucideAngularModule, CartesianChart, HBarChart, RaWidget, RaListDialog, RaDetailDialog, RaActionPlanDialog,
     RaSaveViewDialog, RaShareDialog, KpiTile, KpiLayoutDialog, KpiFormDialog, KpiExceptionsTable
-  ],
+  , ExportMenu],
   templateUrl: './kpi-dashboard.html',
   styleUrls: ['../shared/analytics-page.css', './kpi-dashboard.css']
 })
@@ -280,11 +281,11 @@ export class KpiDashboardPage extends AnalyticsPage {
 
   // ===== Header actions =====
 
-  exportAll(): void {
-    const rows = this.tiles.map((t) => this.exportRow(t.state));
-    downloadCsv(`kpi-dashboard-${this.activeKey.replace(/[^a-z0-9]+/gi, '-')}.csv`, EXPORT_HEADER, rows);
-    this.notify(`Exported ${rows.length} KPIs from ${this.activeView.dashboard}.`);
-  }
+  /** Page Export (CSV / PDF): the KPIs of the current dashboard view. */
+  exportRequest = () =>
+    tablesRequest({ title: `KPI Dashboard – ${this.activeView.dashboard}`, fileBase: `kpi-dashboard-${this.activeKey.replace(/[^a-z0-9]+/gi, '-')}`, filters: this.exportFilters() }, () =>
+      exportTable('kpi-dashboard', EXPORT_HEADER, this.tiles.map((t) => this.exportRow(t.state)))
+    );
 
   private exportRow(s: KpiState): (string | number)[] {
     return [s.def.name, s.def.module, s.valueText, s.targetText, s.varianceText, s.changeText, s.status, s.def.owner, s.due];
@@ -380,7 +381,7 @@ export class KpiDashboardPage extends AnalyticsPage {
         this.notify(`${s.def.name} hidden. Use Edit KPI Layout to show it again.`);
         break;
       default:
-        downloadCsv(`kpi-${s.def.id}.csv`, ['Month', s.def.name], RA_MONTH_LABELS.map((l, i) => [l.replace('\n', ' '), s.spark[i]]));
+        exportTable(`kpi-${s.def.id}.csv`, ['Month', s.def.name], RA_MONTH_LABELS.map((l, i) => [l.replace('\n', ' '), s.spark[i]]));
     }
   }
 
@@ -414,16 +415,16 @@ export class KpiDashboardPage extends AnalyticsPage {
 
   exportTrend(): void {
     const [overall, target, prior] = this.trendSeries;
-    downloadCsv('kpi-performance-trend.csv', ['Period', 'Overall Score %', 'Target %', 'Prior Period %'],
+    exportTable('kpi-performance-trend.csv', ['Period', 'Overall Score %', 'Target %', 'Prior Period %'],
       this.trendLabels.map((l, i) => [l.replace('\n', ' '), overall.values[i], target.values[i], prior.values[i]]));
   }
 
   exportTargets(): void {
-    downloadCsv('kpi-target-vs-actual.csv', ['Module', 'Attainment %', 'Target %'], this.targetRows.map((r) => [r.label, r.value, 100]));
+    exportTable('kpi-target-vs-actual.csv', ['Module', 'Attainment %', 'Target %'], this.targetRows.map((r) => [r.label, r.value, 100]));
   }
 
   exportExceptions(): void {
-    downloadCsv('kpi-exceptions.csv', EXPORT_HEADER, this.exceptions.map((s) => this.exportRow(s)));
+    exportTable('kpi-exceptions.csv', EXPORT_HEADER, this.exceptions.map((s) => this.exportRow(s)));
   }
 
   // ===== Insights & library =====

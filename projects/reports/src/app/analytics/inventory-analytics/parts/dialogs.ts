@@ -1,13 +1,14 @@
 import { Component, EventEmitter, HostListener, Input, OnChanges, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Download, LucideAngularModule, X } from 'lucide-angular';
-import { downloadCsv } from '../../shared/analytics-common';
+import { ExportMenu, ExportRequest } from 'shared-ui';
+import { tableSource } from '../../shared/analytics-common';
 import { DetailsDialogData, FormDialogData, FormField, ListDialogData } from './ra-parts';
 
 /** Wide dialog listing the rows behind an insight or KPI, with CSV download. */
 @Component({
   selector: 'ra-c-list-dialog',
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ExportMenu],
   template: `
     <div class="overlay" (click)="backdrop($event)">
       <section class="dialog dialog--wide" role="dialog" aria-modal="true" [attr.aria-label]="data.title">
@@ -46,9 +47,7 @@ import { DetailsDialogData, FormDialogData, FormField, ListDialogData } from './
         </div>
         <div class="dialog__actions">
           <span class="muted rac-grow">{{ data.rows.length }} rows</span>
-          <button type="button" class="btn" (click)="exportRows()" [disabled]="!data.rows.length">
-            <lucide-icon [img]="icons.Download" [size]="16"></lucide-icon> Export CSV
-          </button>
+          <app-export-menu [disabled]="!data.rows.length" [source]="exportSource" />
           <button type="button" class="btn btn--primary" (click)="closed.emit()">Close</button>
         </div>
       </section>
@@ -66,9 +65,7 @@ export class RaListDialog {
     return !!this.data.numeric?.includes(i);
   }
 
-  exportRows(): void {
-    downloadCsv(this.data.fileName, this.data.columns, this.data.rows);
-  }
+  exportSource = (): ExportRequest => tableSource(this.data.fileName, this.data.columns, () => this.data.rows)();
 
   backdrop(e: MouseEvent): void {
     if (e.target === e.currentTarget) this.closed.emit();

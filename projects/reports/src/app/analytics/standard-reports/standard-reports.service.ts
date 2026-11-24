@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of, tap } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
+import { AuthService, ExportService, environment } from 'shared-ui';
 import { CURRENT_USER, money, percent } from '../shared/analytics-common';
 import {
   ReportFrequency, ReportModule, ReportPeriod, ReportSchedule, ReportStatus, SR_FORMATS, SR_STATUSES, SR_TODAY, StandardReport,
@@ -152,6 +152,7 @@ export const SR_SORT_FIELDS: Record<string, string> = {
 export class StandardReportsService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
+  private readonly exporter = inject(ExportService);
   private readonly apiUrl = `${environment.reportAnalyticsApiUrl}api/standard-reports`;
 
   /** Reports on the current page. */
@@ -287,14 +288,21 @@ export class StandardReportsService {
     return this.http.delete<void>(`${this.apiUrl}/${encodeURIComponent(report.id)}`);
   }
 
-  /** GET /api/standard-reports/export: the whole filtered table (every page) as xlsx or csv. */
-  exportList(query: StandardReportQuery, format: 'xlsx' | 'csv'): Observable<Blob> {
-    let params = this.scope().set('format', format);
-    for (const [key, value] of Object.entries(query)) {
-      if (key === 'page' || key === 'pageSize' || value === undefined || value === null || value === '') continue;
-      params = params.set(key, String(value));
-    }
-    return this.http.get(`${this.apiUrl}/export`, { params, responseType: 'blob' });
+  /** Every report matching the query (all pages, same filters and sort as the table) for CSV / PDF export. */
+  loadAll(query: StandardReportQuery): Observable<StandardReport[]> {
+    return this.exporter.allPages<StandardReport>((page, size) => {
+      let params = new HttpParams().set('tenantId', environment.tenantId).set('clientId', environment.clientId);
+      for (const [key, value] of Object.entries({ ...query, page, pageSize: size })) {
+        if (value === undefined || value === null || value === '') continue;
+        params = params.set(key, String(value));
+      }
+      return this.http.get<unknown>(this.apiUrl, { params }).pipe(
+        map((body) => {
+          const { items, total } = unwrapList(body);
+          return { items: items.map((dto) => this.toReport(dto)), total: total ?? undefined };
+        })
+      );
+    }, 100);
   }
 
   private scope(): HttpParams {

@@ -41,7 +41,8 @@
               <div class="menu" role="menu">
                 <button type="button" role="menuitem" (click)="act($event, 'open', r)">Open in builder</button>
                 <button type="button" role="menuitem" (click)="act($event, 'duplicate', r)">Duplicate</button>
-                <button type="button" role="menuitem" (click)="act($event, 'export', r)">Export data</button>
+                <button type="button" role="menuitem" (click)="act($event, 'csv', r)">Export CSV</button>
+                <button type="button" role="menuitem" (click)="act($event, 'pdf', r)">Export PDF</button>
                 <button type="button" role="menuitem" (click)="act($event, 'publish', r)">{{ r.status === 'Published' ? 'Unpublish' : 'Publish' }}</button>
                 <button type="button" role="menuitem" class="danger" (click)="act($event, 'remove', r)">Delete</button>
               </div>

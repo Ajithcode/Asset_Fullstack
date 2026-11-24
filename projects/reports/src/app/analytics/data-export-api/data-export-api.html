@@ -106,7 +106,7 @@
         [jobs]="filteredJobs"
         [highlightId]="highlightId"
         (run)="runJob($event)"
-        (download)="downloadJob($event)"
+        [sampleSource]="jobSample"
         (edit)="editJob($event)"
         (pause)="pauseJob($event)"
         (resume)="resumeJob($event)"
@@ -141,7 +141,7 @@
     ></dx-connections-tab>
   }
   @case ('datasets') {
-    <dx-datasets-tab [search]="search" (createExport)="onDatasetExport($event)" (downloaded)="onDatasetDownloaded($event)"></dx-datasets-tab>
+    <dx-datasets-tab [search]="search" (createExport)="onDatasetExport($event)"></dx-datasets-tab>
   }
   @case ('logs') {
     <dx-access-logs-tab [search]="search" [resource]="logResource" (resourceCleared)="logResource = ''"></dx-access-logs-tab>

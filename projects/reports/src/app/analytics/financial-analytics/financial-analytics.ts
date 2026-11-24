@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import {
   ChartColumn, ChartPie, CircleDollarSign, Coins, FileText, Lightbulb, LucideAngularModule, Target, TriangleAlert, Wrench
 } from 'lucide-angular';
-import { CURRENT_USER, RA_CATEGORIES, RA_PEOPLE, downloadCsv } from '../shared/analytics-common';
+import { CURRENT_USER, RA_CATEGORIES, RA_PEOPLE, exportTable, tablesRequest } from '../shared/analytics-common';
 import { CartesianChart, ChartSeries, ChartSlice, DonutChart, GaugeChart, RA_COLORS, compactNumber } from '../shared/charts';
 import {
   ALL_CATEGORIES, ALL_COST_CENTERS, BUDGET_TARGET, COST_CENTERS, CURRENCIES, CostAsset, CostCenterRow, Currency, FinancialView, LIFECYCLE_LIMIT,
@@ -320,21 +320,22 @@ export class FinancialAnalyticsPage extends RaDashboardPage implements OnInit {
 
   // ===== Exports =====
 
-  exportPage(): void {
-    this.exportAssets();
-    this.exportCostCenters();
-    this.notify(`Exported highest cost assets and cost center performance in ${this.currency} (CSV).`);
-  }
+  /** Page Export (CSV / PDF): highest cost assets + cost center performance in one table (Section column). */
+  exportRequest = () =>
+    tablesRequest({ title: 'Financial Analytics', fileBase: `financial-analytics-${this.currency}`, filters: { ...this.exportFilters(), Currency: this.currency } }, () => {
+      this.exportAssets();
+      this.exportCostCenters();
+    });
 
   exportAssets(): void {
     const c = this.currency;
-    downloadCsv('highest-cost-assets.csv', ['Asset ID', 'Asset Name', 'Category', 'Location', `Acquisition (${c})`, `Maintenance (${c})`, `Depreciation (${c})`, `TCO (${c})`, `Cost per Op. Hour (${c})`],
+    exportTable('highest-cost-assets.csv', ['Asset ID', 'Asset Name', 'Category', 'Location', `Acquisition (${c})`, `Maintenance (${c})`, `Depreciation (${c})`, `TCO (${c})`, `Cost per Op. Hour (${c})`],
       [...this.view.assets].sort((a, b) => b.tco - a.tco).map((a) => [a.id, a.name, a.category, a.site, this.raw(a.acquisition), this.raw(a.maintenance), this.raw(a.depreciation), this.raw(a.tco), toCurrency(a.costPerHour, c).toFixed(2)]));
   }
 
   exportCostCenters(): void {
     const c = this.currency;
-    downloadCsv('cost-center-performance.csv', ['Cost Center', `Budget (${c})`, `Actual (${c})`, `Variance (${c})`, 'Utilization %', 'Status'],
+    exportTable('cost-center-performance.csv', ['Cost Center', `Budget (${c})`, `Actual (${c})`, `Variance (${c})`, 'Utilization %', 'Status'],
       this.view.costCenters.map((r) => [`${r.code} ${r.name}`, this.raw(r.budget), this.raw(r.actual), this.raw(r.variance), r.utilization.toFixed(1), r.status]));
   }
 
@@ -343,7 +344,7 @@ export class FinancialAnalyticsPage extends RaDashboardPage implements OnInit {
   }
 
   private exportSeries(file: string, labels: string[], series: ChartSeries[]): void {
-    downloadCsv(file, ['', ...series.map((s) => s.name)], labels.map((l, i) => [l.replace('\n', ' '), ...series.map((s) => Math.round(s.values[i] ?? 0))]));
+    exportTable(file, ['', ...series.map((s) => s.name)], labels.map((l, i) => [l.replace('\n', ' '), ...series.map((s) => Math.round(s.values[i] ?? 0))]));
   }
 
   exportTco(): void {
@@ -355,7 +356,7 @@ export class FinancialAnalyticsPage extends RaDashboardPage implements OnInit {
   }
 
   exportCategories(): void {
-    downloadCsv(`cost-by-category-${this.currency}.csv`, ['Category', `Cost (${this.currency})`], this.categorySlices.map((s) => [s.name, Math.round(s.value)]));
+    exportTable(`cost-by-category-${this.currency}.csv`, ['Category', `Cost (${this.currency})`], this.categorySlices.map((s) => [s.name, Math.round(s.value)]));
   }
 
   exportDepreciation(): void {
@@ -363,7 +364,7 @@ export class FinancialAnalyticsPage extends RaDashboardPage implements OnInit {
   }
 
   exportUtilization(): void {
-    downloadCsv('budget-utilization.csv', ['Current Spend', 'Total Budget', 'Remaining Budget', 'Utilization %', 'Target %'],
+    exportTable('budget-utilization.csv', ['Current Spend', 'Total Budget', 'Remaining Budget', 'Utilization %', 'Target %'],
       [[this.fmt(this.view.spend), this.fmt(this.view.budget), this.fmt(this.view.budget - this.view.spend), this.budgetUtilization, BUDGET_TARGET]]);
   }
 

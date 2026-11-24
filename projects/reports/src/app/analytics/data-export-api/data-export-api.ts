@@ -5,7 +5,8 @@ import {
   ArrowDown, ArrowUp, BookOpen, Calendar, CircleCheck, CirclePlus, Database, FileText, Info, Link, LucideAngularModule, RefreshCw, Search,
   Share2
 } from 'lucide-angular';
-import { AnalyticsPage, downloadCsv } from '../shared/analytics-common';
+import { ExportRequest } from 'shared-ui';
+import { AnalyticsPage, tableSource } from '../shared/analytics-common';
 import { RA_COLORS, Sparkline } from '../shared/charts';
 import { ApiConnection, Dataset, ExportDraft, ExportFormat, ExportJob, ExportStatus } from './data-export-api.model';
 import { DataExportService } from './data-export-api.service';
@@ -186,12 +187,20 @@ export class DataExportApiPage extends AnalyticsPage implements OnDestroy {
     );
   }
 
-  downloadJob(job: ExportJob): void {
-    const s = this.service.sample(job.datasetId, job.fields, 25);
-    downloadCsv(`${this.slug(job.name)}-sample.csv`, s.header, s.rows);
-    this.service.log('Sample downloaded', job.name, 'Web console');
-    this.notify(`Sample of “${job.name}” downloaded (25 rows, CSV).`);
-  }
+  private readonly jobSamples = new Map<string, () => ExportRequest>();
+
+  /** Export menu (CSV / PDF) of a job's sample table. */
+  jobSample = (job: ExportJob): (() => ExportRequest) => {
+    let fn = this.jobSamples.get(job.id);
+    if (!fn) {
+      fn = () => {
+        const s = this.service.sample(job.datasetId, job.fields, 25);
+        return tableSource(`${this.slug(job.name)}-sample`, s.header, () => s.rows)();
+      };
+      this.jobSamples.set(job.id, fn);
+    }
+    return fn;
+  };
 
   editJob(job: ExportJob): void {
     this.withBuilder((b) => b.load(job));
@@ -322,10 +331,6 @@ export class DataExportApiPage extends AnalyticsPage implements OnDestroy {
 
   onDatasetExport(d: Dataset): void {
     this.createExport(d.id);
-  }
-
-  onDatasetDownloaded(name: string): void {
-    this.notify(`Sample of ${name} downloaded (25 rows, CSV).`);
   }
 
   onConfirm(): void {

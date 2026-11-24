@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Subscription } from 'rxjs';
+import { ExportMenu, ExportRequest } from 'shared-ui';
 import { Download, LucideAngularModule, Pencil, Play, Trash2, X } from 'lucide-angular';
 import { CartesianChart, ChartSeries, RA_COLORS, ValueFormat, compactNumber } from '../shared/charts';
 import { StandardReport, SR_TIME_ZONES } from './standard-reports.data';
@@ -11,7 +12,7 @@ import { formatDay, formatPeriod, formatStamp } from './standard-reports.util';
 @Component({
   selector: 'app-sr-report-viewer',
   standalone: true,
-  imports: [LucideAngularModule, CartesianChart],
+  imports: [LucideAngularModule, CartesianChart, ExportMenu],
   template: `
     <div class="overlay" (click)="close.emit()">
       <div class="dialog dialog--wide" role="dialog" aria-modal="true" [attr.aria-label]="shown.name" (click)="stop($event)">
@@ -83,9 +84,7 @@ import { formatDay, formatPeriod, formatStamp } from './standard-reports.util';
           <button type="button" class="btn" [disabled]="busy" (click)="edit.emit(shown)"><lucide-icon [img]="icons.Pencil" [size]="16" /> Edit</button>
           <button type="button" class="btn" [disabled]="busy" (click)="generate.emit(shown)"><lucide-icon [img]="icons.Play" [size]="16" /> {{ busy ? 'Working…' : 'Generate' }}</button>
           <button type="button" class="btn" (click)="close.emit()">Close</button>
-          <button type="button" class="btn btn--primary" [disabled]="loading" (click)="exportCsv.emit(shown)">
-            <lucide-icon [img]="icons.Download" [size]="16" /> Export CSV
-          </button>
+          <app-export-menu [disabled]="loading" [source]="exportFor(shown)" />
         </div>
       </div>
     </div>
@@ -99,7 +98,8 @@ export class ReportViewerDialog implements OnChanges, OnDestroy {
   /** Generate / delete in progress on the page */
   @Input() busy = false;
   @Output() close = new EventEmitter<void>();
-  @Output() exportCsv = new EventEmitter<StandardReport>();
+  /** Builds the CSV / PDF export of a report (page's per-report export). */
+  @Input({ required: true }) exportFor!: (r: StandardReport) => () => ExportRequest;
   @Output() generate = new EventEmitter<StandardReport>();
   @Output() edit = new EventEmitter<StandardReport>();
   @Output() remove = new EventEmitter<StandardReport>();

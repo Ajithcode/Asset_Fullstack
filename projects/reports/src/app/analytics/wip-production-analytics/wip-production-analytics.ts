@@ -5,7 +5,7 @@ import { Subscription, catchError, map, of, switchMap } from 'rxjs';
 import {
   ChartColumn, ChartColumnIncreasing, CircleCheck, CircleDollarSign, Factory, LucideAngularModule, Settings, TriangleAlert
 } from 'lucide-angular';
-import { downloadCsv, money } from '../shared/analytics-common';
+import { exportTable, money, tablesRequest } from '../shared/analytics-common';
 import {
   AnalyticsApiService, AnalyticsGroup, AnalyticsQuery, apiMessage, filterValue, optionLabels, periodQuery, previousQuery, seriesValues, viewDates
 } from '../shared/analytics-api.service';
@@ -312,26 +312,25 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
 
   // ===== Exports =====
 
-  /** Excel workbook of every section for the current filters (GET api/production-analytics/export). */
-  exportPage(): void {
-    this.api.export(GROUP, this.query).subscribe({
-      next: () => this.notify('Production analytics exported.'),
-      error: (err) => this.notify(apiMessage(err, 'Export failed.'))
+  /** Page Export (CSV / PDF): active production orders + bottleneck work centers in one table (Section column). */
+  exportRequest = () =>
+    tablesRequest({ title: 'WIP & Production Analytics', fileBase: 'wip-production-analytics', filters: this.exportFilters() }, () => {
+      this.exportOrders();
+      this.exportWorkCenters();
     });
-  }
 
   exportOrders(): void {
-    downloadCsv('active-production-orders.csv', ['Order No', 'Product', 'Line', 'Plant', 'Work Center', 'Planned Qty', 'Completed Qty', 'WIP Qty', 'WIP Value (AED)', 'Due Date', 'Status'],
+    exportTable('active-production-orders.csv', ['Order No', 'Product', 'Line', 'Plant', 'Work Center', 'Planned Qty', 'Completed Qty', 'WIP Qty', 'WIP Value (AED)', 'Due Date', 'Status'],
       this.view.orders.map((o) => [o.code, o.product, o.line, o.site, o.workCenter, o.planned, o.completed, o.wip, Math.round(o.wipValue), o.due, o.status]));
   }
 
   exportWorkCenters(): void {
-    downloadCsv('bottleneck-work-centers.csv', ['Work Center', 'Line', 'Queue (Orders)', 'Avg. Wait (hrs)', 'Capacity %', 'Risk'],
+    exportTable('bottleneck-work-centers.csv', ['Work Center', 'Line', 'Queue (Orders)', 'Avg. Wait (hrs)', 'Capacity %', 'Risk'],
       this.view.workCenters.map((c) => [c.code, c.name, c.queue, c.avgWait, c.capacity, c.risk]));
   }
 
   private exportSeries(file: string, labels: string[], series: ChartSeries[]): void {
-    downloadCsv(file, ['', ...series.map((s) => s.name)], labels.map((l, i) => [l.replace('\n', ' '), ...series.map((s) => Math.round((s.values[i] ?? 0) * 10) / 10)]));
+    exportTable(file, ['', ...series.map((s) => s.name)], labels.map((l, i) => [l.replace('\n', ' '), ...series.map((s) => Math.round((s.values[i] ?? 0) * 10) / 10)]));
   }
 
   exportOutput(): void {
@@ -343,15 +342,15 @@ export class WipProductionAnalyticsPage extends RaDashboardPage implements OnIni
   }
 
   exportStatus(): void {
-    downloadCsv('work-order-status.csv', ['Status', 'Work Orders'], this.statusSlices.map((s) => [s.name, s.value]));
+    exportTable('work-order-status.csv', ['Status', 'Work Orders'], this.statusSlices.map((s) => [s.name, s.value]));
   }
 
   exportLines(): void {
-    downloadCsv('equipment-utilization-by-line.csv', ['Line', 'Work Centers', 'Utilization %', 'Target %'], this.view.lines.map((l) => [l.name, l.workCenters, l.utilization, l.target]));
+    exportTable('equipment-utilization-by-line.csv', ['Line', 'Work Centers', 'Utilization %', 'Target %'], this.view.lines.map((l) => [l.name, l.workCenters, l.utilization, l.target]));
   }
 
   exportDowntime(): void {
-    downloadCsv('downtime-by-cause.csv', ['Cause', 'Hours'], DOWNTIME_CAUSES.map((c, i) => [c, this.view.downtime[i]]));
+    exportTable('downtime-by-cause.csv', ['Cause', 'Hours'], DOWNTIME_CAUSES.map((c, i) => [c, this.view.downtime[i]]));
   }
 
   exportEfficiency(): void {

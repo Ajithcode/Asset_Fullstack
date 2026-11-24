@@ -8,7 +8,8 @@ import {
   Calendar, ChartColumn, Check, ChevronDown, CirclePlus, Clock, Download, Ellipsis, FileText, GitCompareArrows, GripVertical, Info,
   LucideAngularModule, Pencil, RefreshCw, Share2, Star, User, Users, X
 } from 'lucide-angular';
-import { AnalyticsPage, CURRENT_USER, downloadCsv } from '../shared/analytics-common';
+import { ExportMenu, ExportRequest } from 'shared-ui';
+import { AnalyticsPage, CURRENT_USER, exportTable } from '../shared/analytics-common';
 import { DashboardStore } from './dashboard-store.service';
 import { DashboardWidget } from './dashboard-widget/dashboard-widget';
 import { AddWidgetDialog, NewWidget } from './dialogs/add-widget-dialog';
@@ -45,7 +46,7 @@ function apiMessage(err: HttpErrorResponse, fallback: string): string {
 @Component({
   selector: 'app-ra-interactive-dashboards',
   standalone: true,
-  imports: [FormsModule, RouterLink, NgTemplateOutlet, LucideAngularModule, DashboardWidget, WidgetLibrary, AddWidgetDialog, CreateDashboardDialog, ShareDashboardDialog],
+  imports: [FormsModule, RouterLink, NgTemplateOutlet, LucideAngularModule, DashboardWidget, WidgetLibrary, AddWidgetDialog, CreateDashboardDialog, ShareDashboardDialog, ExportMenu],
   templateUrl: './interactive-dashboards.html',
   styleUrls: ['../shared/analytics-page.css', './interactive-dashboards.css']
 })
@@ -504,28 +505,46 @@ export class InteractiveDashboardsPage extends AnalyticsPage implements OnInit {
 
   exportWidget(w: WidgetConfig): void {
     const csv = widgetCsv(w, this.dataFor(w));
-    downloadCsv(`${w.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`, csv.header, csv.rows);
+    exportTable(`${w.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.csv`, csv.header, csv.rows);
   }
 
-  /** GET /{id}/export: every widget as an xlsx workbook. */
-  exportDashboard(): void {
-    if (!this.hasDashboard) {
-      this.notify('Create a dashboard first.');
-      return;
-    }
+  /** Dashboard Export (CSV / PDF): every widget's rows in one table (Widget, Row type = Header | Data, then the values). */
+  exportDashboard = (): ExportRequest<(string | number)[]> => {
     const d = this.current;
-    this.store.export(d, this.filters).subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${d.id}.xlsx`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        this.notify(`Exported ${d.widgets.length} widgets from “${d.name}”.`);
-      },
-      error: (err: HttpErrorResponse) => this.notify(apiMessage(err, 'Could not export the dashboard.'))
-    });
+    const parts = d.widgets.map((w) => ({ w, csv: widgetCsv(w, this.dataFor(w)) }));
+    const width = Math.max(1, ...parts.map((p) => p.csv.header.length));
+    return {
+      title: d.name,
+      fileBase: d.id.toLowerCase(),
+      columns: [
+        { label: 'Widget', value: (r) => r[0] },
+        { label: 'Row type', value: (r) => r[1] },
+        ...Array.from({ length: width }, (_, i) => ({ label: `Value ${i + 1}`, value: (r: (string | number)[]) => r[i + 2] }))
+      ],
+      filters: { Period: this.periodLabel, Organization: this.organizationLabel, Location: this.locationLabel, Category: this.categoryLabel },
+      rows: () => parts.flatMap(({ w, csv }) => [[w.title, 'Header', ...csv.header], ...csv.rows.map((r) => [w.title, 'Data', ...r])])
+    };
+  };
+
+  private readonly widgetExports = new Map<string, () => ExportRequest>();
+
+  /** Export (CSV / PDF) of one widget's rows; cached per widget id. */
+  widgetExport(w: WidgetConfig): () => ExportRequest {
+    let fn = this.widgetExports.get(w.id);
+    if (!fn) {
+      fn = () => {
+        const csv = widgetCsv(w, this.dataFor(w));
+        return {
+          title: w.title,
+          fileBase: w.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'widget',
+          columns: csv.header.map((label, i) => ({ label, value: (r: (string | number)[]) => r[i] })),
+          filters: { Period: this.periodLabel, Organization: this.organizationLabel, Location: this.locationLabel, Category: this.categoryLabel },
+          rows: () => csv.rows
+        };
+      };
+      this.widgetExports.set(w.id, fn);
+    }
+    return fn;
   }
 
   openSaveView(): void {

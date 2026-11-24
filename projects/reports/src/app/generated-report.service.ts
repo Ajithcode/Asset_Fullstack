@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import * as XLSX from 'xlsx';
+import { ExportColumn, ExportRequest } from 'shared-ui';
 
 export interface Report {
   id: string;
@@ -65,45 +65,39 @@ export const TEMPLATE_HEADERS: Record<string, string[]> = {
   'WIP Completion & Turnaround-Time Report': ['Start Date', 'Completion Date', 'Total Cycle Time', 'Stage-wise Duration', 'SLA/Target vs Actual']
 };
 
-// ===== Excel export (shared by the Reports list and the report View page) =====
-function reportWorksheet(report: GeneratedReport): XLSX.WorkSheet {
-  if (report.headers.length > 0) {
-    return XLSX.utils.json_to_sheet(report.rows, { header: report.headers });
-  }
-  // No template data behind this report — export its summary row instead of
-  // producing an empty file.
-  return XLSX.utils.json_to_sheet([{
-    'Sl No': report.slNo,
-    Report: report.title,
-    'Time Range': report.timeRange,
-    'Expire On': report.expireOn,
-    Recurrence: report.recurrence,
-    'Created On': report.createdOn,
-    Type: report.type,
-    'Share With': report.shareWith,
-    'Generated On': report.generatedOn,
-    Status: report.status
-  }]);
-}
+// ===== CSV / PDF export (shared by the Reports list and the report View page) =====
+const SUMMARY_COLUMNS: ExportColumn<Report>[] = [
+  { label: 'Sl No', key: 'slNo' },
+  { label: 'Report', key: 'title' },
+  { label: 'Time Range', key: 'timeRange' },
+  { label: 'Expire On', key: 'expireOn' },
+  { label: 'Recurrence', key: 'recurrence' },
+  { label: 'Created On', key: 'createdOn' },
+  { label: 'Type', key: 'type' },
+  { label: 'Share With', key: 'shareWith' },
+  { label: 'Generated On', key: 'generatedOn' },
+  { label: 'Status', key: 'status' }
+];
 
 function fileSafe(name: string): string {
   return (name || 'report').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
 }
 
-export function downloadReportAsExcel(report: GeneratedReport): void {
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, reportWorksheet(report), 'Report');
-  XLSX.writeFile(workbook, `${fileSafe(report.title)}-${report.createdOn || new Date().toISOString().slice(0, 10)}.xlsx`);
+/**
+ * Export request for one report: its template columns and rows (optionally only some columns), or its summary row when
+ * there is no template data behind it.
+ */
+export function reportExportRequest(report: GeneratedReport, columns: string[] = report.headers): ExportRequest {
+  const base = { title: report.title || 'Report', fileBase: `${fileSafe(report.title)}-${report.createdOn || new Date().toISOString().slice(0, 10)}`, filters: { Type: report.type, 'Time range': report.timeRange } };
+  if (columns.length > 0) {
+    return { ...base, columns: columns.map((label) => ({ label, value: (r: Record<string, string | number>) => r[label] ?? '' })), rows: () => report.rows };
+  }
+  return { ...base, columns: SUMMARY_COLUMNS, rows: () => [report] };
 }
 
-export function downloadReportsAsWorkbook(reports: GeneratedReport[], fileName: string): void {
-  if (reports.length === 0) return;
-  const workbook = XLSX.utils.book_new();
-  reports.forEach((report, index) => {
-    const sheetName = fileSafe(report.title || `Report ${index + 1}`).slice(0, 31) || `Report ${index + 1}`;
-    XLSX.utils.book_append_sheet(workbook, reportWorksheet(report), sheetName);
-  });
-  XLSX.writeFile(workbook, fileName);
+/** Export request for a list of reports (one summary row each). */
+export function reportsExportRequest(reports: Report[]): ExportRequest<Report> {
+  return { title: 'Generated Reports', fileBase: 'generated-reports', columns: SUMMARY_COLUMNS, rows: () => reports };
 }
 
 @Injectable({ providedIn: 'root' })

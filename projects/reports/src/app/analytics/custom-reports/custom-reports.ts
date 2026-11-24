@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Observable, Subject, Subscription, debounceTime } from 'rxjs';
 import { Calendar, Download, File, FileText, Funnel, LucideAngularModule, Plus, Search, Upload } from 'lucide-angular';
+import { ExportRequest, PDF_LIMIT_MESSAGE } from 'shared-ui';
 import { AnalyticsPage } from '../shared/analytics-common';
 import { ConfirmDialog } from './dialogs/confirm-dialog';
 import { ReportBuilder } from './report-builder/report-builder';
@@ -268,12 +269,22 @@ export class CustomReportsPage extends AnalyticsPage implements OnInit {
     });
   }
 
-  /** Library menu: GET /api/custom-reports/{id}/export (xlsx). */
-  exportData(r: CustomReport): void {
-    this.service.exportData(r.id, 'xlsx').subscribe({
-      next: (blob) => {
-        download(blob, `${r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${dubaiNow().slice(0, 10)}.xlsx`);
-        this.notify(`Exported “${r.name}” data.`);
+  /** Library menu: the report's rows (GET /api/custom-reports/{id}/preview, all rows) as CSV or PDF. */
+  exportData(e: { report: CustomReport; format: 'csv' | 'pdf' }): void {
+    const r = e.report;
+    this.service.exportRows(r.id).subscribe({
+      next: (res) => {
+        const req: ExportRequest = {
+          title: r.name,
+          fileBase: r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'custom-report',
+          columns: res.columns.map((c) => ({ label: c.label, key: c.key })),
+          filters: { Report: r.id, Module: r.module, Status: r.status },
+          rows: () => res.rows
+        };
+        this.exporter.run(e.format, req).then(
+          (out) => this.notify(out.truncated ? PDF_LIMIT_MESSAGE : `Exported “${r.name}” as ${e.format.toUpperCase()}.`),
+          (err: Error) => this.notify(err?.message || 'Could not export the report data.')
+        );
       },
       error: (err) => this.notify(apiError(err, 'Could not export the report data. Make sure the report is complete.'))
     });

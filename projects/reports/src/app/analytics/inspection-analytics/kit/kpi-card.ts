@@ -1,5 +1,6 @@
 import { Component, ElementRef, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { ArrowDown, ArrowUp, Ellipsis, LucideAngularModule, LucideIconData } from 'lucide-angular';
+import { formatOfAction, withExportFormat } from '../../shared/analytics-common';
 
 /** Headline KPI card: icon, value, change vs previous period and a ⋯ menu. */
 @Component({
@@ -49,14 +50,14 @@ export class RaKpiCard {
   /** Green when the change is good for the business, red otherwise */
   @Input() good = true;
   @Input() hint = 'vs. previous period';
-  @Input() menuItems = ['View details', 'Export CSV'];
+  @Input() menuItems = ['View details', 'Export CSV', 'Export PDF'];
   @Output() action = new EventEmitter<string>();
 
   menuOpen = false;
 
   choose(item: string): void {
     this.menuOpen = false;
-    this.action.emit(item);
+    withExportFormat(formatOfAction(item), () => this.action.emit(item));
   }
 
   @HostListener('document:click', ['$event'])

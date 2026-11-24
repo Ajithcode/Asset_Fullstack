@@ -24,9 +24,7 @@
     <button type="button" class="btn btn--outline" [class.iot-on]="compare" (click)="toggleCompare()" [attr.aria-pressed]="compare">
       <lucide-icon [img]="icons.GitCompareArrows" [size]="16" /> Compare Periods
     </button>
-    <button type="button" class="btn btn--outline" (click)="exportAll()">
-      <lucide-icon [img]="icons.Download" [size]="16" /> Export
-    </button>
+    <app-export-menu [source]="exportRequest" />
     <button type="button" class="btn btn--primary" (click)="openSaveView()">
       <lucide-icon [img]="icons.Bookmark" [size]="16" /> Save View
     </button>
@@ -92,7 +90,8 @@
         @if (menu === 'kpi-' + k.key) {
           <div class="menu" role="menu">
             <button type="button" (click)="openBreakdown(k)">View by location</button>
-            <button type="button" (click)="exportKpi(k)">Export CSV</button>
+            <button type="button" (click)="exportKpi(k, 'csv')">Export CSV</button>
+            <button type="button" (click)="exportKpi(k, 'pdf')">Export PDF</button>
           </div>
         }
       </div>
@@ -188,7 +187,8 @@
       @if (menu === 'w-' + key) {
         <div class="menu" role="menu">
           <button type="button" (click)="expand(key)">Expand</button>
-          <button type="button" (click)="exportWidget(key)">Export CSV</button>
+          <button type="button" (click)="exportWidget(key, 'csv')">Export CSV</button>
+          <button type="button" (click)="exportWidget(key, 'pdf')">Export PDF</button>
         </div>
       }
     </div>
@@ -325,7 +325,7 @@
         @case ('devices') { <ng-container *ngTemplateOutlet="devicesTpl"></ng-container> }
       }
       <div class="dialog__actions">
-        <button type="button" class="btn" (click)="exportWidget(expanded)"><lucide-icon [img]="icons.Download" [size]="16" /> Export CSV</button>
+        <app-export-menu [source]="widgetSource(expanded)" />
         <button type="button" class="btn btn--primary" (click)="expanded = null">Close</button>
       </div>
     </div>
@@ -365,7 +365,7 @@
         </table>
       </div>
       <div class="dialog__actions">
-        <button type="button" class="btn" (click)="exportKpi(breakdown)"><lucide-icon [img]="icons.Download" [size]="16" /> Export CSV</button>
+        <app-export-menu [source]="kpiSource(breakdown)" />
         <button type="button" class="btn btn--primary" (click)="breakdown = null">Close</button>
       </div>
     </div>

@@ -1,8 +1,10 @@
 import { Component, ElementRef, EventEmitter, HostListener, Input, Output, inject } from '@angular/core';
 import { Ellipsis, GripVertical, Info, LucideAngularModule, X } from 'lucide-angular';
+import { ExportFormat } from 'shared-ui';
+import { withExportFormat } from '../../shared/analytics-common';
 
 /**
- * Report widget frame: title, info tip and a ⋯ menu with Export CSV / Expand (the card floats as a wide dialog)
+ * Report widget frame: title, info tip and a ⋯ menu with Export CSV / Export PDF / Expand (the card floats as a wide dialog)
  * plus any page-specific items. Put tools (e.g. a select) in the header with the `widget-tools` attribute.
  */
 @Component({
@@ -28,7 +30,8 @@ import { Ellipsis, GripVertical, Info, LucideAngularModule, X } from 'lucide-ang
           </button>
           @if (menuOpen) {
             <div class="menu" role="menu">
-              <button type="button" role="menuitem" (click)="exportClicked()">Export CSV</button>
+              <button type="button" role="menuitem" (click)="exportClicked('csv')">Export CSV</button>
+              <button type="button" role="menuitem" (click)="exportClicked('pdf')">Export PDF</button>
               <button type="button" role="menuitem" (click)="toggleExpand()">{{ expanded ? 'Collapse' : 'Expand' }}</button>
               @for (item of menuItems; track item) {
                 <button type="button" role="menuitem" (click)="itemClicked(item)">{{ item }}</button>
@@ -51,7 +54,7 @@ export class RaWidget {
 
   @Input({ required: true }) title = '';
   @Input() info = '';
-  /** Extra ⋯ menu entries after Export CSV / Expand */
+  /** Extra ⋯ menu entries after Export CSV / Export PDF / Expand */
   @Input() menuItems: string[] = [];
   @Output() exportCsv = new EventEmitter<void>();
   @Output() menuAction = new EventEmitter<string>();
@@ -59,9 +62,9 @@ export class RaWidget {
   menuOpen = false;
   expanded = false;
 
-  exportClicked(): void {
+  exportClicked(format: ExportFormat): void {
     this.menuOpen = false;
-    this.exportCsv.emit();
+    withExportFormat(format, () => this.exportCsv.emit());
   }
 
   toggleExpand(): void {

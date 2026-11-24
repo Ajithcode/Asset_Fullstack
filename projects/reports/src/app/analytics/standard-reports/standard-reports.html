@@ -50,7 +50,7 @@
         <lucide-icon [img]="icons.Search" [size]="16" />
         <input type="search" placeholder="Search reports..." aria-label="Search reports" [(ngModel)]="search" (ngModelChange)="searchChanged()" />
       </label>
-      <button type="button" class="btn" [disabled]="exporting" (click)="exportList()"><lucide-icon [img]="icons.Upload" [size]="16" /> {{ exporting ? 'Exporting…' : 'Export' }}</button>
+      <app-export-menu [source]="exportList" />
       <button type="button" class="btn btn--primary sr-list__new" (click)="openCreate()"><lucide-icon [img]="icons.Plus" [size]="16" /> New report</button>
     </div>
   </div>
@@ -120,7 +120,7 @@
               <div class="sr-actions">
                 <button type="button" class="btn btn--sm" (click)="view(r)"><lucide-icon [img]="icons.Eye" [size]="14" /> View</button>
                 <button type="button" class="btn btn--sm" (click)="openSchedule(r)"><lucide-icon [img]="icons.CalendarClock" [size]="14" /> Schedule</button>
-                <button type="button" class="btn btn--sm" (click)="exportCsv(r)"><lucide-icon [img]="icons.Upload" [size]="14" /> Export</button>
+                <app-export-menu [small]="true" [source]="exportFor(r)" />
               </div>
             </td>
           </tr>
@@ -156,7 +156,7 @@
 </section>
 
 @if (viewing) {
-  <app-sr-report-viewer [report]="viewing" [busy]="rowBusy" (close)="viewing = null" (exportCsv)="exportCsv($event)" (generate)="generate($event)" (edit)="openEdit($event)" (remove)="deleteReport($event)" />
+  <app-sr-report-viewer [report]="viewing" [busy]="rowBusy" (close)="viewing = null" [exportFor]="exportFor" (generate)="generate($event)" (edit)="openEdit($event)" (remove)="deleteReport($event)" />
 }
 
 @if (scheduling) {
