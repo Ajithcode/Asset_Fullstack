@@ -36,6 +36,40 @@ internal static class IntegrationMappings
         };
     }
 
+    public static void ApplyTo(
+        this UpdateIntegrationRequest request,
+        Integration integration,
+        CurrentUser? currentUser,
+        ISecretProtector secretProtector)
+    {
+        integration.IntegrationName = request.IntegrationName!.Trim();
+        integration.IntegrationCode = request.IntegrationCode!.Trim().ToUpperInvariant();
+        integration.Provider = request.Provider!.Trim();
+        integration.Environment = request.Environment!.Trim();
+        integration.BaseUrl = request.BaseUrl!.Trim();
+        integration.AuthenticationMethod = request.AuthenticationMethod!.Trim();
+        integration.AuthClientId = request.AuthClientId!.Trim();
+        // Only re-encrypted when a new secret is sent; otherwise the stored secret is kept.
+        if (!string.IsNullOrWhiteSpace(request.SecretKey))
+        {
+            integration.SecretKeyEncrypted = secretProtector.Protect(request.SecretKey);
+        }
+
+        integration.SyncFrequency = request.SyncFrequency!.Trim();
+        integration.TimeoutSeconds = request.TimeoutSeconds!.Value;
+        integration.RetryPolicy = request.RetryPolicy!.Trim();
+        integration.Status = request.Status!.Trim();
+        integration.UpdatedBy = FirstNonEmpty(request.UpdatedBy, currentUser?.UserName);
+        integration.UpdatedAt = DateTime.UtcNow;
+    }
+
+    public static void MarkDeleted(this Integration integration, CurrentUser? currentUser)
+    {
+        integration.IsDeleted = true;
+        integration.UpdatedBy = currentUser?.UserName ?? integration.UpdatedBy;
+        integration.UpdatedAt = DateTime.UtcNow;
+    }
+
     private static string? FirstNonEmpty(string? requested, string? fallback)
     {
         return string.IsNullOrWhiteSpace(requested) ? fallback : requested.Trim();

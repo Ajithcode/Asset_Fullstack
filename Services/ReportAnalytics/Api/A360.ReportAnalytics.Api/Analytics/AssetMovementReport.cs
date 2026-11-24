@@ -1,3 +1,4 @@
+using System.Globalization;
 using A360.ReportAnalytics.Api.Contracts;
 using A360.ReportAnalytics.Domain.Entities;
 using A360.ReportAnalytics.Repository.Repositories;
@@ -5,13 +6,13 @@ using A360.ReportAnalytics.Repository.Repositories;
 namespace A360.ReportAnalytics.Api.Analytics;
 
 /// <summary>
-/// Rows of an Asset Movement standard report: every tag reading in NetworkTimeSeries for the period, with the registered asset
-/// that carries the tag (AssetRegistration.basic_information.asset_tag) and the zone of the gateway that heard it
-/// (maps_plots.device_id), grouped by date in the report's time zone.
+/// Rows of an Asset Movement standard report: each stay of a mapped asset in a zone (zone in, zone out, time spent), built from
+/// the NetworkTimeSeries readings of its tags and the zone of the gateway that heard them, grouped by the zone-in date in the
+/// report's time zone.
 /// </summary>
 public static class AssetMovementReport
 {
-    private const int MaxRecords = 50_000;
+    private const int MaxRecords = 200_000;
 
     public sealed record Result(AssetMovementReportResponse? Data, Dictionary<string, string[]>? Errors);
 
@@ -55,33 +56,46 @@ public static class AssetMovementReport
                 MaxRecords),
             cancellationToken);
 
-        var dates = result.Records
-            .Select(record => (Record: record, Local: TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(record.Timestamp, DateTimeKind.Utc), timeZone)))
-            .GroupBy(item => item.Local.Date)
+        DateTime Local(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), timeZone);
+
+        var dates = result.Visits
+            .Select(visit =>
+            {
+                var spent = visit.ZoneOutUtc - visit.ZoneInUtc;
+                var zoneIn = Local(visit.ZoneInUtc);
+                return (Day: zoneIn.Date, Row: new AssetMovementRow(
+                    visit.AssetId,
+                    visit.AssetName,
+                    visit.Category,
+                    visit.SubCategory,
+                    string.Join(", ", visit.TagIds),
+                    visit.ZoneName,
+                    string.Join(", ", visit.GatewayIds),
+                    DateTime.SpecifyKind(visit.ZoneInUtc, DateTimeKind.Utc),
+                    DateTime.SpecifyKind(visit.ZoneOutUtc, DateTimeKind.Utc),
+                    zoneIn.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                    Local(visit.ZoneOutUtc).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                    (long)spent.TotalSeconds,
+                    Duration(spent),
+                    visit.ReadingCount));
+            })
+            .GroupBy(item => item.Day)
             .OrderBy(day => day.Key)
             .Select(day =>
             {
-                var rows = day.Select(item => new AssetMovementRow(
-                        item.Record.Timestamp,
-                        item.Local.ToString("HH:mm:ss"),
-                        item.Record.TagId,
-                        item.Record.AssetMongoId,
-                        item.Record.AssetRegistrationId,
-                        item.Record.AssetName,
-                        item.Record.Category,
-                        item.Record.SubCategory,
-                        item.Record.DeviceId,
-                        item.Record.ZoneName,
-                        item.Record.ZoneCode))
-                    .ToList();
-                return new AssetMovementDateGroup(day.Key.ToString("yyyy-MM-dd"), rows.Count, rows);
+                var rows = day.Select(item => item.Row).ToList();
+                return new AssetMovementDateGroup(day.Key.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), rows.Count, rows);
             })
             .ToList();
 
         return new Result(
-            new AssetMovementReportResponse(fromUtc, toUtcExclusive, timeZoneId, result.Records.Count, result.Truncated, dates),
+            new AssetMovementReportResponse(fromUtc, toUtcExclusive, timeZoneId, result.Visits.Count, result.Truncated, dates),
             null);
     }
+
+    /// <summary>HH:mm:ss, with hours past 24 kept as hours (26:05:00).</summary>
+    public static string Duration(TimeSpan value) =>
+        $"{(int)value.TotalHours:00}:{value.Minutes:00}:{value.Seconds:00}";
 
     private static (DateTime? From, DateTime? ToExclusive) RequestedPeriod(AssetMovementReportRequest request, TimeZoneInfo timeZone)
     {

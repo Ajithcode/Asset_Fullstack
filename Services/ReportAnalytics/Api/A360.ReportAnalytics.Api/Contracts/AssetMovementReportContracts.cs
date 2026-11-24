@@ -28,21 +28,31 @@ public sealed record AssetMovementReportResponse(
     bool Truncated,
     IReadOnlyList<AssetMovementDateGroup> Dates);
 
-/// <summary>All readings that fall on one calendar date (in the report's time zone), oldest first.</summary>
+/// <summary>The zone visits that start on one calendar date (in the report's time zone), oldest first.</summary>
 public sealed record AssetMovementDateGroup(
     string Date,
     int RecordCount,
     IReadOnlyList<AssetMovementRow> Records);
 
+/// <summary>
+/// One stay of an asset in a zone. ZoneIn / ZoneOut are UTC; ZoneInLocal / ZoneOutLocal are in the report's time zone
+/// (yyyy-MM-dd HH:mm:ss). TimeSpent is HH:mm:ss (hours may pass 24). ZoneName is null when the gateway is not plotted in a zone.
+/// </summary>
+/// <param name="AssetId">The asset registration id (e.g. AR000001).</param>
+/// <param name="TagId">The asset's tags heard in the zone, comma separated.</param>
+/// <param name="DeviceId">The gateways that heard it there, comma separated.</param>
 public sealed record AssetMovementRow(
-    DateTime Timestamp,
-    string LocalTime,
-    string TagId,
-    string? AssetId,
-    string? AssetRegistrationId,
+    string AssetId,
     string? AssetName,
     string? Category,
     string? SubCategory,
-    string? DeviceId,
+    string TagId,
     string? ZoneName,
-    string? ZoneCode);
+    string DeviceId,
+    DateTime ZoneIn,
+    DateTime ZoneOut,
+    string ZoneInLocal,
+    string ZoneOutLocal,
+    long TimeSpentSeconds,
+    string TimeSpent,
+    int ReadingCount);

@@ -32,6 +32,26 @@ internal static class NumberingSequenceMappings
         };
     }
 
+    // Tenant, client, creator and the sequence id are kept from the stored sequence.
+    public static void ApplyTo(this UpdateNumberingSequenceRequest request, NumberingSequence sequence, CurrentUser? currentUser)
+    {
+        sequence.SequenceName = request.SequenceName!.Trim();
+        sequence.SequenceCode = request.SequenceCode!.Trim().ToUpperInvariant();
+        sequence.Module = request.Module!.Trim();
+        sequence.RecordType = request.RecordType!.Trim();
+        sequence.Prefix = request.Prefix!.Trim().ToUpperInvariant();
+        // Not trimmed: the separator is the literal character(s) placed between parts.
+        sequence.Separator = request.Separator!;
+        sequence.NumberLength = request.NumberLength!.Value;
+        sequence.StartNumber = request.StartNumber!.Value;
+        sequence.IncrementBy = request.IncrementBy!.Value;
+        sequence.ResetFrequency = request.ResetFrequency!.Trim();
+        sequence.Scope = request.Scope!.Trim();
+        sequence.Status = request.Status!.Trim();
+        sequence.UpdatedBy = currentUser?.UserName;
+        sequence.UpdatedAt = DateTime.UtcNow;
+    }
+
     private static string? FirstNonEmpty(string? requested, string? fallback)
     {
         return string.IsNullOrWhiteSpace(requested) ? fallback : requested.Trim();

@@ -19,6 +19,22 @@ public sealed record CreateIntegrationRequest(
     string? TenantId,
     string? ClientId);
 
+// IntegrationId, TenantId and ClientId are fixed at creation. A blank SecretKey keeps the stored secret.
+public sealed record UpdateIntegrationRequest(
+    string? IntegrationName,
+    string? IntegrationCode,
+    string? Provider,
+    string? Environment,
+    string? BaseUrl,
+    string? AuthenticationMethod,
+    string? AuthClientId,
+    string? SecretKey,
+    string? SyncFrequency,
+    int? TimeoutSeconds,
+    string? RetryPolicy,
+    string? Status,
+    string? UpdatedBy);
+
 // SecretKey is deliberately absent: it is write-only and never leaves the service.
 public sealed record IntegrationResponse(
     string IntegrationId,

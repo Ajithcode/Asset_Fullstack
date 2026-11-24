@@ -22,6 +22,8 @@ public static class WorkflowBuilderValidationExtensions
                 ["Module is required"];
         }
 
+        ValidateDesign(request.Design, errors);
+
         return errors;
     }
 
@@ -42,6 +44,34 @@ public static class WorkflowBuilderValidationExtensions
                 ["Module is required"];
         }
 
+        ValidateDesign(request.Design, errors);
+
         return errors;
+    }
+
+    // The design is stored as-is, so it must at least be JSON and of a sensible size.
+    private const int MaxDesignLength = 1_000_000;
+
+    private static void ValidateDesign(string? design, Dictionary<string, string[]> errors)
+    {
+        if (design is null)
+        {
+            return;
+        }
+
+        if (design.Length > MaxDesignLength)
+        {
+            errors["Design"] = [$"Design must be at most {MaxDesignLength} characters"];
+            return;
+        }
+
+        try
+        {
+            using var _ = System.Text.Json.JsonDocument.Parse(design);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errors["Design"] = ["Design must be valid JSON"];
+        }
     }
 }
