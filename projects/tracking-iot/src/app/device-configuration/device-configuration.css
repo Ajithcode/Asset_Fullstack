@@ -167,3 +167,6 @@ select.control {
   .dc-head .btn { flex: 1; }
   .toast { right: 16px; left: 16px; }
 }
+
+label.is-disabled { opacity: .6; cursor: not-allowed; }
+label.is-disabled input { cursor: not-allowed; }

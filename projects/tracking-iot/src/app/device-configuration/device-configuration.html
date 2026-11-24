@@ -355,7 +355,8 @@
       <div class="two">
         <label class="field"><span class="field-label">Severity</span><select class="control" [(ngModel)]="f.severity" name="sev"><option value="" disabled>Select Severity</option><option *ngFor="let s of severities" [value]="s">{{ s }}</option></select></label>
         <fieldset class="field"><legend class="field-label">Notify</legend>
-          <label *ngFor="let n of notifyOptions" class="small"><input type="checkbox" [checked]="f.notify.includes(n)" (change)="toggleNotify(f, n)" /> {{ n }}</label></fieldset>
+          <label *ngFor="let n of notifyOptions" class="small" [class.is-disabled]="channelBlocked(n)" [attr.title]="channelBlocked(n) || null"><input type="checkbox" [checked]="f.notify.includes(n) && !channelBlocked(n)" [disabled]="!!channelBlocked(n)" (change)="toggleNotify(f, n)" /> {{ channelLabel(n) }}<small *ngIf="channelBlocked(n)" class="muted"> — {{ n === 'Email' ? 'Email not configured' : 'not available' }}</small></label>
+          <label class="small"><input type="checkbox" [(ngModel)]="f.sound" name="sound" /> Play sound</label></fieldset>
       </div>
       <p *ngIf="alertError" class="form-error" role="alert">{{ alertError }}</p>
       <div class="modal-foot"><button type="button" class="btn btn-outline" (click)="alertForm = null">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="busy">Save Rule</button></div>

@@ -54,6 +54,7 @@ export interface AlertRuleDto {
   unit: string | null;
   severity: string;
   notifyChannels: string[];
+  notifySound?: boolean;
   active: boolean;
 }
 
@@ -155,6 +156,7 @@ export interface AlertRuleRequest {
   unit?: string | null;
   severity: string;
   notifyChannels: string[];
+  notifySound?: boolean;
   active: boolean;
 }
 
@@ -194,11 +196,11 @@ function paramFromDto(p: TelemetryParameterDto): TelemetryParam {
 }
 
 export function ruleFromDto(r: AlertRuleDto): AlertRule {
-  return { id: r.ruleId, param: r.parameter, cond: r.condition, value: r.value, unit: r.unit, severity: r.severity, notify: [...(r.notifyChannels ?? [])], enabled: r.active };
+  return { id: r.ruleId, param: r.parameter, cond: r.condition, value: r.value, unit: r.unit, severity: r.severity, notify: [...(r.notifyChannels ?? [])], sound: r.notifySound ?? true, enabled: r.active };
 }
 
 export function ruleToRequest(r: AlertRule): AlertRuleRequest {
-  return { ruleId: r.id || null, parameter: r.param, condition: r.cond, value: Number(r.value), unit: r.unit, severity: r.severity, notifyChannels: r.notify, active: r.enabled };
+  return { ruleId: r.id || null, parameter: r.param, condition: r.cond, value: Number(r.value), unit: r.unit, severity: r.severity, notifyChannels: r.notify, notifySound: r.sound, active: r.enabled };
 }
 
 /** Form model for a configuration version. */

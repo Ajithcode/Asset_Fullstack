@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, Subscription, forkJoin, map, of } from 'rxjs';
-import { AuthService } from 'shared-ui';
+import { AlertFeedService, AuthService } from 'shared-ui';
 import {
   LucideAngularModule,
   Activity, Antenna, AudioWaveform, Battery, Bell, Bluetooth, Building2, Calendar, ChartColumn, Check, CircleAlert, CircleCheck, CircleX,
@@ -120,6 +120,7 @@ export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
   private readonly auth = inject(AuthService);
 
   ngOnInit(): void {
+    this.alertFeed.channels().then((c) => (this.emailConfigured = c.email.available)).catch(() => undefined);
     this.api.options().subscribe({ next: (o) => (this.options = o), error: (e) => this.showToast(apiErrorMessage(e, 'Could not load configuration options.')) });
     this.lookup.list().subscribe({
       next: (rows) => {
@@ -647,15 +648,32 @@ export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
     this.alertError = '';
     this.alertForm = a
       ? { ...a, notify: [...a.notify], isNew: false }
-      : { id: '', param: '', cond: '', value: 0, unit: null, severity: '', notify: this.notifyOptions.slice(0, 1), enabled: true, isNew: true };
+      : { id: '', param: '', cond: '', value: 0, unit: null, severity: '', notify: ['In-app'], sound: true, enabled: true, isNew: true };
+  }
+
+  private readonly alertFeed = inject(AlertFeedService);
+  /** Email can be delivered only when the server has the Smtp__* settings; SMS has no provider at all. */
+  emailConfigured = false;
+
+  channelLabel(c: string): string {
+    return c === 'Push' ? 'Desktop (push)' : c === 'In-app' ? 'In-app (bell + pop-up)' : c;
+  }
+
+  /** Why a channel cannot be chosen ('' when it can). */
+  channelBlocked(c: string): string {
+    if (c === 'Email' && !this.emailConfigured) return 'Email not configured (the server has no Smtp__* settings). Nothing is sent until it is.';
+    if (c === 'SMS') return 'SMS is not available (no SMS provider is set up).';
+    return '';
   }
 
   toggleNotify(f: AlertRule, channel: string): void {
+    if (this.channelBlocked(channel)) return;
     f.notify = f.notify.includes(channel) ? f.notify.filter((c) => c !== channel) : [...f.notify, channel];
   }
 
   notifyText(a: AlertRule): string {
-    return a.notify.length ? a.notify.join(' + ') : '—';
+    const c = a.notify.map((n) => (n === 'Push' ? 'Desktop' : n));
+    return (c.length ? c.join(' + ') : '—') + (a.sound && a.notify.some((n) => n === 'In-app' || n === 'Push') ? ' · sound' : '');
   }
 
   /** Puts a rule change into the form and into the baseline, so it does not count as unsaved. */

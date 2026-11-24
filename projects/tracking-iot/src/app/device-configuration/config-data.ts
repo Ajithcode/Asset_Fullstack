@@ -30,6 +30,8 @@ export interface AlertRule {
   unit: string | null;
   severity: string;
   notify: string[];
+  /** Play a sound with the in-app / desktop notification. */
+  sound: boolean;
   enabled: boolean;
 }
 
