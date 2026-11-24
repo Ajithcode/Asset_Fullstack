@@ -156,3 +156,21 @@
   background: #fef2f2;
   color: #dc2626;
 }
+
+/* Reset password dialog */
+.um-reset-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.um-reset-error {
+  color: var(--adm-red);
+}
+
+.um-temp-pw {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+}

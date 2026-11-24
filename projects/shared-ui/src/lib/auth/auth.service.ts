@@ -56,12 +56,31 @@ export class AuthService {
     return this.http.post<RegisterResponse>(`${this.api}/register`, data);
   }
 
-  /** Ends the session on the server (revokes the refresh token) and in this browser. */
+  /**
+   * Ends the session on the server (revokes the refresh token, records the sign-out) and in this browser. The access
+   * token goes along too, so the sign-out is still recorded when the refresh token is missing or has expired.
+   */
   logout(): void {
     const refreshToken = this.read(REFRESH_KEY);
-    if (refreshToken) this.http.post(`${this.api}/logout`, { refreshToken }).subscribe({ error: () => undefined });
+    const token = this.getToken();
+    if (refreshToken || token) {
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      this.http.post(`${this.api}/logout`, refreshToken ? { refreshToken } : {}, { headers }).subscribe({ error: () => undefined });
+    }
     this.clearSession();
     this.router.navigate(['/login']);
+  }
+
+  /**
+   * Changes the signed-in user's own password (POST api/account/change-password). This browser stays signed in;
+   * every other session of the user is signed out.
+   */
+  changePassword(currentPassword: string, newPassword: string): Observable<{ message: string; otherSessionsEnded: number }> {
+    return this.http.post<{ message: string; otherSessionsEnded: number }>(`${environment.authApiUrl}api/account/change-password`, {
+      currentPassword,
+      newPassword,
+      refreshToken: this.read(REFRESH_KEY)
+    });
   }
 
   /**

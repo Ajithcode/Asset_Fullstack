@@ -157,7 +157,7 @@
       <label class="acct-check"><input type="checkbox" [(ngModel)]="pw.show" name="show" />Show passwords</label>
       <ul class="acct-rules"><li *ngFor="let c of pwChecks" [class.ok]="c.ok"><lucide-icon [img]="c.ok ? icons.Check : icons.X" [size]="14"></lucide-icon>{{ c.label }}</li></ul>
       <p *ngIf="pwError" class="acct-error" role="alert">{{ pwError }}</p>
-      <div class="acct-foot"><button type="button" class="acct-btn" (click)="closeDialog()">Cancel</button><button type="submit" class="acct-btn acct-btn--primary">Change Password</button></div>
+      <div class="acct-foot"><button type="button" class="acct-btn" (click)="closeDialog()">Cancel</button><button type="submit" class="acct-btn acct-btn--primary" [disabled]="pwSaving">{{ pwSaving ? 'Changing…' : 'Change Password' }}</button></div>
     </form>
   </div>
 </div>
