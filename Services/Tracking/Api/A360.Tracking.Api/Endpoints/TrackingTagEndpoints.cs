@@ -31,6 +31,7 @@ public static class TrackingTagEndpoints
         group.MapGet("/audit-trail/options", GetAuditOptionsAsync).WithName("GetTagAuditOptions");
         group.MapGet("/asset-movement", GetAssetMovementAsync).WithName("GetTagAssetMovement");
         group.MapGet("/asset-movement/{assetId}", GetAssetMovementByAssetAsync).WithName("GetTagAssetMovementByAsset");
+        group.MapGet("/duplicates", GetDuplicatesAsync).WithName("GetTagDuplicates");
 
         group.MapGet("", GetTagsAsync).WithName("GetTrackingTags");
         group.MapGet("/{tagId}", GetTagAsync).WithName("GetTrackingTagById");
@@ -95,6 +96,68 @@ public static class TrackingTagEndpoints
             TagTechnology.TagTypes.Values.SelectMany(types => types).Distinct().ToList(),
             TagStatus.All,
             TagValidation.All));
+    }
+
+    /// <summary>
+    /// Report of tags that are one physical tag once normalised (<see cref="TagIdKey"/>): groups of non-deleted tags whose
+    /// tag ids or values share a key, e.g. C300009AAF43 and BLE-C300009AAF43. Read-only: stored values are not changed.
+    /// </summary>
+    private static async Task<IResult> GetDuplicatesAsync(
+        ITrackingTagRepository tags,
+        CancellationToken cancellationToken)
+    {
+        var all = await tags.GetActiveAsync(cancellationToken);
+
+        var byKey = new Dictionary<string, List<TrackingTag>>(StringComparer.Ordinal);
+        foreach (var tag in all)
+        {
+            foreach (var key in TagIdKey.KeysOf(tag))
+            {
+                if (!byKey.TryGetValue(key, out var holders))
+                {
+                    byKey[key] = holders = [];
+                }
+
+                holders.Add(tag);
+            }
+        }
+
+        // Tags sharing both their id key and their value key form one group, listed with both keys.
+        var groups = byKey
+            .Where(entry => entry.Value.Count > 1)
+            .GroupBy(entry => string.Join("|", entry.Value.Select(tag => tag.Id).Order(StringComparer.Ordinal)))
+            .Select(group =>
+            {
+                var keys = group.Select(entry => entry.Key).Order(StringComparer.Ordinal).ToList();
+                var members = group.First().Value
+                    .OrderBy(tag => tag.CreatedAt)
+                    .Select(tag => new TagDuplicateItemResponse(
+                        tag.TagId,
+                        tag.TagNumber,
+                        tag.Value,
+                        MatchedOn(tag, keys),
+                        tag.Technology,
+                        tag.Status,
+                        tag.AssetRegistrationId,
+                        tag.AssetCode,
+                        tag.AssetName,
+                        tag.CreatedAt,
+                        tag.CreatedBy))
+                    .ToList();
+                return new TagDuplicateGroupResponse(keys, members);
+            })
+            .OrderBy(group => group.Keys[0], StringComparer.Ordinal)
+            .ToList();
+
+        return Results.Ok(new TagDuplicatesResponse(all.Count, groups.Count, groups));
+
+        static string MatchedOn(TrackingTag tag, IReadOnlyList<string> keys)
+        {
+            var fields = new List<string>();
+            if (TagIdKey.Normalize(tag.TagId) is { } idKey && keys.Contains(idKey)) fields.Add("tag id");
+            if (TagIdKey.Normalize(tag.Value) is { } valueKey && keys.Contains(valueKey)) fields.Add("value");
+            return string.Join(", ", fields);
+        }
     }
 
     /// <summary>The Tag IDs tab.</summary>
@@ -339,10 +402,17 @@ public static class TrackingTagEndpoints
         }
 
         var technology = ContractText.Canonical(request.Technology, TagTechnology.All)!;
-        // The tag id is typed by the user (e.g. a BLE MAC c300006eb011) and stored as entered; unique ignoring case.
-        var tagId = request.TagNumber!.Trim();
-        var tagNumber = tagId;
+        // The tag id is typed by the user (e.g. a BLE MAC c3:00:00:6e:b0:11 or BLE-C300006EB011) and stored normalised
+        // (C300006EB011, see TagIdKey); tag_number keeps what was typed.
+        var tagNumber = request.TagNumber!.Trim();
+        var tagId = TagIdKey.Normalize(tagNumber)!;
         var value = TagValueFormat.Normalize(technology, request.Value);
+
+        // One physical tag, one registration: no other tag may have this id or value once normalised.
+        if (await KeyConflictAsync(tags, [tagId, TagIdKey.Normalize(value)], null, cancellationToken) is { } keyConflict)
+        {
+            return keyConflict;
+        }
 
         if (await tags.TagIdExistsAsync(tagId, cancellationToken))
         {
@@ -369,6 +439,7 @@ public static class TrackingTagEndpoints
         var tag = new TrackingTag
         {
             TagId = tagId,
+            TagKey = tagId,
             TagNumber = tagNumber,
             Technology = technology,
             TagType = ContractText.Canonical(request.TagType, TagTechnology.TagTypes[technology])!,
@@ -436,6 +507,14 @@ public static class TrackingTagEndpoints
         }
 
         var value = TagValueFormat.Normalize(tag.Technology, request.Value);
+        // Only a changed value is checked, so tags that already shared a key before this check existed can still be edited.
+        if (value is not null
+            && TagIdKey.Normalize(value) != TagIdKey.Normalize(tag.Value)
+            && await KeyConflictAsync(tags, [TagIdKey.Normalize(value)], tag.Id, cancellationToken) is { } keyConflict)
+        {
+            return keyConflict;
+        }
+
         if (value is not null
             && await ValueConflictAsync(tags, tag.Technology, value, tag.TagId, cancellationToken) is { } valueConflict)
         {
@@ -913,6 +992,37 @@ public static class TrackingTagEndpoints
         return holder is null
             ? null
             : Results.Conflict(new { message = $"{TagMappings.ValueLabelOf(technology)} '{value}' is already registered on Tag ID '{holder}'." });
+    }
+
+    /// <summary>
+    /// 409 when another non-deleted tag has one of these normalised keys (<see cref="TagIdKey"/>) as its tag id or value:
+    /// "Tag already registered to &lt;asset&gt;" for a linked tag, "Tag already registered as &lt;tag id&gt; (not assigned to an
+    /// asset)" otherwise.
+    /// </summary>
+    private static async Task<IResult?> KeyConflictAsync(
+        ITrackingTagRepository tags,
+        IEnumerable<string?> keys,
+        string? exceptId,
+        CancellationToken cancellationToken)
+    {
+        var wanted = keys.OfType<string>().ToHashSet(StringComparer.Ordinal);
+        var holder = await tags.FindByKeysAsync(wanted, exceptId, cancellationToken);
+        if (holder is null)
+        {
+            return null;
+        }
+
+        var message = string.IsNullOrWhiteSpace(holder.AssetRegistrationId)
+            ? $"Tag already registered as {holder.TagId} (not assigned to an asset)"
+            : $"Tag already registered to {TagMappings.AssetDisplay(holder)}";
+        return Results.Conflict(new
+        {
+            message,
+            existingTagId = holder.TagId,
+            assetRegistrationId = holder.AssetRegistrationId,
+            assetCode = holder.AssetCode,
+            assetName = holder.AssetName
+        });
     }
 
     private static bool Matches(TrackingTag tag, string search)

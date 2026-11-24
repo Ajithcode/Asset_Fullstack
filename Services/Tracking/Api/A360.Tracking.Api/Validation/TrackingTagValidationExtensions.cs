@@ -96,6 +96,7 @@ public static partial class TrackingTagValidationExtensions
     private const int CodeMaxLength = 50;
     private const int NameMaxLength = 100;
     private const int NoteMaxLength = 500;
+    private const int TagKeyMaxLength = 50;
 
     public static Dictionary<string, string[]> Validate(this RegisterTagRequest request)
     {
@@ -104,13 +105,15 @@ public static partial class TrackingTagValidationExtensions
         RequireOneOf(errors, "Technology", request.Technology, TagTechnology.All, required: true);
         var technology = ContractText.Canonical(request.Technology, TagTechnology.All);
 
-        if (string.IsNullOrWhiteSpace(request.TagNumber))
+        // The tag id is stored normalised (TagIdKey): ':', '-' and spaces are removed, so they do not count towards the limit.
+        var tagKey = TagIdKey.Normalize(request.TagNumber);
+        if (tagKey is null)
         {
             errors["TagNumber"] = ["Tag ID is required"];
         }
-        else if (!TagNumberPattern().IsMatch(request.TagNumber.Trim()))
+        else if (!TagNumberPattern().IsMatch(request.TagNumber!.Trim()) || tagKey.Length > TagKeyMaxLength)
         {
-            errors["TagNumber"] = ["Tag ID can only contain letters, digits, ':', '-' and '_' (up to 50 characters), e.g. c300006eb011"];
+            errors["TagNumber"] = ["Tag ID can only contain letters, digits, ':', '-', '_' and spaces (up to 50 characters besides ':', '-' and spaces), e.g. c300006eb011"];
         }
 
         if (technology is not null)
@@ -313,6 +316,7 @@ public static partial class TrackingTagValidationExtensions
         }
     }
 
-    [GeneratedRegex("^[A-Za-z0-9:_-]{1,50}$")]
+    /// <summary>What may be typed as a tag id, before normalising (separators included).</summary>
+    [GeneratedRegex("^[A-Za-z0-9:_ -]{1,100}$")]
     private static partial Regex TagNumberPattern();
 }

@@ -7,7 +7,8 @@ namespace A360.Tracking.Api.Contracts;
 // ---------------------------------------------------------------- Requests
 
 /// <summary>
-/// The Register Tag ID form. <see cref="TagNumber"/> is the tag id typed by the user (e.g. the BLE MAC c300006eb011), stored as entered.
+/// The Register Tag ID form. <see cref="TagNumber"/> is the tag id typed by the user (e.g. the BLE MAC c3:00:00:6e:b0:11); it is stored
+/// normalised as the tag id (C300006EB011, see <see cref="TagIdKey"/>) and as typed in tag_number.
 /// <see cref="Value"/> is the MAC address (BLE), EPC (RFID), encoded value (barcode / QR) or UID (NFC).
 /// Leave <see cref="AssetCode"/> empty to keep the tag in stock as Available.
 /// </summary>
@@ -250,7 +251,28 @@ public sealed record TagAuditOptionsResponse(
     IReadOnlyList<string> PerformedBy,
     IReadOnlyList<string> Periods);
 
-/// <summary>The next free tag number for a technology, to prefill the Register form.</summary>
+/// <summary>
+/// GET /api/tag-ids/duplicates: tags that are one physical tag once their ids / values are normalised
+/// (<see cref="TagIdKey"/>), e.g. C300009AAF43 and BLE-C300009AAF43. Read-only; nothing is changed.
+/// </summary>
+public sealed record TagDuplicatesResponse(int TagsChecked, int GroupCount, IReadOnlyList<TagDuplicateGroupResponse> Groups);
+
+/// <summary>Tags sharing the normalised key(s) <see cref="Keys"/>.</summary>
+public sealed record TagDuplicateGroupResponse(IReadOnlyList<string> Keys, IReadOnlyList<TagDuplicateItemResponse> Tags);
+
+/// <summary>One tag of a duplicate group, as stored. <see cref="MatchedOn"/> is "tag id", "value" or "tag id, value".</summary>
+public sealed record TagDuplicateItemResponse(
+    string TagId,
+    string? TagNumber,
+    string? Value,
+    string MatchedOn,
+    string Technology,
+    string? Status,
+    string? AssetRegistrationId,
+    string? AssetCode,
+    string? AssetName,
+    DateTime? CreatedAt,
+    string? CreatedBy);
 
 // ---------------------------------------------------------------- Mapping
 
