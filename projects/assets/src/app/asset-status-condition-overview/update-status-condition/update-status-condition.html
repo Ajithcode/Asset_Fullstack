@@ -144,7 +144,7 @@
                   </div>
                 </div>
                 <div class="usc-stack">
-                  <label for="usc-eff-date">Status Effective From <em>*</em></label>
+                  <label for="usc-eff-date">Status Effective From <em *ngIf="statusChanged">*</em></label>
                   <div class="usc-datetime">
                     <input id="usc-eff-date" type="date" class="control" [class.is-invalid]="errors.effectiveDate" [(ngModel)]="form.effectiveDate" (ngModelChange)="clearError('effectiveDate')" />
                     <input type="time" class="control" aria-label="Status effective time" [class.is-invalid]="errors.effectiveTime" [(ngModel)]="form.effectiveTime" (ngModelChange)="clearError('effectiveTime')" />
@@ -170,7 +170,7 @@
                   </div>
                 </div>
                 <div class="usc-stack">
-                  <label for="usc-ass-date">Condition Assessment Date <em>*</em></label>
+                  <label for="usc-ass-date">Condition Assessment Date <em *ngIf="conditionChanged">*</em></label>
                   <div class="usc-datetime">
                     <input id="usc-ass-date" type="date" class="control" [class.is-invalid]="errors.assessmentDate" [(ngModel)]="form.assessmentDate" (ngModelChange)="clearError('assessmentDate')" />
                     <input type="time" class="control" aria-label="Condition assessment time" [class.is-invalid]="errors.assessmentTime" [(ngModel)]="form.assessmentTime" (ngModelChange)="clearError('assessmentTime')" />
@@ -222,10 +222,11 @@
                 <small *ngIf="errors.assessmentSource" class="form-error">{{ errors.assessmentSource }}</small>
               </div>
               <div class="field">
-                <label class="field-label" for="usc-by">Assessed By <em>*</em></label>
+                <label class="field-label" for="usc-by">Assessed By <em *ngIf="conditionChanged">*</em></label>
                 <div class="usc-input-icon">
                   <lucide-icon [img]="icons.User" [size]="16"></lucide-icon>
-                  <input id="usc-by" class="control" maxlength="200" [class.is-invalid]="errors.assessedBy" [(ngModel)]="form.assessedBy" (ngModelChange)="clearError('assessedBy')" placeholder="Name of assessor" />
+                  <input id="usc-by" class="control" maxlength="200" [class.is-invalid]="errors.assessedBy" [(ngModel)]="form.assessedBy" (ngModelChange)="clearError('assessedBy')" placeholder="Select or type the assessor" list="usc-assessors" autocomplete="off" />
+                  <datalist id="usc-assessors"><option *ngFor="let p of assessorChoices" [value]="p"></option></datalist>
                   <button *ngIf="form.assessedBy" type="button" class="icon-btn" (click)="form.assessedBy = ''" aria-label="Clear assessed by"><lucide-icon [img]="icons.X" [size]="14"></lucide-icon></button>
                 </div>
                 <small *ngIf="errors.assessedBy" class="form-error">{{ errors.assessedBy }}</small>
@@ -420,6 +421,7 @@
           <h2 class="grow">Approval Workflow</h2>
           <span class="usc-req" [class.usc-req--off]="!needsApproval">{{ needsApproval ? 'Required (Status/Condition Change)' : 'Not required' }}</span>
         </header>
+        <datalist id="usc-approvers"><option *ngFor="let p of approverChoices" [value]="p"></option></datalist>
         <ol class="usc-flow" [class.is-muted]="!needsApproval">
           <li>
             <span class="usc-flow-dot" [class.is-done]="change?.submittedAt"><lucide-icon [img]="icons.Check" [size]="14"></lucide-icon></span>
@@ -439,7 +441,7 @@
               <strong>Level {{ a.level }} – {{ a.role }}</strong>
               <div class="usc-input-icon usc-approver" *ngIf="!readOnly; else approverName">
                 <lucide-icon [img]="icons.User" [size]="14"></lucide-icon>
-                <input class="control control--sm" maxlength="200" [(ngModel)]="form.approvers[i]" [placeholder]="'Any ' + a.role" [attr.aria-label]="'Level ' + a.level + ' approver'" [disabled]="!needsApproval" />
+                <input class="control control--sm" maxlength="200" [(ngModel)]="form.approvers[i]" [placeholder]="'Any ' + a.role" [attr.aria-label]="'Level ' + a.level + ' approver'" [disabled]="!needsApproval" list="usc-approvers" autocomplete="off" />
               </div>
               <ng-template #approverName><small class="muted">{{ a.approver || 'Any ' + a.role }}</small></ng-template>
               <small *ngIf="a.comments" class="muted">“{{ a.comments }}”</small>

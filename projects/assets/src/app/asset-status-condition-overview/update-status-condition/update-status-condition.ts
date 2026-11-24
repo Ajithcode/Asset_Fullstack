@@ -194,6 +194,10 @@ export class UpdateStatusCondition implements OnDestroy {
     Activity, Boxes, CalendarDays, Check, CircleAlert, CircleCheck, CircleX, Clock, ClipboardList, ExternalLink, FileText, Heart,
     History, Info, Layers, Link, MapPin, Network, Paperclip, Search, Send, Save, ShieldCheck, Trash2, Upload, User, X, Zap,
   };
+  /** Users of this tenant, suggested as approvers. */
+  approverChoices: string[] = [];
+  /** Users and technicians, suggested for Assessed By. */
+  assessorChoices: string[] = [];
   get statuses(): readonly string[] { return this.options.statuses; }
   get conditions(): readonly string[] { return this.options.conditions; }
   readonly statusTone = statusTone;
@@ -310,6 +314,14 @@ export class UpdateStatusCondition implements OnDestroy {
     this.change = null;
     this.asset = null;
     this.form = emptyForm(this.userName);
+
+    // People for the Assessed By and approver pickers (users + technicians); free text still works without them.
+    this.subs.push(
+      this.api.people().subscribe((p) => {
+        this.approverChoices = p.users;
+        this.assessorChoices = [...new Set([...p.users, ...p.technicians])].sort((a, b) => a.localeCompare(b));
+      }),
+    );
 
     // Options (statuses, conditions, reasons, methods, sources...) come from the API only.
     this.lookups = EMPTY_LOOKUPS;

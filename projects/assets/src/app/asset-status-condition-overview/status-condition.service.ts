@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
-import { ASSET_API, MEDIA_API } from '../services/asset-api';
+import { Observable, catchError, forkJoin, map, of, switchMap } from 'rxjs';
+import { environment } from 'shared-ui';
+import { ASSET_API, MEDIA_API, TENANT } from '../services/asset-api';
 
 export type ChangeState = 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected';
 export type ApprovalStatus = 'Not Started' | 'Pending' | 'Approved' | 'Rejected';
@@ -209,6 +210,25 @@ export class StatusConditionService {
         );
       }),
     );
+  }
+
+  /**
+   * People for the Assessed By and approver pickers: users of this tenant (Administration GET /api/users) and
+   * technicians (Master Data GET /api/master-data/technicians). Either list is empty when its API can't be read.
+   */
+  people(): Observable<{ users: string[]; technicians: string[] }> {
+    const names = (list: (string | null | undefined)[]) => [...new Set(list.filter((n): n is string => !!n && !!n.trim()))].sort((a, b) => a.localeCompare(b));
+    return forkJoin({
+      users: this.http
+        .get<{ name: string | null }[]>(`${environment.administrationApiUrl}api/users`, { params: { tenantId: TENANT.tenantId ?? '', clientId: TENANT.clientId ?? '' } })
+        .pipe(map((list) => names(list.map((u) => u.name))), catchError(() => of([] as string[]))),
+      technicians: this.http
+        .get<{ technicianName: string | null; status?: string | null }[]>(`${environment.masterDataApiUrl}api/master-data/technicians`)
+        .pipe(
+          map((list) => names(list.filter((t) => !t.status || t.status === 'Active').map((t) => t.technicianName))),
+          catchError(() => of([] as string[])),
+        ),
+    });
   }
 
   /** By asset registration id or asset tag. */
