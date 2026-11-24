@@ -9,7 +9,7 @@
   padding: 0;
   margin: 0;
   list-style: none;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #6b7280;
 }
 
@@ -79,7 +79,7 @@
   padding: 8px 16px;
   color: #374151;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .breadcrumb-dropdown-link:hover {

@@ -24,11 +24,11 @@ import { Component } from '@angular/core';
     .section-unavailable h2 {
       margin: 0;
       color: #211d2b;
-      font-size: 20px;
+      font-size: 1.25rem;
     }
     .section-unavailable p {
       margin: 0;
-      font-size: 14px;
+      font-size: 0.875rem;
     }
   `]
 })

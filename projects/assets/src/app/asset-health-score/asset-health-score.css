@@ -48,18 +48,18 @@
 
 .hs-kpi-body h3 {
   margin: 0;
-  font-size: 14.5px;
+  font-size: 0.906rem;
   font-weight: 600;
 }
 
 .hs-kpi-value {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
   line-height: 1.15;
 }
 
 .hs-kpi-body small {
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .accent {
@@ -122,7 +122,7 @@
 .stroke--critical { stroke: var(--sc-critical); }
 
 .ring-text {
-  font-size: 15px;
+  font-size: 0.938rem;
   font-weight: 800;
   fill: var(--sc-text);
 }
@@ -156,7 +156,7 @@
 .control--range {
   width: auto;
   height: 34px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* Trend chart */
@@ -189,7 +189,7 @@
 }
 
 .pt-label {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   fill: #1f2937;
 }
@@ -235,13 +235,13 @@
 .bg-arc--compliance { background: var(--hs-compliance); }
 
 .donut-score {
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 800;
   fill: var(--sc-text);
 }
 
 .donut-caption {
-  font-size: 12px;
+  font-size: 0.75rem;
   fill: #374151;
 }
 
@@ -253,7 +253,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .legend li {
@@ -282,7 +282,7 @@
   margin: 0 0 20px;
   padding: 0;
   list-style: none;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .insights li {

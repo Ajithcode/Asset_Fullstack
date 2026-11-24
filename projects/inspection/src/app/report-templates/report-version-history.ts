@@ -31,9 +31,9 @@ import { fmtDateTime, pillClass } from '../shared/insp-utils';
   `,
   styles: `
     .bd { position: fixed; inset: 0; z-index: 900; background: rgba(22, 20, 39, 0.35); }
-    .panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 901; display: flex; flex-direction: column; width: min(480px, 100vw); background: #fff; color: #161427; box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15); font-size: 13px; }
+    .panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 901; display: flex; flex-direction: column; width: min(480px, 100vw); background: #fff; color: #161427; box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15); font-size: 0.813rem; }
     .head { display: flex; align-items: center; padding: 18px 20px; border-bottom: 1px solid #e6e4ee; }
-    .head h2 { flex: 1; margin: 0; font-size: 18px; }
+    .head h2 { flex: 1; margin: 0; font-size: 1.125rem; }
     .ib { display: inline-flex; border: 0; background: none; padding: 6px; border-radius: 6px; cursor: pointer; color: #6b6880; }
     .body { flex: 1; overflow-y: auto; padding: 16px 20px; }
     .muted { color: #6b6880; }
@@ -43,7 +43,7 @@ import { fmtDateTime, pillClass } from '../shared/insp-utils';
     li.cur { border-color: #5b21e6; background: #f1ecff; }
     .top { display: flex; align-items: center; gap: 8px; }
     .lnk { background: none; border: 0; padding: 0; font: inherit; color: #5b21e6; font-weight: 600; cursor: pointer; }
-    .pill { display: inline-flex; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #f0eff4; color: #6b6880; }
+    .pill { display: inline-flex; padding: 3px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #f0eff4; color: #6b6880; }
     .pill--green { background: #e3f6ea; color: #16a34a; }
   `
 })

@@ -26,7 +26,7 @@ const GULF_CENTER: [number, number] = [24.6, 52.2];
       .ra-site-map { width: 100%; border-radius: 10px; overflow: hidden; background: #e8eef3; z-index: 0; }
       :host ::ng-deep .ra-site-map-pin { background: transparent; border: none; }
       :host ::ng-deep .ra-site-map-tip {
-        font-family: 'Red Hat Display', sans-serif; font-size: 12px; font-weight: 600; color: #0f172a;
+        font-family: 'Red Hat Display', sans-serif; font-size: 0.75rem; font-weight: 600; color: #0f172a;
         border: none; border-radius: 8px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
       }
     `

@@ -67,14 +67,14 @@
 
 .alert-title {
   display: block;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--bk-text);
 }
 
 .alert-msg {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 0.813rem;
   line-height: 1.4;
   color: var(--bk-muted);
   overflow-wrap: anywhere;

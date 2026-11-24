@@ -76,19 +76,19 @@ export const REQUIRED_CONTROLS = [
   styleUrls: ['../shared/insp-page.css'],
   styles: [
     `:host { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-     .body { padding-top: 0; } .sm { font-size: 13px; }
+     .body { padding-top: 0; } .sm { font-size: 0.813rem; }
      .ins { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
-     .ins div { display: flex; flex-direction: column; font-size: 13.5px; }
+     .ins div { display: flex; flex-direction: column; font-size: 0.844rem; }
      .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-     .steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; }
+     .steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 0.844rem; }
      .steps .grow { display: flex; flex-direction: column; }
-     .n { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12.5px; background: #9e9bb0; }
+     .n { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 0.781rem; background: #9e9bb0; }
      .n--good { background: var(--ip-good); } .n--warn { background: var(--ip-warn); }
      .st { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
      .rec { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ip-border); }
-     .kv-sm { flex: 1 1 200px; font-size: 12.5px; gap: 4px 10px; }
+     .kv-sm { flex: 1 1 200px; font-size: 0.781rem; gap: 4px 10px; }
      .kv-sm dt:first-child { color: var(--ip-text); font-weight: 700; }
-     .ctl { list-style: none; margin: 0; padding: 0 18px 16px; display: flex; flex-direction: column; gap: 10px; font-size: 13.5px; }
+     .ctl { list-style: none; margin: 0; padding: 0 18px 16px; display: flex; flex-direction: column; gap: 10px; font-size: 0.844rem; }
      .ctl li { display: flex; gap: 10px; align-items: center; }
      .ctl lucide-icon { color: var(--ip-good); }`
   ]

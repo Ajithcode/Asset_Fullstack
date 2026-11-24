@@ -37,7 +37,7 @@
   border: 1px solid #e2e8f0;
   background: #fff;
   color: #4f2bd8;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 700;
   line-height: 1;
   border-radius: 8px;
@@ -63,7 +63,7 @@
   border-radius: 8px;
   background: #fff;
   color: #334155;
-  font-size: 9.5px;
+  font-size: 0.594rem;
   font-weight: 700;
   text-align: center;
   cursor: pointer;
@@ -263,7 +263,7 @@
   bottom: -26px;
   left: 0;
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #64748b;
 }
 
@@ -290,7 +290,7 @@
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.82);
   color: #fff;
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -315,7 +315,7 @@
   background: rgba(15, 23, 42, 0.82);
   color: #fff;
   font: inherit;
-  font-size: 11px;
+  font-size: 0.688rem;
   font-weight: 700;
   white-space: nowrap;
   pointer-events: none;

@@ -19,7 +19,7 @@
   border-radius: 999px;
   background: #fff;
   color: var(--adm-purple);
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .cfg-pending-btn {
@@ -51,7 +51,7 @@
   align-items: center;
   gap: 10px;
   margin: 0;
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 800;
 }
 
@@ -69,14 +69,14 @@
 
 .cfg-card__head h3 {
   margin: 0;
-  font-size: 14.5px;
+  font-size: 0.906rem;
   font-weight: 700;
 }
 
 .cfg-card__head p {
   margin: 2px 0 0;
   color: var(--adm-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .cfg-card__icon {
@@ -125,7 +125,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #334155;
   text-align: left;
@@ -156,7 +156,7 @@
   border-radius: 999px;
   background: var(--adm-orange-soft);
   color: #b45309;
-  font-size: 10.5px;
+  font-size: 0.656rem;
   font-weight: 700;
 }
 
@@ -172,7 +172,7 @@
 
 .cfg-unit span {
   color: var(--adm-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   white-space: nowrap;
 }
 
@@ -197,7 +197,7 @@
   background: linear-gradient(135deg, #3b1784, #5b2aa8);
   color: #fff;
   font-weight: 800;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .cfg-actions {
@@ -216,13 +216,13 @@
 
 .cfg-detail__title h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 .cfg-detail__title p {
   margin: 3px 0 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .cfg-person {

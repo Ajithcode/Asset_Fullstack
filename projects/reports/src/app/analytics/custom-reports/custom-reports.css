@@ -24,7 +24,7 @@
 }
 
 .cr-stats .kpi__value {
-  font-size: 22px;
+  font-size: 1.375rem;
 }
 
 .cr-file-input {
@@ -72,7 +72,7 @@
 
 .cr-library__head h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: 1.063rem;
   font-weight: 800;
 }
 
@@ -139,13 +139,13 @@
 }
 
 .cr-lib-item__text strong {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 700;
 }
 
 .cr-lib-item__text small {
   color: var(--ra-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .cr-lib-item__text i {
@@ -188,7 +188,7 @@
 
 .cr-builder__head h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: 1.063rem;
   font-weight: 800;
 }
 
@@ -293,7 +293,7 @@
 .cr-panel__head h3 {
   flex: 1;
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
@@ -323,18 +323,18 @@
 
 .cr-summary span {
   display: block;
-  font-size: 11.5px;
+  font-size: 0.719rem;
   color: var(--ra-muted);
 }
 
 .cr-summary strong {
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .cr-error {
   margin: 4px 0 8px;
   color: #dc2626;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* ===== Steps ===== */
@@ -344,13 +344,13 @@
 
 .cr-step-head h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 .cr-step-head p {
   margin: 3px 0 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .cr-step-head--row {
@@ -422,12 +422,12 @@
 
 .cr-source__body small {
   color: #475569;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .cr-source__body em {
   color: var(--ra-muted);
-  font-size: 11px;
+  font-size: 0.688rem;
   font-style: normal;
 }
 
@@ -463,7 +463,7 @@
 
 .cr-tree__head .muted {
   margin-left: auto;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .cr-check {
@@ -482,7 +482,7 @@
 }
 
 .cr-kind {
-  font-size: 10.5px;
+  font-size: 0.656rem;
   font-style: normal;
   color: #94a3b8;
 }
@@ -503,7 +503,7 @@
   border: 1px solid var(--ra-border);
   border-radius: 8px;
   background: #fafbfd;
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: grab;
 }
 
@@ -539,7 +539,7 @@
 
 .cr-chips__empty {
   margin: 0;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* Calculated field dialog */
@@ -553,7 +553,7 @@
   padding: 8px 10px;
   border-radius: 8px;
   background: var(--ra-purple-soft);
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 /* Filters */
@@ -610,7 +610,7 @@
 
 .cr-viz__card small {
   color: var(--ra-muted);
-  font-size: 11px;
+  font-size: 0.688rem;
 }
 
 .cr-viz__card--active {
@@ -633,7 +633,7 @@
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .cr-preview__title {
@@ -643,7 +643,7 @@
 
 .cr-preview__foot {
   margin: 8px 0 0;
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .cr-builder .table-wrap,
@@ -654,7 +654,7 @@
 /* ===== Configuration bar ===== */
 .cr-config__title {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: 0.938rem;
   font-weight: 800;
 }
 

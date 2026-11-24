@@ -121,8 +121,43 @@ function localStamp(iso: string | null): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-function toEvent(dto: AuditLogItemDto): AuditEvent {
+const CHANGED_PREFIX = 'Changed: ';
+
+/**
+ * Edits that record what changed (role fields, permission matrix / module access) store it as
+ * "Changed: Status: Active → Inactive; Assets › edit: none → full; … and 3 more". Split into the drawer's
+ * before / after boxes, one "field: value" line per change; other details stay as they are.
+ */
+export function withChanges<T extends Pick<AuditEvent, 'details' | 'before' | 'after'>>(event: T): T {
+  const details = event.details ?? '';
+  if (!details.startsWith(CHANGED_PREFIX)) return event;
+  const before: string[] = [];
+  const after: string[] = [];
+  let count = 0;
+  for (const entry of details.slice(CHANGED_PREFIX.length).split('; ')) {
+    const arrow = entry.lastIndexOf(' → ');
+    const colon = arrow < 0 ? -1 : entry.indexOf(': ');
+    if (arrow < 0 || colon < 0 || colon > arrow) {
+      // "… and N more"
+      before.push(entry);
+      after.push(entry);
+      continue;
+    }
+    const field = entry.slice(0, colon);
+    before.push(`${field}: ${entry.slice(colon + 2, arrow)}`);
+    after.push(`${field}: ${entry.slice(arrow + 3)}`);
+    count++;
+  }
   return {
+    ...event,
+    before: before.join('\n'),
+    after: after.join('\n'),
+    details: `${count} change${count === 1 ? '' : 's'}, shown under Value Change (— = not set).`
+  };
+}
+
+function toEvent(dto: AuditLogItemDto): AuditEvent {
+  return withChanges({
     id: dto.id,
     timestamp: localStamp(dto.timestamp),
     event: dto.event,
@@ -151,7 +186,7 @@ function toEvent(dto: AuditLogItemDto): AuditEvent {
     before: '',
     after: '',
     details: dto.details ?? ''
-  };
+  });
 }
 
 export function auditErrorMessage(err: unknown): string {
@@ -234,13 +269,16 @@ export class AuditLogService {
   /** GET /api/audit-logs/{id}: actor details (role, email, device, request id) for the drawer. */
   detail(event: AuditEvent): Observable<AuditEvent> {
     return this.http.get<AuditLogDetailDto>(`${this.apiUrl}/${encodeURIComponent(event.id)}`).pipe(
-      map((dto) => ({
-        ...event,
-        role: dto.actor?.role ?? event.role,
-        device: dto.actor?.deviceBrowser ?? event.device,
-        requestId: dto.actor?.requestId ?? event.requestId,
-        details: dto.details ?? event.details
-      }))
+      map((dto) =>
+        withChanges({
+          ...event,
+          role: dto.actor?.role ?? event.role,
+          device: dto.actor?.deviceBrowser ?? event.device,
+          requestId: dto.actor?.requestId ?? event.requestId,
+          // The list already split the change line; only take the server's text when it is new
+          details: dto.details && !event.after ? dto.details : event.details
+        })
+      )
     );
   }
 

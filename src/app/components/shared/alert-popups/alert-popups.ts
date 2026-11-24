@@ -54,16 +54,16 @@ interface Popup {
     .ap-head { display: flex; align-items: flex-start; gap: 10px; }
     .ap-icon { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border-radius: 10px; color: var(--c, #6d28d9); background: var(--bg, #f5f3ff); }
     .ap-titles { flex: 1; min-width: 0; }
-    .ap-titles strong { display: block; font-size: 14px; color: #0f172a; line-height: 1.3; }
-    .ap-titles small { display: block; margin-top: 2px; font-size: 11.5px; color: #64748b; }
-    .ap-x { border: 0; background: none; font-size: 20px; line-height: 1; color: #94a3b8; cursor: pointer; padding: 0 2px; }
+    .ap-titles strong { display: block; font-size: 0.875rem; color: #0f172a; line-height: 1.3; }
+    .ap-titles small { display: block; margin-top: 2px; font-size: 0.719rem; color: #64748b; }
+    .ap-x { border: 0; background: none; font-size: 1.25rem; line-height: 1; color: #94a3b8; cursor: pointer; padding: 0 2px; }
     .ap-x:hover { color: #0f172a; }
-    .ap-body { margin: 8px 0 0 44px; font-size: 12.5px; line-height: 1.45; color: #334155; }
-    .ap-error { margin: 6px 0 0 44px; font-size: 12px; color: #b91c1c; }
+    .ap-body { margin: 8px 0 0 44px; font-size: 0.781rem; line-height: 1.45; color: #334155; }
+    .ap-error { margin: 6px 0 0 44px; font-size: 0.75rem; color: #b91c1c; }
     .ap-actions { display: flex; align-items: center; gap: 8px; margin: 12px 0 0 44px; }
     .ap-grow { flex: 1; }
-    .ap-link { border: 0; background: none; padding: 0; font: inherit; font-size: 12.5px; font-weight: 600; color: #6d28d9; cursor: pointer; }
-    .ap-btn { padding: 7px 14px; border: 1px solid #5b21b6; border-radius: 9px; background: #5b21b6; color: #fff; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+    .ap-link { border: 0; background: none; padding: 0; font: inherit; font-size: 0.781rem; font-weight: 600; color: #6d28d9; cursor: pointer; }
+    .ap-btn { padding: 7px 14px; border: 1px solid #5b21b6; border-radius: 9px; background: #5b21b6; color: #fff; font: inherit; font-size: 0.781rem; font-weight: 600; cursor: pointer; }
     .ap-btn:hover:not(:disabled) { background: #4c1d95; }
     .ap-btn--ghost { background: #fff; color: #5b21b6; border-color: #ddd6fe; }
     .ap-btn--ghost:hover:not(:disabled) { background: #f5f3ff; }

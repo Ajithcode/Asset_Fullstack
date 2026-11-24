@@ -9,7 +9,7 @@
   background: #fff;
   padding: 0 8px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   min-width: 0;
 }
 
@@ -17,7 +17,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #334155;
   white-space: nowrap;
 }
@@ -58,7 +58,7 @@
   border-radius: 5px;
   background: #ede9fe;
   color: #4f2bd8;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 

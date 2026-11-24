@@ -21,7 +21,7 @@
   outline: none;
   background: none;
   font: inherit;
-  font-size: 17px;
+  font-size: 1.063rem;
   color: var(--lg-text);
   appearance: none;
   cursor: pointer;
@@ -31,13 +31,13 @@
 .input--select select:disabled { cursor: default; }
 .select-caret { position: absolute; right: 16px; color: #6b7280; pointer-events: none; }
 
-.hint { font-size: 13px; color: var(--lg-muted); }
+.hint { font-size: 0.813rem; color: var(--lg-muted); }
 .hint--error { color: #b91c1c; }
 .link-btn { padding: 0; border: 0; background: none; font: inherit; color: var(--lg-primary); text-decoration: underline; cursor: pointer; }
 
 .submit { margin-top: 4px; }
 
-.card-foot--switch { margin-top: 16px; font-size: 15px; }
+.card-foot--switch { margin-top: 16px; font-size: 0.938rem; }
 .card-foot--switch .link { font-weight: 700; }
 
 /* desktop: the taller form starts a little higher in the card */

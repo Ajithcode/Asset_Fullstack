@@ -30,7 +30,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .breadcrumb a {
@@ -44,7 +44,7 @@
 
 .breadcrumb-sep {
   color: #9ca3af;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
@@ -117,7 +117,7 @@
 
 .not-found h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 800;
 }
 
@@ -128,13 +128,13 @@
 
 .asset-title h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 800;
 }
 
 .asset-title p {
   margin: 2px 0 0;
-  font-size: 16px;
+  font-size: 1rem;
   color: #1f2937;
 }
 
@@ -161,12 +161,12 @@
 }
 
 .chip > span:first-child {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #4b5563;
 }
 
 .chip strong {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 500;
 }
 
@@ -191,7 +191,7 @@
   border-bottom: 3px solid transparent;
   background: none;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #1f2937;
   text-decoration: none;
   white-space: nowrap;
@@ -219,7 +219,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -233,7 +233,7 @@
 
 .btn-tall {
   height: 40px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-primary {
@@ -292,7 +292,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: var(--sc-accent);
   cursor: pointer;
@@ -311,7 +311,7 @@
 }
 
 .field-label {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 500;
   color: #374151;
 }
@@ -330,7 +330,7 @@
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--sc-text);
   outline: none;
 }
@@ -358,7 +358,7 @@ select.control {
 .control--sm {
   width: 170px;
   height: 38px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 /* ============ Pills & tags ============ */
@@ -369,7 +369,7 @@ select.control {
   height: 26px;
   padding: 0 12px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -378,7 +378,7 @@ select.control {
   gap: 6px;
   height: 22px;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .pill .dot {
@@ -422,7 +422,7 @@ select.control {
   border-radius: 6px;
   background: none;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #374151;
   white-space: nowrap;
   cursor: pointer;
@@ -454,14 +454,14 @@ select.control {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .data-table th {
   padding: 9px 8px;
   border-bottom: 1px solid var(--sc-border);
   background: #f9fafb;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   text-align: left;
   white-space: nowrap;

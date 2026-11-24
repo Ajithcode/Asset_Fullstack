@@ -33,9 +33,9 @@ export interface DonutSegment {
     :host { display: block; }
     .donut-wrap { display: flex; align-items: center; gap: 22px; padding: 4px 4px 8px; }
     .donut { width: 150px; height: 150px; flex: 0 0 auto; }
-    .d-total { font-size: 19px; font-weight: 800; fill: #161427; }
-    .d-label { font-size: 8.5px; fill: #4b4860; }
-    .legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; font-size: 12.5px; }
+    .d-total { font-size: 1.188rem; font-weight: 800; fill: #161427; }
+    .d-label { font-size: 0.531rem; fill: #4b4860; }
+    .legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; font-size: 0.781rem; }
     .legend li { display: flex; align-items: center; gap: 8px; }
     .legend i { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
     .l-name { flex: 1; color: #2c2a3d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

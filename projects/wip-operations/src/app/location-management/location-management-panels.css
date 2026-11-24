@@ -7,7 +7,7 @@
   background: #f6f7fb;
 }
 
-.next-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.next-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.813rem; font-weight: 600; }
 
 .next-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
@@ -19,7 +19,7 @@
   border: 1px solid var(--jt-border);
   border-radius: 14px;
   background: #fff;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .loc-chip lucide-icon { color: var(--lm-blue); }
@@ -35,7 +35,7 @@
   cursor: pointer;
 }
 
-.next-note { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 12px; color: #4b5563; }
+.next-note { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 0.75rem; color: #4b5563; }
 
 /* Details */
 .det-head { display: flex; align-items: center; gap: 10px; }
@@ -49,7 +49,7 @@
   border: 0;
   border-radius: 6px;
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 
@@ -59,23 +59,23 @@
 .st-pill.st--inactive { background: #eceef1; color: #4b5563; }
 .st-pill.st--inactive .dot { background: #9ca3af; }
 
-.det-name { margin: 8px 0 12px; font-size: 18px; font-weight: 800; }
+.det-name { margin: 8px 0 12px; font-size: 1.125rem; font-weight: 800; }
 
 .kv {
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr);
   gap: 6px 10px;
   margin: 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .kv dt { color: #374151; }
 .kv dd { margin: 0; }
 .kv--top { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--jt-border); }
 
-.sub-h { margin: 16px 0 10px !important; font-size: 15px !important; }
+.sub-h { margin: 16px 0 10px !important; font-size: 0.938rem !important; }
 
-.controls { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.controls { display: flex; flex-direction: column; gap: 10px; font-size: 0.813rem; }
 .switch--row { display: flex; gap: 12px; }
 
 .qr-btn { margin-top: 12px; }
@@ -90,13 +90,13 @@
   border-top: 1px solid var(--jt-border);
 }
 
-.unsaved { font-size: 12px; font-style: italic; color: #b45309; }
+.unsaved { font-size: 0.75rem; font-style: italic; color: #b45309; }
 
 /* ============ Layout map ============ */
 .layout { display: flex; flex-direction: column; gap: 18px; }
-.bld h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 16px; }
+.bld h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 1rem; }
 .flr { margin-left: 8px; }
-.flr h4 { margin: 8px 0; font-size: 13.5px; color: #4b5563; }
+.flr h4 { margin: 8px 0; font-size: 0.844rem; color: #4b5563; }
 
 .zones { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 
@@ -107,7 +107,7 @@
   background: #fbfaff;
 }
 
-.zone-name { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.zone-name { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 0.813rem; font-weight: 600; }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
 
@@ -119,18 +119,18 @@
   border: 1px solid transparent;
   border-radius: 8px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   text-align: left;
   cursor: pointer;
 }
 
-.tile small { font-size: 11px; opacity: 0.85; }
+.tile small { font-size: 0.688rem; opacity: 0.85; }
 .tile--available { background: #e8f7ee; color: #14532d; }
 .tile--full { background: #fff1d6; color: #7c4a03; }
 .tile--inactive { background: #eceef1; color: #4b5563; }
 .tile.is-selected { border-color: var(--jt-accent); box-shadow: 0 0 0 2px rgba(79, 43, 216, 0.15); }
 
-.legend { display: flex; justify-content: flex-end; gap: 18px; font-size: 12.5px; }
+.legend { display: flex; justify-content: flex-end; gap: 18px; font-size: 0.781rem; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .lg { width: 12px; height: 12px; border-radius: 3px; }
 .lg--available { background: #bfe8cd; }
@@ -171,7 +171,7 @@
   text-align: center;
 }
 
-.label-code { font-size: 22px; letter-spacing: 1px; }
+.label-code { font-size: 1.375rem; letter-spacing: 1px; }
 .imp-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
 .foot-note {
@@ -183,7 +183,7 @@
   border: 1px solid var(--jt-border);
   border-radius: 10px;
   background: #fafbff;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #4b5563;
 }
 

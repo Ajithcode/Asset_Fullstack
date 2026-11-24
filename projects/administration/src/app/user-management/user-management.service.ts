@@ -33,6 +33,16 @@ interface UserDto {
   updatedAt: string | null;
   tenantId: string | null;
   clientId: string | null;
+  /** Sign-in account id (UserAccount service); null without a password */
+  loginAccountId?: string | null;
+}
+
+/** ResetPasswordResponse of PUT {authApiUrl}api/account/users/{id}/password */
+export interface ResetPasswordResult {
+  message: string;
+  /** Only when the server generated the password: shown once, never stored */
+  temporaryPassword: string | null;
+  sessionsEnded: number;
 }
 
 /** Request body for POST {administrationApiUrl}api/users */
@@ -103,7 +113,8 @@ function toAppUser(dto: UserDto): AdminUser {
     lastLogin: dto.lastLoginAt,
     created,
     invitedAt: status === 'Pending' && created ? created : null,
-    modules: dto.moduleAccess?.length ? dto.moduleAccess : roleModules([dto.primaryRole, ...(dto.secondaryRoles ?? [])])
+    modules: dto.moduleAccess?.length ? dto.moduleAccess : roleModules([dto.primaryRole, ...(dto.secondaryRoles ?? [])]),
+    loginAccountId: dto.loginAccountId ?? null
   };
 }
 
@@ -251,6 +262,16 @@ export class UserAdminService {
   /** Changes only client-side details the API doesn't store (e.g. the invitation date after a resend). */
   patchLocal(user: AdminUser): void {
     this.users.update((list) => list.map((u) => (u.id === user.id ? user : u)));
+  }
+
+  /**
+   * PUT {authApiUrl}api/account/users/{loginAccountId}/password (UserAccount through the gateway; needs Edit on
+   * Administration). Without a password the server generates a temporary one and returns it once. Every session of
+   * the user is signed out.
+   */
+  resetPassword(user: AdminUser, newPassword?: string): Observable<ResetPasswordResult> {
+    const id = encodeURIComponent(user.loginAccountId ?? '');
+    return this.http.put<ResetPasswordResult>(`${environment.authApiUrl}api/account/users/${id}/password`, newPassword ? { newPassword } : {});
   }
 
   /** DELETE /api/users/{id}; the user leaves the list once the server confirms. */

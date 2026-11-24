@@ -60,7 +60,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #334155;
   cursor: pointer;
   min-width: 0;
@@ -102,7 +102,7 @@
   background: #fff;
   padding: 0 10px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #0f172a;
   outline: none;
 }
@@ -148,7 +148,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #334155;
   cursor: pointer;
 }
@@ -216,7 +216,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #334155;
 }
 

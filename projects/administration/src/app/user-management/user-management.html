@@ -260,6 +260,37 @@
   </div>
 }
 
+@if (resetFor) {
+  <div class="overlay" (click)="closeReset()">
+    <div class="confirm" role="dialog" aria-modal="true" aria-labelledby="um-reset-title" (click)="$event.stopPropagation()">
+      <h2 id="um-reset-title">Reset password</h2>
+      @if (reset.temporary) {
+        <p>Temporary password for {{ resetFor.name }} ({{ resetFor.username }}). It is shown only once: share it securely and ask them to change it after signing in.</p>
+        <div class="field"><input class="um-temp-pw" [value]="reset.temporary" readonly aria-label="Temporary password" (focus)="$any($event.target).select()" /></div>
+        <div class="confirm__actions">
+          <button type="button" class="btn" (click)="copyTemporary()">Copy</button>
+          <button type="button" class="btn btn--primary" (click)="closeReset()">Done</button>
+        </div>
+      } @else {
+        <p>{{ resetFor.name }}'s current password stops working and all their sessions are signed out.</p>
+        <div class="um-reset-modes" role="radiogroup" aria-label="New password">
+          <label><input type="radio" name="um-reset-mode" value="generate" [(ngModel)]="reset.mode" /> Generate a temporary password</label>
+          <label><input type="radio" name="um-reset-mode" value="set" [(ngModel)]="reset.mode" /> Set a password</label>
+        </div>
+        @if (reset.mode === 'set') {
+          <div class="field"><label for="um-reset-pw">New password</label><input id="um-reset-pw" name="um-reset-pw" type="password" autocomplete="new-password" [(ngModel)]="reset.password" /></div>
+          <div class="field"><label for="um-reset-confirm">Confirm password</label><input id="um-reset-confirm" name="um-reset-confirm" type="password" autocomplete="new-password" [(ngModel)]="reset.confirm" /><small>At least 8 characters with letters and numbers.</small></div>
+        }
+        @if (reset.error) { <p class="um-reset-error" role="alert">{{ reset.error }}</p> }
+        <div class="confirm__actions">
+          <button type="button" class="btn" (click)="closeReset()" [disabled]="reset.saving">Cancel</button>
+          <button type="button" class="btn btn--primary" (click)="confirmReset()" [disabled]="reset.saving">{{ reset.saving ? 'Resetting…' : 'Reset Password' }}</button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
 @if (toast) {
   <div class="toast" role="status" [attr.data-tone]="toastTone">{{ toast }}</div>
 }

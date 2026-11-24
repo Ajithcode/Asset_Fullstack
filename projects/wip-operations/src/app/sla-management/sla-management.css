@@ -13,8 +13,8 @@
 
 /* ============ Monitoring ============ */
 .mon-list { display: flex; flex-direction: column; gap: 14px; margin: 0 0 12px; padding: 0; list-style: none; }
-.mon-top { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
-.mon-top .sub { display: block; margin-top: 2px; font-size: 12px; color: var(--jt-muted); }
+.mon-top { display: flex; align-items: flex-start; gap: 8px; font-size: 0.813rem; }
+.mon-top .sub { display: block; margin-top: 2px; font-size: 0.75rem; color: var(--jt-muted); }
 .mon-bar, .mini-bar { display: block; height: 8px; margin: 8px 0 6px; border-radius: 4px; background: #eef0f4; overflow: hidden; }
 .mini-bar { display: inline-block; width: 60px; height: 7px; margin: 0 6px 0 0; vertical-align: middle; }
 .mini-bar--wide { width: 110px; }
@@ -23,7 +23,7 @@
 .fill--pill--amber { background: #f59e0b; }
 .fill--pill--red { background: var(--wb-bad); }
 .fill--pill--blue { background: #3b82f6; }
-.mon-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 600; }
+.mon-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.781rem; font-weight: 600; }
 .mon-foot lucide-icon { vertical-align: -2px; }
 
 /* ============ Ladder ============ */
@@ -35,7 +35,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .ladder li + li { border-top: 1px dashed var(--jt-border); }
@@ -49,7 +49,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 800;
 }
 
@@ -65,16 +65,16 @@
 /* ============ Configuration ============ */
 .cfg-title { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
 .cfg-icon { width: 44px; height: 44px; }
-.cfg-name { display: block; font-size: 16px; }
-.cfg-title .sub { display: block; font-size: 12.5px; color: var(--jt-muted); }
+.cfg-name { display: block; font-size: 1rem; }
+.cfg-title .sub { display: block; font-size: 0.781rem; color: var(--jt-muted); }
 .cfg-status { display: flex; justify-content: flex-end; margin-bottom: 6px; }
-.cfg-status .link-btn { font-size: 12.5px; }
+.cfg-status .link-btn { font-size: 0.781rem; }
 
 .cfg-form h4 {
   margin: 16px 0 10px;
   padding-top: 14px;
   border-top: 1px solid var(--jt-border);
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 
@@ -102,13 +102,13 @@
 .prev-start .control { width: 120px; }
 .prev-arrow { margin-bottom: 8px; color: var(--jt-accent); }
 .prev-due { display: flex; flex-direction: column; gap: 6px; }
-.prev-due strong { font-size: 20px; line-height: 36px; color: var(--jt-accent); }
+.prev-due strong { font-size: 1.25rem; line-height: 2.25rem; color: var(--jt-accent); }
 
-.versions { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.versions { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; font-size: 0.813rem; }
 .versions li { display: flex; align-items: flex-start; gap: 10px; }
-.versions .sub { display: block; margin-top: 2px; font-size: 12px; color: var(--jt-muted); }
+.versions .sub { display: block; margin-top: 2px; font-size: 0.75rem; color: var(--jt-muted); }
 
-.reason-input { min-width: 220px; height: 30px; font-size: 12.5px; }
+.reason-input { min-width: 220px; height: 30px; font-size: 0.781rem; }
 .perf-cell { white-space: nowrap; }
 
 @media (max-width: 1280px) {

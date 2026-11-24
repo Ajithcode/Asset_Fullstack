@@ -102,7 +102,7 @@ interface Frame {
       border-radius: 8px;
       background: #fffbeb;
       color: #92400e;
-      font-size: 12px;
+      font-size: 0.75rem;
       line-height: 1.35;
       pointer-events: none;
     }
@@ -122,7 +122,7 @@ interface Frame {
       background: #fff;
       box-shadow: 0 4px 14px rgba(76, 29, 149, 0.18);
       color: #3b0764;
-      font-size: 12.5px;
+      font-size: 0.781rem;
     }
     .mfp-draw-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mfp-draw-btn {
@@ -156,12 +156,12 @@ interface Frame {
       display: inline-flex; align-items: center; gap: 8px; padding: 5px 6px 5px 12px; white-space: nowrap; cursor: pointer;
       border-radius: 999px; background: #fff; border: 1px solid #ddd6fe;
       box-shadow: 0 6px 16px -6px rgba(46, 26, 140, 0.45), 0 1px 3px rgba(15, 23, 42, 0.12);
-      font: 600 12px/1 system-ui, sans-serif; color: #4c1d95; animation: mfp-ztotal-in 0.25s ease-out;
+      font: 600 0.75rem/1 system-ui, sans-serif; color: #4c1d95; animation: mfp-ztotal-in 0.25s ease-out;
     }
     .mfp-ztotal small { font: inherit; letter-spacing: 0.01em; }
     .mfp-ztotal b {
       display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 7px; box-sizing: border-box;
-      border-radius: 999px; background: linear-gradient(145deg, #7c5cff, #5b3fd4); color: #fff; font-size: 13px;
+      border-radius: 999px; background: linear-gradient(145deg, #7c5cff, #5b3fd4); color: #fff; font-size: 0.813rem;
     }
     .mfp-ztotal:hover { border-color: #a78bfa; }
     /* zone drawn too small for the text: only the count */
@@ -175,7 +175,7 @@ interface Frame {
       padding: 0 4px;
       border-radius: 4px;
       background: rgba(255, 255, 255, 0.92);
-      font-size: 10.5px;
+      font-size: 0.656rem;
       font-weight: 700;
       color: #0f172a;
       white-space: nowrap;
@@ -187,8 +187,8 @@ interface Frame {
     .mfp-pin__icon svg { fill: #fff; }
     .mfp-pin--child .mfp-pin__icon { color: #7c3aed; opacity: 0.85; }
     .mfp-pin--child { cursor: pointer; }
-    .mfp-pin__label { margin-bottom: 1px; font-size: 11.5px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2); }
-    .mfp-pin--child .mfp-pin__label { font-size: 10.5px; font-weight: 600; }
+    .mfp-pin__label { margin-bottom: 1px; font-size: 0.719rem; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2); }
+    .mfp-pin--child .mfp-pin__label { font-size: 0.656rem; font-weight: 600; }
     .leaflet-tooltip.mfp-zone-label {
       display: flex;
       align-items: center;
@@ -202,8 +202,8 @@ interface Frame {
       white-space: nowrap;
     }
     .mfp-zone-label svg { display: block; color: var(--zone); }
-    .mfp-zone-label strong { font-size: 12px; font-weight: 700; }
-    .mfp-zone-label small { font-size: 11px; color: #475569; }
+    .mfp-zone-label strong { font-size: 0.75rem; font-weight: 700; }
+    .mfp-zone-label small { font-size: 0.688rem; color: #475569; }
   `
 })
 export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {

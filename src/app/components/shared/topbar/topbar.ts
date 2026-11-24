@@ -182,6 +182,7 @@ export class Topbar {
   whatsNewSeen = this.readSeen();
   pw = { current: '', next: '', confirm: '', show: false };
   pwError = '';
+  pwSaving = false;
   toast = '';
   private toastTimer?: ReturnType<typeof setTimeout>;
 
@@ -403,9 +404,10 @@ export class Topbar {
   get pwChecks(): { label: string; ok: boolean }[] {
     const v = this.pw.next;
     return [
+      // Same rule as the server (UserAccount PasswordPolicy)
       { label: 'At least 8 characters', ok: v.length >= 8 },
-      { label: 'Upper and lower case letters', ok: /[a-z]/.test(v) && /[A-Z]/.test(v) },
-      { label: 'A number or symbol', ok: /[\d\W_]/.test(v) },
+      { label: 'At least one letter', ok: /\p{L}/u.test(v) },
+      { label: 'At least one number', ok: /\d/.test(v) },
     ];
   }
 
@@ -414,9 +416,22 @@ export class Topbar {
     if (this.pwChecks.some((c) => !c.ok)) return void (this.pwError = 'The new password does not meet the rules below.');
     if (this.pw.next === this.pw.current) return void (this.pwError = 'Choose a password different from the current one.');
     if (this.pw.next !== this.pw.confirm) return void (this.pwError = 'The new passwords do not match.');
-    // DEMO MODE: no identity backend; a real build calls the auth API here
-    this.dialog = '';
-    this.showToast('Password changed. Use it the next time you sign in.');
+    if (this.pwSaving) return;
+    this.pwSaving = true;
+    this.pwError = '';
+    this.auth.changePassword(this.pw.current, this.pw.next).subscribe({
+      next: (res) => {
+        this.pwSaving = false;
+        this.dialog = '';
+        this.pw = { current: '', next: '', confirm: '', show: false };
+        const others = res.otherSessionsEnded > 0 ? ` Signed out of ${res.otherSessionsEnded} other session${res.otherSessionsEnded === 1 ? '' : 's'}.` : '';
+        this.showToast(`Password changed. Use it the next time you sign in.${others}`);
+      },
+      error: (err: unknown) => {
+        this.pwSaving = false;
+        this.pwError = this.auth.errorMessage(err, 'The password could not be changed. Please try again.');
+      }
+    });
   }
 
   private showToast(message: string): void {

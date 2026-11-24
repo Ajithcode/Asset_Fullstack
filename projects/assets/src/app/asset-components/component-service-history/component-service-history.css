@@ -28,7 +28,7 @@
   border: 1px solid var(--cm-control-border);
   border-radius: 6px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .date-range:focus-within {
@@ -47,7 +47,7 @@
   outline: none;
   background: transparent;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--cm-text);
 }
 
@@ -112,7 +112,7 @@
 
 .record-title h4 {
   margin: 0;
-  font-size: 17px;
+  font-size: 1.063rem;
   font-weight: 800;
 }
 
@@ -125,13 +125,13 @@
 
 .record-facts dt {
   margin-bottom: 3px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--cm-text-muted);
 }
 
 .record-facts dd {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
@@ -155,7 +155,7 @@
   border-right: 1px solid var(--cm-border);
   background: #fff;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #374151;
   white-space: nowrap;
   cursor: pointer;
@@ -190,7 +190,7 @@
   grid-template-columns: 150px minmax(0, 1fr);
   gap: 10px;
   padding: 6px 0;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .kv dt {
@@ -224,7 +224,7 @@
   margin: 0 0 10px;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .checklist li,
@@ -260,7 +260,7 @@
 
 .mini-table {
   min-width: 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .mini-table th,
@@ -276,7 +276,7 @@
 .mini-table .add-row .control {
   height: 30px;
   padding: 0 8px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 .num-input {
@@ -292,7 +292,7 @@
   justify-content: space-between;
   padding: 8px 0;
   border-bottom: 1px solid #f0f1f4;
-  font-size: 13.5px;
+  font-size: 0.844rem;
 }
 
 .cost dd {
@@ -329,7 +329,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .mini-icon {
@@ -383,7 +383,7 @@
 .control--date {
   height: 32px;
   padding: 0 8px;
-  font-size: 13px;
+  font-size: 0.813rem;
 }
 
 .reminder-actions {
@@ -402,7 +402,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #17803d;
 }
 

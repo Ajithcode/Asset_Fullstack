@@ -18,17 +18,17 @@
 .brand--lg {
   width: 64px;
   height: 64px;
-  font-size: 15px;
+  font-size: 0.938rem;
 }
 
 .brand--md {
   width: 46px;
   height: 46px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .flag {
-  font-size: 15px;
+  font-size: 0.938rem;
 }
 
 .ext {
@@ -57,7 +57,7 @@
   flex-direction: column;
   gap: 3px;
   font-style: normal;
-  font-size: 13px;
+  font-size: 0.813rem;
   color: #0f172a;
 }
 

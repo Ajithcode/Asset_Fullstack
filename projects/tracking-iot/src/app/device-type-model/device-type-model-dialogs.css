@@ -4,7 +4,7 @@
 
 .menu { display: flex; flex-direction: column; min-width: 200px; padding: 6px; border: 1px solid var(--dm-border); border-radius: 10px; background: #fff; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16); }
 .menu--fixed { position: fixed; z-index: 1300; width: 210px; box-sizing: border-box; }
-.menu button { padding: 8px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 13px; color: var(--dm-ink); text-align: left; cursor: pointer; }
+.menu button { padding: 8px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 0.813rem; color: var(--dm-ink); text-align: left; cursor: pointer; }
 .menu button:hover { background: var(--dm-accent-soft); color: var(--dm-accent); }
 .menu .ok { color: #15803d; }
 .menu .danger { color: #b91c1c; }
@@ -15,12 +15,12 @@
 .modal--sm { max-width: 460px; }
 .modal--lg { max-width: 820px; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--dm-border); }
-.modal-head h2 { margin: 0; font-size: 17px; font-weight: 800; }
-.modal-body { display: flex; flex-direction: column; gap: 13px; min-height: 0; padding: 14px 18px 18px; overflow-y: auto; font-size: 13px; }
+.modal-head h2 { margin: 0; font-size: 1.063rem; font-weight: 800; }
+.modal-body { display: flex; flex-direction: column; gap: 13px; min-height: 0; padding: 14px 18px 18px; overflow-y: auto; font-size: 0.813rem; }
 .modal-body > p { margin: 0; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding-top: 2px; }
 .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.form-error { margin: 0; font-size: 13px; color: #dc2626; }
+.form-error { margin: 0; font-size: 0.813rem; color: #dc2626; }
 .field .chips { gap: 6px; }
 
 .icon-pick { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -36,7 +36,7 @@
 .ok { font-weight: 600; color: #15803d; }
 .bad { font-weight: 600; color: #b91c1c; }
 
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 10002; max-width: 420px; padding: 11px 16px; border-radius: 8px; background: #1f2937; color: #fff; font-size: 13px; }
+.toast { position: fixed; right: 24px; bottom: 24px; z-index: 10002; max-width: 420px; padding: 11px 16px; border-radius: 8px; background: #1f2937; color: #fff; font-size: 0.813rem; }
 
 @media (max-width: 720px) {
   .three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -52,9 +52,9 @@
 .custom-add { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; }
 .custom-input { flex: 1; min-height: 44px; resize: vertical; font: inherit; }
 .custom-add .btn { flex-shrink: 0; gap: 4px; }
-.custom-hint { margin: 4px 0 0; font-size: 11.5px; color: #6b7280; }
+.custom-hint { margin: 4px 0 0; font-size: 0.719rem; color: #6b7280; }
 .custom-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.custom-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px; border: 1.5px solid #4f2bd8; border-radius: 999px; background: #f3f0ff; color: #4f2bd8; font-size: 13px; font-weight: 600; }
+.custom-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 4px 4px 12px; border: 1.5px solid #4f2bd8; border-radius: 999px; background: #f3f0ff; color: #4f2bd8; font-size: 0.813rem; font-weight: 600; }
 .custom-chip button { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
 .custom-chip button:hover { background: #4f2bd8; color: #fff; }
-.custom-unit { margin-left: 2px; font-size: 11px; font-weight: 500; opacity: 0.75; }
+.custom-unit { margin-left: 2px; font-size: 0.688rem; font-weight: 500; opacity: 0.75; }

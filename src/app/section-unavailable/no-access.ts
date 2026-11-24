@@ -24,7 +24,7 @@ import { Component } from '@angular/core';
     .no-access h2 {
       margin: 0;
       color: #211d2b;
-      font-size: 20px;
+      font-size: 1.25rem;
     }
     .no-access p {
       margin: 0;

@@ -57,7 +57,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .breadcrumb a {
@@ -71,7 +71,7 @@
 
 .breadcrumb-sep {
   color: #9ca3af;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
@@ -115,13 +115,13 @@
 
 .card-head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 .card-head p {
   margin: 2px 0 0;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: var(--reg-text-muted);
 }
 
@@ -147,13 +147,13 @@
 
 .reg-title-row h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
 }
 
 .reg-title-row p {
   margin: 2px 0 0;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: #4b5563;
 }
 
@@ -214,7 +214,7 @@
   border-radius: 50%;
   border: 1px solid var(--reg-control-border);
   background: #fff;
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 600;
   color: #374151;
 }
@@ -240,12 +240,12 @@
 }
 
 .step-title {
-  font-size: 13.5px;
+  font-size: 0.844rem;
   font-weight: 600;
 }
 
 .step-subtitle {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--reg-text-muted);
 }
 
@@ -323,7 +323,7 @@
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: 0.813rem;
   font-weight: 500;
   color: var(--reg-text);
 }
@@ -342,7 +342,7 @@
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 0.844rem;
   color: var(--reg-text);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -478,7 +478,7 @@ textarea.control {
   position: absolute;
   right: 22px;
   bottom: 8px;
-  font-size: 11px;
+  font-size: 0.688rem;
   color: var(--reg-text-muted);
   pointer-events: none;
 }

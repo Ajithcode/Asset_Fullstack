@@ -18,7 +18,7 @@
   border: none;
   outline: none;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   min-width: 0;
 }
 
@@ -64,7 +64,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #0f172a;
   cursor: pointer;
 }

@@ -28,13 +28,13 @@ export interface ComboOption {
   `,
   styles: [`
     :host { position: relative; display: block; }
-    .smc-input { width: 100%; height: 36px; box-sizing: border-box; padding: 0 11px; border: 1px solid var(--sm-control, #d6d9e0); border-radius: 8px; background: #fff; font: inherit; font-size: 13px; color: var(--sm-ink, #111827); outline: none; }
+    .smc-input { width: 100%; height: 36px; box-sizing: border-box; padding: 0 11px; border: 1px solid var(--sm-control, #d6d9e0); border-radius: 8px; background: #fff; font: inherit; font-size: 0.813rem; color: var(--sm-ink, #111827); outline: none; }
     .smc-input:focus { border-color: var(--sm-accent, #4f2bd8); box-shadow: 0 0 0 3px rgba(79, 43, 216, 0.12); }
     .smc-input:disabled { background: #f6f7f9; color: var(--sm-muted, #6b7280); }
     .smc-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; max-height: 220px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid var(--sm-control, #d6d9e0); border-radius: 8px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14); }
-    .smc-list li { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+    .smc-list li { display: flex; flex-direction: column; gap: 1px; padding: 6px 8px; border-radius: 6px; font-size: 0.813rem; cursor: pointer; }
     .smc-list li.is-active { background: #f1edff; }
-    .smc-list small { font-size: 11.5px; color: var(--sm-muted, #6b7280); }
+    .smc-list small { font-size: 0.719rem; color: var(--sm-muted, #6b7280); }
     .smc-val { font-weight: 600; color: var(--sm-ink, #111827); }
   `],
 })

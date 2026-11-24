@@ -18,11 +18,11 @@
   align-items: center;
   gap: 4px;
   color: #059669;
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .ia-compliance__delta span {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-style: italic;
 }
 

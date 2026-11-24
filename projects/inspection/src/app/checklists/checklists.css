@@ -1,5 +1,5 @@
 .layout { display: grid; grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.6fr); gap: 14px; align-items: start; }
-.shared-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: var(--ip-accent-soft); color: var(--ip-accent); font-size: 13px; font-weight: 600; letter-spacing: 0; }
+.shared-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: var(--ip-accent-soft); color: var(--ip-accent); font-size: 0.813rem; font-weight: 600; letter-spacing: 0; }
 .filters.col { flex-direction: column; align-items: stretch; }
 .filters.col .search { flex: 0 0 auto; }
 .cards { display: flex; flex-direction: column; gap: 10px; padding: 0 18px; }
@@ -9,10 +9,10 @@
 .cl-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 42px; height: 42px; border-radius: 10px; background: var(--ip-blue-soft); color: var(--ip-blue); }
 .cl-main { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
 .cl-top, .cl-bottom { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
-.cl-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+.cl-name { font-size: 0.875rem; overflow: hidden; text-overflow: ellipsis; }
 .cl-chev { color: var(--ip-muted); flex: 0 0 auto; }
 .tags { display: flex; gap: 6px; flex-wrap: wrap; }
-.tag { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; background: var(--ip-accent-soft); color: var(--ip-accent); }
+.tag { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; background: var(--ip-accent-soft); color: var(--ip-accent); }
 .cl-card.is-selected .tag { background: #fff; }
 .tag[data-m='Maintenance'] { background: var(--ip-blue-soft) !important; color: var(--ip-blue); }
 .tag[data-m='WIP'] { background: var(--ip-warn-soft) !important; color: var(--ip-warn); }

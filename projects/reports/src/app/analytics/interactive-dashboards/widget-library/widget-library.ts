@@ -39,11 +39,11 @@ const TYPE_ICONS: Record<WidgetType, typeof Table> = {
   styleUrls: ['../../shared/analytics-page.css'],
   styles: [
     `
-      .idb-lib__hint { margin: -4px 0 10px; font-size: 12px; }
+      .idb-lib__hint { margin: -4px 0 10px; font-size: 0.75rem; }
       .idb-lib__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
       .idb-lib__item {
         position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px 10px;
-        border: 1px solid var(--ra-border); border-radius: 10px; background: #fff; font: inherit; font-weight: 600; font-size: 12.5px;
+        border: 1px solid var(--ra-border); border-radius: 10px; background: #fff; font: inherit; font-weight: 600; font-size: 0.781rem;
         color: #0f172a; cursor: grab;
       }
       .idb-lib__item:hover:not(:disabled) { border-color: var(--ra-purple); box-shadow: 0 4px 12px rgba(91, 42, 168, 0.1); }

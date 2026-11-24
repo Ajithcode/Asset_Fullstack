@@ -1,7 +1,7 @@
 /* IoT / Utilization Analytics extras on top of the shared analytics layout */
 
 .iot-auto {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #334155;
 }
 
@@ -40,7 +40,7 @@
   grid-template-columns: 12px auto;
   column-gap: 8px;
   align-items: center;
-  font-size: 12.5px;
+  font-size: 0.781rem;
   color: #475569;
 }
 
@@ -52,7 +52,7 @@
 
 .iot-health__legend b {
   grid-column: 2;
-  font-size: 15px;
+  font-size: 0.938rem;
   color: #0f172a;
 }
 
@@ -62,7 +62,7 @@
   justify-content: space-between;
   gap: 8px;
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #475569;
 }
 
@@ -128,7 +128,7 @@
 }
 
 .iot-facts dt {
-  font-size: 11.5px;
+  font-size: 0.719rem;
   color: var(--ra-muted);
 }
 
@@ -149,7 +149,7 @@
 
 .iot-sub {
   margin: 14px 0 6px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .iot-alerts {
@@ -159,7 +159,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12.5px;
+  font-size: 0.781rem;
 }
 
 @media (max-width: 640px) {

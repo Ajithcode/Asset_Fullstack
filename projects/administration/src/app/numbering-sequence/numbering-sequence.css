@@ -5,7 +5,7 @@
   background: none;
   color: var(--adm-pink);
   font: inherit;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
@@ -65,7 +65,7 @@
   display: block;
   margin-bottom: 6px;
   color: var(--adm-red);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .radio-row {
@@ -76,7 +76,7 @@
 }
 
 .radio-row__label {
-  font-size: 12.5px;
+  font-size: 0.781rem;
   font-weight: 600;
   color: #334155;
 }
@@ -109,7 +109,7 @@
 
 .toggle-row small {
   color: var(--adm-muted);
-  font-size: 11.5px;
+  font-size: 0.719rem;
 }
 
 .prefix-preview {

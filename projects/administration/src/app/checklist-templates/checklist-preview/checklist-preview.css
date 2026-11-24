@@ -17,7 +17,7 @@
 
 .modal__head h2 {
   margin: 6px 0 2px;
-  font-size: 19px;
+  font-size: 1.188rem;
 }
 
 .modal__section {
@@ -38,7 +38,7 @@
   flex-wrap: wrap;
   gap: 6px;
   margin: 4px 0 10px;
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .modal__item p.muted {
@@ -53,7 +53,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .req {
