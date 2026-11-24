@@ -3,12 +3,25 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace A360.Security;
 
 public static class JwtAuthenticationServiceCollectionExtensions
 {
+    /// <summary>Framework log categories that write request URLs including the query string.</summary>
+    private static readonly string[] UrlLoggingCategories =
+    [
+        "Microsoft.AspNetCore.Hosting.Diagnostics",
+        "Microsoft.AspNetCore.HttpLogging",
+        "Microsoft.AspNetCore.Routing",
+        "Microsoft.AspNetCore.Server.Kestrel",
+        "Microsoft.AspNetCore.WebSockets",
+        "Yarp.ReverseProxy",
+        "System.Net.Http.HttpClient",
+    ];
+
     public static IServiceCollection AddA360JwtAuthentication(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -53,6 +66,17 @@ public static class JwtAuthenticationServiceCollectionExtensions
             });
 
         services.AddAuthorization();
+
+        // WebSocket URLs carry the sign-in token (?access_token=). These categories log full request URLs, query
+        // included, at Information/Debug: keep them at Warning whatever the configured levels say, so a lowered log
+        // level for debugging can't write tokens to the logs. (Our own log lines only use Request.Path.)
+        services.AddLogging(logging =>
+        {
+            foreach (var category in UrlLoggingCategories)
+            {
+                logging.AddFilter(category, LogLevel.Warning);
+            }
+        });
 
         services.AddHttpContextAccessor();
         services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccessor>();
