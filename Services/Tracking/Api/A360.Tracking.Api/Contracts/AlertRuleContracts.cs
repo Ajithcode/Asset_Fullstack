@@ -143,9 +143,16 @@ public sealed record AlertRuleResponse(
     DateTime? EffectiveFrom,
     DateTime? EffectiveTo,
     string? UpdatedBy,
-    DateTime? UpdatedAt)
+    DateTime? UpdatedAt,
+    string? StatusReason,
+    bool TargetMissing,
+    string? TargetIssue)
 {
-    public static AlertRuleResponse FromEntity(AlertRule rule)
+    /// <summary>Shown on a rule whose floor plan zone was deleted in Maps &amp; Floor Plans.</summary>
+    public const string ZoneMissing = "Zone missing";
+
+    /// <param name="targetMissing">The rule's floor plan zone no longer exists (deleted, or its floor plan deleted).</param>
+    public static AlertRuleResponse FromEntity(AlertRule rule, bool targetMissing = false)
     {
         return new AlertRuleResponse(
             rule.Id,
@@ -187,6 +194,9 @@ public sealed record AlertRuleResponse(
             rule.EffectiveFrom,
             rule.EffectiveTo,
             rule.UpdatedBy,
-            rule.UpdatedAt);
+            rule.UpdatedAt,
+            rule.StatusReason,
+            targetMissing,
+            targetMissing ? ZoneMissing : null);
     }
 }

@@ -68,6 +68,13 @@ public sealed class AlertRule : BaseEntity
     [BsonElement("map_floor_plan_id")]
     public string? MapFloorPlanId { get; set; }
 
+    /// <summary>
+    /// Why the rule is <see cref="AlertRuleStatus.Disabled"/>, e.g. "Zone Dock 1 was deleted on 2026-11-24 10:15 UTC"
+    /// (written by Maps &amp; Floor Plans when the rule's zone is deleted). Cleared when the rule is enabled again.
+    /// </summary>
+    [BsonElement("status_reason")]
+    public string? StatusReason { get; set; }
+
     /// <summary>Seconds between desktop notifications of one alert (e.g. 5).</summary>
     [BsonElement("notify_interval_seconds")]
     public int NotifyIntervalSeconds { get; set; } = AlertNotifyDefaults.IntervalSeconds;
@@ -143,6 +150,22 @@ public static class AlertNotifyDefaults
     public const int MaxIntervalSeconds = 24 * 60 * 60;
     public const int MaxRepeat = 20;
     public const string MapZonePrefix = "zone:";
+
+    /// <summary>
+    /// Floor plan zone id the rule watches: <see cref="AlertRule.MapZoneId"/>, else the id in a "zone:{id}"
+    /// <see cref="AlertRule.GeofenceId"/>; null for an outdoor geofence rule.
+    /// </summary>
+    public static string? ZoneIdOf(AlertRule rule)
+    {
+        if (!string.IsNullOrWhiteSpace(rule.MapZoneId))
+        {
+            return rule.MapZoneId;
+        }
+
+        return rule.GeofenceId.StartsWith(MapZonePrefix, StringComparison.Ordinal) && rule.GeofenceId.Length > MapZonePrefix.Length
+            ? rule.GeofenceId[MapZonePrefix.Length..]
+            : null;
+    }
 }
 
 public static class AlertRuleTrigger

@@ -27,8 +27,10 @@ public static class AlertRuleEndpoints
         return group;
     }
 
+    /// <remarks>Each rule carries TargetMissing / TargetIssue ("Zone missing") when its floor plan zone no longer exists.</remarks>
     private static async Task<IResult> GetAlertRulesAsync(
         IAlertRuleRepository repository,
+        MapZoneLookup zoneLookup,
         CancellationToken cancellationToken,
         string? geofenceId = null)
     {
@@ -39,19 +41,42 @@ public static class AlertRuleEndpoints
             rules = rules.Where(rule => rule.GeofenceId == geofenceId.Trim());
         }
 
-        return Results.Ok(rules.Select(AlertRuleResponse.FromEntity).ToList());
+        var list = rules.ToList();
+        var missing = await MissingZonesAsync(list, zoneLookup, cancellationToken);
+        return Results.Ok(list.Select(rule => AlertRuleResponse.FromEntity(rule, IsTargetMissing(rule, missing))).ToList());
     }
 
     private static async Task<IResult> GetAlertRuleAsync(
         string id,
         IAlertRuleRepository repository,
+        MapZoneLookup zoneLookup,
         CancellationToken cancellationToken)
     {
         var rule = await repository.GetByIdAsync(id.Trim(), cancellationToken);
-        return rule is null || rule.IsDeleted
-            ? NotFound(id)
-            : Results.Ok(AlertRuleResponse.FromEntity(rule));
+        if (rule is null || rule.IsDeleted)
+        {
+            return NotFound(id);
+        }
+
+        var missing = await MissingZonesAsync([rule], zoneLookup, cancellationToken);
+        return Results.Ok(AlertRuleResponse.FromEntity(rule, IsTargetMissing(rule, missing)));
     }
+
+    /// <summary>Floor plan zone ids the rules watch that no longer exist (deleted zone or deleted floor plan).</summary>
+    private static async Task<HashSet<string>> MissingZonesAsync(IReadOnlyCollection<AlertRule> rules, MapZoneLookup zoneLookup, CancellationToken cancellationToken)
+    {
+        var zoneIds = rules.Select(AlertNotifyDefaults.ZoneIdOf).OfType<string>().Distinct().ToList();
+        if (zoneIds.Count == 0)
+        {
+            return [];
+        }
+
+        var existing = await zoneLookup.GetManyAsync(zoneIds, cancellationToken);
+        return zoneIds.Where(zoneId => !existing.ContainsKey(zoneId)).ToHashSet();
+    }
+
+    private static bool IsTargetMissing(AlertRule rule, HashSet<string> missingZones) =>
+        AlertNotifyDefaults.ZoneIdOf(rule) is { } zoneId && missingZones.Contains(zoneId);
 
     private static async Task<IResult> CreateAlertRuleAsync(
         CreateAlertRuleRequest request,
@@ -123,6 +148,8 @@ public static class AlertRuleEndpoints
 
         var currentUser = currentUserAccessor.GetCurrentUser();
         var rule = request.ToEntity(geofence, zone, currentUser).Replacing(existing, currentUser);
+        // The reason (e.g. "Zone X was deleted") stays while the rule stays disabled; enabling it clears it
+        rule.StatusReason = rule.Status == AlertRuleStatus.Disabled ? existing.StatusReason : null;
 
         if (await repository.NameExistsAsync(rule.GeofenceId, rule.Name, existing.Id, cancellationToken))
         {

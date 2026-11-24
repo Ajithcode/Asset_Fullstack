@@ -14,6 +14,9 @@ namespace A360.Tracking.Api.Alerts;
 public sealed class GeofenceAlertsService(IMongoDatabase database, MapZoneLookup zoneLookup, RealTimeLocationService rtl, ILogger<GeofenceAlertsService> logger)
 {
     /// <summary>Event types that belong to geofences even when no rule id is set.</summary>
+    /// <summary>Indoor target status of rules whose floor plan zone no longer exists.</summary>
+    public const string ZoneMissingStatus = "Zone missing";
+
     private static readonly BsonRegularExpression GeofenceEventType = new("geofence|zone|dwell|entry|exit|unauthori|location lost", "i");
 
     private IMongoCollection<AlertRule> Rules => database.GetCollection<AlertRule>("AlertRule");
@@ -105,6 +108,18 @@ public sealed class GeofenceAlertsService(IMongoDatabase database, MapZoneLookup
                 S(z, "shape"), area, activeRules.Count > 0 ? "Monitored" : "Not monitored", on.Count, activeRules.Count, scope.Count,
                 gateways.GetValueOrDefault(zoneId)?.Count ?? 0, insideNow.GetValueOrDefault(zoneId), S(z, "created_by"),
                 z.TryGetValue("updated_at", out var u) && u.IsValidDateTime ? u.ToUniversalTime() : null, alertsByTarget.GetValueOrDefault(id)));
+        }
+
+        // Rules whose floor plan zone was deleted (zone or floor plan deleted in Maps & Floor Plans) stay listed as
+        // "Zone missing" instead of silently disappearing; the engine skips them
+        var liveZoneIds = zoneIds.ToHashSet();
+        foreach (var orphan in rules.Where(r => AlertNotifyDefaults.ZoneIdOf(r) is { } zid && !liveZoneIds.Contains(zid)).GroupBy(r => AlertNotifyDefaults.ZoneIdOf(r)!))
+        {
+            var id = AlertNotifyDefaults.MapZonePrefix + orphan.Key;
+            var on = orphan.ToList();
+            var activeCount = on.Count(r => r.Status == AlertRuleStatus.Active);
+            targets.Add(Target(id, "Indoor", on[0].GeofenceName, null, null, null, null, null, null, null, on[0].MapFloorPlanId, null,
+                null, null, ZoneMissingStatus, on.Count, activeCount, 0, 0, 0, null, null, alertsByTarget.GetValueOrDefault(id)));
         }
 
         var unresolved = IoTAlertStatus.Unresolved.ToHashSet();
@@ -277,7 +292,7 @@ public sealed record GeofenceKpis(int ActiveGeofences, int OutdoorActive, int In
 /// <param name="Id">Outdoor geofence id, or "zone:{maps zone id}" for a floor plan zone (the alert rule target).</param>
 /// <param name="Kind">Indoor or Outdoor.</param>
 /// <param name="Type">Outdoor: Allowed / Warning / Restricted. Indoor: the zone's access rule.</param>
-/// <param name="Status">Outdoor: Active / Disabled. Indoor: Monitored (has an active rule) / Not monitored.</param>
+/// <param name="Status">Outdoor: Active / Disabled. Indoor: Monitored (has an active rule) / Not monitored / Zone missing (the zone was deleted but rules still point at it).</param>
 /// <param name="InsideNow">Indoor: assets located in the zone now.</param>
 public sealed record GeofenceTarget(string Id, string Kind, string Name, string? Code, string? Type, string? Category, string? SiteId, string? SiteName,
     string? BuildingName, string? FloorName, string? FloorPlanId, string? LocationPath, string? Shape, double? AreaM2, string Status,

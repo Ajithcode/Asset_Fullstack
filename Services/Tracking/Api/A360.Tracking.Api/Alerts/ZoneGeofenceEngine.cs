@@ -72,7 +72,27 @@ public sealed class ZoneGeofenceEngine(
         }
     }
 
+    /// <summary>Zones already reported as missing, so a deleted zone logs one warning, not one per pass.</summary>
+    private readonly HashSet<string> reportedMissingZones = [];
+
     private static TimeSpan Debounce(AlertRule rule) => TimeSpan.FromSeconds(Math.Max(0, rule.DebounceSeconds));
+
+    /// <summary>
+    /// Logs once (Warning) per zone that active rules watch but that no longer exists in maps_zones; such rules are
+    /// skipped. A zone that comes back, or is no longer watched, is forgotten so a later deletion is reported again.
+    /// </summary>
+    private void WarnMissingZones(List<AlertRule> rules, List<string> requestedZoneIds, Dictionary<string, MapZoneRef> zones)
+    {
+        var missing = requestedZoneIds.Where(id => !zones.ContainsKey(id)).ToHashSet();
+        reportedMissingZones.IntersectWith(missing);
+        foreach (var zoneId in missing.Where(reportedMissingZones.Add))
+        {
+            var names = rules.Where(r => r.MapZoneId == zoneId).Select(r => $"'{r.Name}' ({r.Id})");
+            logger.LogWarning(
+                "Floor plan zone {ZoneId} no longer exists; skipping active alert rule(s) {Rules} until they are moved to another zone or disabled",
+                zoneId, string.Join(", ", names));
+        }
+    }
 
     private async Task RunOnceAsync(CancellationToken ct)
     {
@@ -80,17 +100,21 @@ public sealed class ZoneGeofenceEngine(
         var rules = (await Rules.Find(r => !r.IsDeleted && r.MapZoneId != null && r.Status == AlertRuleStatus.Active && r.CreateAlert).ToListAsync(ct))
             .Where(r => (r.EffectiveFrom is null || r.EffectiveFrom <= now) && (r.EffectiveTo is null || r.EffectiveTo >= now))
             .ToList();
-        var zoneIds = rules.Select(r => r.MapZoneId!).Distinct().ToList();
+        var requestedZoneIds = rules.Select(r => r.MapZoneId!).Distinct().ToList();
+
+        // A rule whose zone was deleted in Maps & Floor Plans is skipped (reported once, see WarnMissingZones)
+        var zones = await zoneLookup.GetManyAsync(requestedZoneIds, ct);
+        WarnMissingZones(rules, requestedZoneIds, zones);
+        var zoneIds = zones.Keys.ToList();
 
         // Zones no longer watched forget who was inside, so a rule added later starts from a fresh first look
         await Watched.DeleteManyAsync(w => !zoneIds.Contains(w.ZoneId), ct);
         await Presence.DeleteManyAsync(p => !zoneIds.Contains(p.ZoneId), ct);
-        if (rules.Count == 0)
+        if (zoneIds.Count == 0)
         {
             return;
         }
 
-        var zones = await zoneLookup.GetManyAsync(zoneIds, ct);
         var gateways = await zoneLookup.GatewaysByZoneAsync(zones.Keys, ct);
 
         // Every tag heard by any gateway in the window: who is inside each zone, and whether a missing asset is elsewhere
