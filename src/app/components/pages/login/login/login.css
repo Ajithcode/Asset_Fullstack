@@ -72,28 +72,28 @@
 
 /* ================= Card ================= */
 .card { container-type: inline-size; box-sizing: border-box; border-radius: 14px; background: #fff; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12); }
-.card h2 { margin: 0; text-align: center; font-size: 2.75rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.4px; color: var(--lg-ink); }
+.card h2 { margin: 0; text-align: center; font-size: 2.4rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.4px; color: var(--lg-ink); }
 .card h2 span { color: var(--lg-primary); }
-.card-sub { margin: 0.25rem 0 1.25rem; text-align: center; font-size: 1.375rem; color: #4b5563; }
+.card-sub { margin: 0.25rem 0 1.25rem; text-align: center; font-size: 1.2rem; color: #4b5563; }
 
 .form { display: flex; flex-direction: column; gap: 1rem; }
 .field { display: flex; flex-direction: column; gap: 0.5rem; }
-.field-label { font-size: 1.25rem; font-weight: 500; color: var(--lg-text); }
-.input { display: flex; align-items: center; gap: 14px; height: 3.75rem; box-sizing: border-box; padding: 0 1rem 0 1.125rem; border: 1px solid var(--lg-border); border-radius: 6px; background: #fafafb; color: #6b7280; }
+.field-label { font-size: 1.05rem; font-weight: 500; color: var(--lg-text); }
+.input { display: flex; align-items: center; gap: 14px; height: 3.6rem; box-sizing: border-box; padding: 0 1rem 0 1.125rem; border: 1px solid var(--lg-border); border-radius: 6px; background: #fafafb; color: #6b7280; }
 .input:focus-within { border-color: var(--lg-primary); background: #fff; box-shadow: 0 0 0 3px rgba(79, 43, 216, 0.12); }
 .input lucide-icon { flex: 0 0 auto; }
-.input input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: none; font: inherit; font-size: 1.25rem; color: var(--lg-text); }
+.input input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: none; font: inherit; font-size: 1.05rem; color: var(--lg-text); }
 .input input::placeholder { color: #9ca3af; }
 .eye { display: inline-flex; flex: 0 0 auto; padding: 4px; border: 0; border-radius: 4px; background: none; color: #4b5563; cursor: pointer; }
 .eye:hover { color: var(--lg-primary); }
 
-.meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 1.125rem; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 1.05rem; }
 .check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
 .check input { width: 1.25rem; height: 1.25rem; margin: 0; accent-color: var(--lg-primary); cursor: pointer; }
 .link { color: var(--lg-primary); text-decoration: none; }
 .link:hover { text-decoration: underline; }
 
-.msg { margin: 0; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 1rem; }
+.msg { margin: 0; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.9rem; }
 .msg--info { background: #f1efff; color: #3d20b0; }
 .msg--error { background: #fdecec; color: #b91c1c; }
 
@@ -102,13 +102,13 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  height: 3.5rem;
+  height: 3.6rem;
   border: 0;
   border-radius: 6px;
   background: linear-gradient(90deg, var(--lg-primary-2), var(--lg-primary));
   box-shadow: 0 8px 20px rgba(79, 43, 216, 0.28);
   font: inherit;
-  font-size: 1.375rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: #fff;
   cursor: pointer;
@@ -140,20 +140,20 @@
 
 .opt > lucide-icon { flex: 0 0 auto; }
 .opt:hover, .tile:hover { border-color: #c9c3f6; background: #faf9ff; }
-.opt--row { min-height: 3.75rem; margin-bottom: 0.5rem; }
+.opt--row { min-height: 3.6rem; margin-bottom: 0.5rem; }
 .opt-ic { color: var(--lg-primary); }
 .opt-text { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .opt-text strong, .opt-text small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.opt-text strong { font-size: 1.25rem; font-weight: 600; color: var(--lg-ink); }
-.opt-text small { font-size: 1rem; color: var(--lg-muted); }
+.opt-text strong { font-size: 1.05rem; font-weight: 600; color: var(--lg-ink); }
+.opt-text small { font-size: 0.9rem; color: var(--lg-muted); }
 .opt-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 0.5rem; }
 .opt-pair .opt { gap: 10px; padding: 6px 10px 6px 14px; }
 /* as in the design: the arrow follows the label */
 .opt-pair .opt-text { flex: 0 1 auto; }
-.opt-pair .opt-text strong { font-size: 1.125rem; font-weight: 500; }
+.opt-pair .opt-text strong { font-size: 1rem; font-weight: 500; }
 .brand-ic { flex: 0 0 auto; width: 28px; height: 28px; }
 
-.other-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 0.625rem 0 0.5rem; padding: 0; border: 0; background: none; font: inherit; font-size: 1.125rem; color: var(--lg-text); cursor: pointer; }
+.other-toggle { display: inline-flex; align-items: center; gap: 8px; margin: 0.625rem 0 0.5rem; padding: 0; border: 0; background: none; font: inherit; font-size: 1rem; color: var(--lg-text); cursor: pointer; }
 .other-toggle:focus-visible { outline: 2px solid var(--lg-primary); outline-offset: 2px; border-radius: 4px; }
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
 
@@ -164,13 +164,13 @@
   justify-content: center;
   gap: 8px;
   min-width: 0;
-  height: 4.5rem;
+  height: 4.25rem;
   padding: 4px;
   border: 1px solid var(--lg-border);
   border-radius: 6px;
   background: #fff;
   font: inherit;
-  font-size: 1.063rem;
+  font-size: 0.95rem;
   color: #374151;
   text-align: center;
   cursor: pointer;
@@ -180,7 +180,7 @@
 .tile .brand-ic { width: 24px; height: 24px; }
 .tile.is-on { border-color: var(--lg-primary); background: #f1efff; color: var(--lg-primary); }
 
-.card-foot { margin: 0.75rem 0 0; text-align: center; font-size: 1rem; color: #374151; }
+.card-foot { margin: 0.75rem 0 0; text-align: center; font-size: 0.9rem; color: #374151; }
 
 .footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; box-sizing: border-box; border-top: 1px solid #eef0f4; background: #fff; font-size: 0.938rem; color: #4b5563; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -189,15 +189,15 @@
 .footer-links i { font-style: normal; color: #9ca3af; }
 
 /* ================= Desktop design (scaled as a whole) ================= */
-.is-scaled .stage { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) clamp(34rem, 38vw, 42rem); gap: 2rem; padding: 1.25rem 1.75rem 0.75rem clamp(1.5rem, 3vw, 3.5rem); }
+.is-scaled .stage { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) clamp(30rem, 36vw, 36rem); gap: 2rem; padding: 1.25rem 1.75rem 0.75rem clamp(1.5rem, 3vw, 3.5rem); }
 .is-scaled .stage-bg { inset: 0 500px 0 0; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent 100%); mask-image: linear-gradient(90deg, #000 88%, transparent 100%); }
 .is-scaled .brand-logo { width: clamp(16rem, 20vw, 24rem); margin: 2.5rem 0 2rem clamp(0rem, 6vw, 7.5rem); }
-.is-scaled .brand-title { font-size: 3rem; line-height: 1.17; }
-.is-scaled .brand-tagline { gap: 0.25rem 1.375rem; margin: 1.125rem 0 0; font-size: 1.5rem; }
+.is-scaled .brand-title { font-size: 2.4rem; line-height: 1.17; }
+.is-scaled .brand-tagline { gap: 0.25rem 1.375rem; margin: 1.125rem 0 0; font-size: 1.4rem; }
 .is-scaled .features { grid-template-columns: repeat(4, minmax(0, 12rem)); margin: auto 0 2.5rem -1rem; }
 .is-scaled .features li { gap: 0.875rem; }
-.is-scaled .feature-ic { width: 5.75rem; height: 5.75rem; }
-.is-scaled .feature-label { font-size: 1.25rem; }
+.is-scaled .feature-ic { width: 5rem; height: 5rem; }
+.is-scaled .feature-label { font-size: 1.1rem; }
 .is-scaled .card { align-self: center; width: 100%; margin: 1rem 0; padding: 2.5rem 3rem 1.5rem; display: flex; flex-direction: column; justify-content: center; }
 .is-scaled .footer { min-height: 3rem; padding: 0.5rem 3rem; }
 
@@ -220,7 +220,7 @@
 @media (max-width: 560px) {
   .login-shell:not(.is-scaled) .features { display: none; }
   .login-shell:not(.is-scaled) .card { padding: 24px 16px 18px; }
-  .card h2 { font-size: 2rem; }
+  .card h2 { font-size: 1.75rem; }
   .card-sub { margin-bottom: 18px; font-size: 1.063rem; }
 }
 
