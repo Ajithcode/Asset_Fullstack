@@ -77,6 +77,12 @@ const sameList = (a: string[] | null | undefined, b: string[] | null | undefined
   (a ?? []).length === (b ?? []).length && (a ?? []).every((x, i) => x.toLowerCase() === (b ?? [])[i]?.toLowerCase());
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
+/** Trolley: handle, basket and two wheels (inline, filled with the state colour --c). */
+const TROLLEY_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="tr-halo" d="M2.4 4.6h2.5l1.4 3"/><path class="tr-handle" d="M2.4 4.6h2.5l1.4 3"/>' +
+  '<path class="tr-fill" d="M5.6 7.4h15.2l-1.9 6.5a1.7 1.7 0 0 1-1.6 1.2H9.4a1.7 1.7 0 0 1-1.6-1.3L5.6 7.4Z"/>' +
+  '<circle class="tr-fill" cx="9.6" cy="19" r="1.8"/><circle class="tr-fill" cx="17" cy="19" r="1.8"/></svg>';
+
 const DEVICE_SVG =
   '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1a10 10 0 0 1 0-14.2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/></svg>';
 const ASSET_SVG =
@@ -174,14 +180,21 @@ const ASSET_SVG =
     /* assets inside their zone (Real-Time Location) */
     .fp-asset-marker { transition: transform 1.2s cubic-bezier(.4, 0, .2, 1); }
     .leaflet-zoom-anim .fp-asset-marker { transition: none; }
-    .fp-am { position: relative; display: block; width: 22px; height: 22px; }
-    .fp-am b { position: absolute; left: 4px; top: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--c); border: 2.5px solid #fff; box-shadow: 0 1px 5px rgba(15, 23, 42, .35); }
+    /* the asset marker is a small trolley; its size follows the zoom (--fp-am, set by the map: 18 - 40 px) */
+    .fp-am { position: absolute; left: 50%; top: 50%; display: block; width: var(--fp-am, 24px); height: var(--fp-am, 24px);
+      margin: calc(var(--fp-am, 24px) / -2) 0 0 calc(var(--fp-am, 24px) / -2); }
+    .fp-am svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .4)); }
+    .fp-am .tr-fill { fill: var(--c); stroke: #fff; stroke-width: 1.3; stroke-linejoin: round; }
+    .fp-am .tr-handle { fill: none; stroke: var(--c); stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+    .fp-am .tr-halo { fill: none; stroke: #fff; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; }
     .fp-am i { position: absolute; inset: 0; border-radius: 50%; opacity: 0; pointer-events: none; }
+    .fp-am u { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid #6d28d9; background: rgba(109, 40, 217, .12); opacity: 0; pointer-events: none; text-decoration: none; }
     .fp-am--moving i.r1 { background: rgba(22, 163, 74, .35); animation: fp-am-pulse 1.8s ease-out infinite; }
-    .fp-am--hl b { background: #6d28d9; box-shadow: 0 0 0 3px rgba(109, 40, 217, .35), 0 0 0 6px rgba(109, 40, 217, .14), 0 1px 5px rgba(15, 23, 42, .35); }
+    .fp-am--hl { --c: #6d28d9 !important; }
+    .fp-am--hl u { opacity: 1; }
     .fp-am--hl-anim i { background: none; border: 2px solid #6d28d9; opacity: 1; animation: fp-am-ripple 1.5s ease-out infinite; }
     .fp-am--hl-anim i.r2 { animation-delay: .75s; }
-    .fp-am--hl-anim b { animation: fp-am-bounce .9s ease-in-out 3; }
+    .fp-am--hl-anim svg { animation: fp-am-bounce .9s ease-in-out 3; }
     .fp-trail { animation: fp-trail-fade 8s ease-out forwards; }
     @keyframes fp-am-pulse { 0% { transform: scale(.7); opacity: .9; } 100% { transform: scale(2.4); opacity: 0; } }
     @keyframes fp-am-ripple { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(3); opacity: 0; } }
@@ -189,7 +202,7 @@ const ASSET_SVG =
     @keyframes fp-trail-fade { from { opacity: .8; } to { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) {
       .fp-asset-marker { transition: none; }
-      .fp-am i, .fp-am b, .fp-trail { animation: none !important; }
+      .fp-am i, .fp-am svg, .fp-trail { animation: none !important; }
       .fp-am i { display: none; }
     }
     .fp-tip strong { display: block; font-size: 0.781rem; }
@@ -273,6 +286,10 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.assetLayer = Lf.layerGroup().addTo(map);
       map.setView([this.h / 2, W / 2], -1);
       // the popup follows its object, and closes on a click on the map or a drag (pan)
+      // the trolley markers scale with the zoom, between 18 and 40 px
+      const size = () => this.host.nativeElement.style.setProperty('--fp-am', `${Math.round(Math.min(40, Math.max(18, 24 * Math.pow(1.25, map.getZoom()))))}px`);
+      size();
+      map.on('zoom', size);
       map.on('move zoom resize', () => this.placePopup());
       map.on('click dragstart', () => this.closePopup());
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
@@ -535,7 +552,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private assetHtml(a: PlanAsset): string {
-    return `<span class="fp-am fp-am--${a.state.toLowerCase()}" style="--c:${STATE_COLOR[a.state]}"><i class="r1"></i><i class="r2"></i><b></b></span>`;
+    return `<span class="fp-am fp-am--${a.state.toLowerCase()}" style="--c:${STATE_COLOR[a.state]}"><u></u><i class="r1"></i><i class="r2"></i>${TROLLEY_SVG}</span>`;
   }
 
   /** Draws / moves the asset markers. Existing markers keep their element, so a move glides (CSS transition on the marker). */
@@ -563,7 +580,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       const at = pos.get(a.id)!;
       const e = this.assetMk.get(a.id);
       if (!e) {
-        const m = L.marker(at, { keyboard: false, riseOnHover: true, zIndexOffset: 600, icon: L.divIcon({ className: 'fp-asset-marker', html: this.assetHtml(a), iconSize: [22, 22], iconAnchor: [11, 11] }) })
+        const m = L.marker(at, { keyboard: false, riseOnHover: true, zIndexOffset: 600, icon: L.divIcon({ className: 'fp-asset-marker', html: this.assetHtml(a), iconSize: [0, 0], iconAnchor: [0, 0] }) })
           .bindTooltip(this.assetTip(a), { direction: 'top', offset: [0, -10], opacity: 1 })
           .on('click', () => {
             this.openPopup({ kind: 'asset', id: a.id }, null);
