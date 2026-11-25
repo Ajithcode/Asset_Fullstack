@@ -770,6 +770,8 @@ select.control {
 /* ============ Tool buttons ============ */
 .tree-tools {
   display: flex;
+  align-items: center;
+  flex: 0 0 auto;
   gap: 6px;
   margin-left: auto;
 }
@@ -819,8 +821,17 @@ select.control {
   padding: 16px;
 }
 
+.tree-card .card-head {
+  /* narrow column: the tool buttons drop under the title instead of spilling out of the card */
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
 .tree-card .card-head h2 {
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tree,
