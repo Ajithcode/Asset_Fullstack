@@ -14,9 +14,14 @@ public sealed class AssetCriticalityAssessmentRepository
     public const int DefaultPageSize = 10;
     public const int MaxPageSize = 200;
 
+    public const string CounterCollectionName = "AssetCriticalityCounter";
+
+    private readonly IMongoCollection<BsonDocument> _counters;
+
     public AssetCriticalityAssessmentRepository(IMongoDatabase database)
         : base(database.GetCollection<AssetCriticalityAssessment>(CollectionName))
     {
+        _counters = database.GetCollection<BsonDocument>(CounterCollectionName);
     }
 
     public async Task<AssetCriticalityQueryResult> QueryCurrentAsync(AssetCriticalityQuery query, CancellationToken cancellationToken = default)
@@ -96,14 +101,36 @@ public sealed class AssetCriticalityAssessmentRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// ACA-yyyy-nnnnnn from an atomic counter (one document per year, findOneAndUpdate $inc), so two requests never get the
+    /// same number; the unique index on assessment_number is the second line of defence.
+    /// </summary>
     public async Task<string> NextNumberAsync(CancellationToken cancellationToken = default)
     {
         var year = DateTime.UtcNow.Year;
+        var counter = await _counters.FindOneAndUpdateAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", $"assessment-{year}"),
+            Builders<BsonDocument>.Update.Inc("seq", 1),
+            new FindOneAndUpdateOptions<BsonDocument> { IsUpsert = true, ReturnDocument = ReturnDocument.After },
+            cancellationToken);
+        return $"ACA-{year}-{counter["seq"].ToInt64():D6}";
+    }
+
+    /// <summary>Makes sure this year's counter is not behind the numbers already issued (idempotent, $max).</summary>
+    private async Task SeedCounterAsync(CancellationToken cancellationToken)
+    {
+        var year = DateTime.UtcNow.Year;
         var prefix = $"ACA-{year}-";
-        var count = await Collection.CountDocumentsAsync(
-            Builders<AssetCriticalityAssessment>.Filter.Regex(assessment => assessment.AssessmentNumber, new BsonRegularExpression("^" + prefix)),
-            cancellationToken: cancellationToken);
-        return prefix + (count + 1).ToString("D6");
+        var numbers = await Collection
+            .Find(Builders<AssetCriticalityAssessment>.Filter.Regex(a => a.AssessmentNumber, new BsonRegularExpression("^" + prefix)))
+            .Project(a => a.AssessmentNumber)
+            .ToListAsync(cancellationToken);
+        var max = numbers.Select(n => long.TryParse(n![prefix.Length..], out var v) ? v : 0).DefaultIfEmpty(0).Max();
+        await _counters.UpdateOneAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", $"assessment-{year}"),
+            Builders<BsonDocument>.Update.Max("seq", max),
+            new UpdateOptions { IsUpsert = true },
+            cancellationToken);
     }
 
     public async Task<bool> ReplaceIfAsync(AssetCriticalityAssessment assessment, int expectedVersion, IReadOnlyCollection<string> allowedStatuses, CancellationToken cancellationToken = default)
@@ -193,11 +220,29 @@ public sealed class AssetCriticalityAssessmentRepository
             new CreateIndexModel<AssetCriticalityAssessment>(
                 Builders<AssetCriticalityAssessment>.IndexKeys.Ascending(assessment => assessment.NextReviewDate),
                 new CreateIndexOptions { Name = "ix_asset_criticality_next_review_date" }),
+            // Unique assessment number; older assessments have none, so only string values are indexed.
             new CreateIndexModel<AssetCriticalityAssessment>(
                 Builders<AssetCriticalityAssessment>.IndexKeys.Ascending(assessment => assessment.AssessmentNumber),
-                new CreateIndexOptions { Name = "ix_asset_criticality_assessment_number" })
+                new CreateIndexOptions<AssetCriticalityAssessment>
+                {
+                    Name = "ux_asset_criticality_assessment_number",
+                    Unique = true,
+                    PartialFilterExpression = new BsonDocumentFilterDefinition<AssetCriticalityAssessment>(
+                        new BsonDocument("assessment_number", new BsonDocument("$type", "string")))
+                })
         };
 
+        // Replaces the plain (non-unique) assessment_number index of the first P3 build; same key, so it must go first.
+        try
+        {
+            await Collection.Indexes.DropOneAsync("ix_asset_criticality_assessment_number", cancellationToken);
+        }
+        catch (MongoCommandException)
+        {
+            // not there (fresh database)
+        }
+
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);
+        await SeedCounterAsync(cancellationToken);
     }
 }

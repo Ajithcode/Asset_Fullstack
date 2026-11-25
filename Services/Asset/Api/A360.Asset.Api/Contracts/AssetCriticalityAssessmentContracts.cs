@@ -46,7 +46,7 @@ public sealed record AssessmentDecisionRequest(string? Comments, int? Concurrenc
 
 public sealed record AssessmentLevelResponse(string? Id, string Name, string? Code, string? Color, int? MinScore, int? MaxScore);
 
-public sealed record AssessmentBreakdownRow(string? CriterionId, string Code, string Name, double Weight, int Rating, decimal Weighted, string? Comment);
+public sealed record AssessmentBreakdownRow(string? CriterionId, string Code, string Name, double Weight, int? Rating, decimal Weighted, string? Comment);
 
 public sealed record AssessmentApprovalInfo(
     string Scenario,
@@ -130,7 +130,8 @@ public sealed record AssessmentDetailResponse(
     IReadOnlyList<AssessmentTrailResponse> Trail,
     int ConcurrencyVersion,
     bool IsLegacy,
-    AssessmentActions Actions);
+    AssessmentActions Actions,
+    bool IsComplete = true);
 
 public sealed record AssessmentVersionResponse(
     string Id,

@@ -352,11 +352,25 @@ public static class AssetCriticalityAssessmentEndpoints
 
         // The asset may have been (re)assessed since the draft was saved: re-read the approved one and the thresholds.
         var current = await s.Repository.GetCurrentAsync(assessment.AssetRegistrationId, cancellationToken);
+        var unrated = assessment.Criteria.Where(c => c.Rating is null).Select(c => c.Name).ToList();
+        if (assessment.Criteria.Count == 0 || unrated.Count > 0 || string.IsNullOrEmpty(assessment.CriticalityLevel))
+        {
+            return Problem("Ratings", unrated.Count > 0 ? $"Rate every criterion before submitting (missing: {string.Join(", ", unrated)})" : "Rate every criterion before submitting");
+        }
+
         var finalLevel = assessment.CriticalityLevel;
         var lowered = CriticalityAccess.IsReduction(current?.CriticalityLevel, finalLevel);
         if ((assessment.IsOverride || lowered) && string.IsNullOrWhiteSpace(assessment.Justification))
         {
             return Problem("Justification", assessment.IsOverride ? "A justification is required for a level override" : "A justification is required when the criticality is lowered");
+        }
+
+        // The review date is filled in from the level's reassessment rule when the draft had no level yet.
+        if (assessment.NextReviewDate is null)
+        {
+            var interval = (await s.ReassessmentRules.GetByLevelAsync(user?.ClientId, finalLevel, cancellationToken))?.ReviewIntervalMonths ?? 12;
+            assessment.NextReviewDate = assessment.AssessmentDate.AddMonths(interval);
+            assessment.ValidUntil = assessment.NextReviewDate;
         }
 
         var scenario = CriticalityScoring.Scenario(finalLevel, current?.CriticalityLevel);
@@ -375,6 +389,8 @@ public static class AssetCriticalityAssessmentEndpoints
                 .Set(a => a.ApproverRoles, rule?.ApproverRoles ?? [])
                 .Set(a => a.ApprovalType, rule?.ApprovalType)
                 .Set(a => a.RejectedReason, (string?)null)
+                .Set(a => a.NextReviewDate, assessment.NextReviewDate)
+                .Set(a => a.ValidUntil, assessment.ValidUntil)
                 .Set(a => a.UpdatedBy, user?.UserName)
                 .Set(a => a.UpdatedAt, now)
                 .Push(a => a.Trail, TrailEntry("Submitted", user, null)), cancellationToken);
@@ -555,25 +571,35 @@ public static class AssetCriticalityAssessmentEndpoints
         var user = s.Users.GetCurrentUser();
         var levels = await s.Levels.GetLevelsAsync(cancellationToken);
 
-        var ratings = ReadRatings(request.Ratings, template, errors);
-        var scored = ratings is null ? null : CriticalityScoring.Score(template, ratings, levels);
-        if (scored?.Level is null)
-        {
-            return Results.ValidationProblem(errors.Count > 0 ? errors : new Dictionary<string, string[]> { ["Ratings"] = ["Rate every criterion from 1 to 5"] });
-        }
-
-        var final = ResolveFinalLevel(scored.Level, request.OverrideLevel, levels, errors);
-        if (final is null)
+        // A draft may be partly filled in (asset + template are enough). Ratings that are sent must be valid; all ratings,
+        // the justification and the review date are checked on Submit.
+        var ratings = ReadRatings(request.Ratings, template, errors, allowMissing: true);
+        if (ratings is null)
         {
             return Results.ValidationProblem(errors);
         }
 
-        var isOverride = !string.Equals(final.Name, scored.Level.Name, StringComparison.OrdinalIgnoreCase);
-        var lowered = CriticalityAccess.IsReduction(current?.CriticalityLevel, final.Name);
-        var justification = ContractText.TrimOrNull(request.Justification);
-        if ((isOverride || lowered) && justification is null)
+        var complete = template.Criteria.All(c => ratings.ContainsKey(c.Code));
+        var scored = complete ? CriticalityScoring.Score(template, ratings, levels) : null;
+        if (complete && scored?.Level is null)
         {
-            errors["Justification"] = [isOverride ? "A justification is required for a level override" : "A justification is required when the criticality is lowered"];
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["Ratings"] = ["The score could not be matched to a criticality level"] });
+        }
+
+        CriticalityLevelInfo? final = null;
+        var isOverride = false;
+        var lowered = false;
+        var justification = ContractText.TrimOrNull(request.Justification);
+        if (scored?.Level is not null)
+        {
+            final = ResolveFinalLevel(scored.Level, request.OverrideLevel, levels, errors);
+            if (final is null)
+            {
+                return Results.ValidationProblem(errors);
+            }
+
+            isOverride = !string.Equals(final.Name, scored.Level.Name, StringComparison.OrdinalIgnoreCase);
+            lowered = CriticalityAccess.IsReduction(current?.CriticalityLevel, final.Name);
         }
 
         if (justification?.Length > 1000)
@@ -588,7 +614,7 @@ public static class AssetCriticalityAssessmentEndpoints
         }
 
         var nextReview = ContractText.DateOnly(request.NextReviewDate);
-        if (nextReview is null)
+        if (nextReview is null && final is not null)
         {
             var months = (await s.ReassessmentRules.GetByLevelAsync(user?.ClientId, final.Name, cancellationToken))?.ReviewIntervalMonths ?? 12;
             nextReview = date.AddMonths(months);
@@ -632,22 +658,27 @@ public static class AssetCriticalityAssessmentEndpoints
         assessment.TemplateCode = template.Code;
         assessment.TemplateName = template.Name;
         assessment.TemplateVersion = template.Version;
-        assessment.Criteria = scored.Breakdown.Select(row => new AssetCriticalityCriterion
+        assessment.Criteria = template.Criteria.Select(c =>
         {
-            CriterionId = row.Criterion.CriterionId,
-            Code = row.Criterion.Code,
-            Name = row.Criterion.Name,
-            Weight = (decimal)row.Criterion.Weight,
-            Rating = row.Rating,
-            Score = row.Rating,
-            WeightedScore = row.Weighted,
-            Justification = comments.GetValueOrDefault(row.Criterion.Code) ?? string.Empty
+            var rated = ratings.TryGetValue(c.Code, out var rating);
+            var weighted = rated ? scored?.Breakdown.FirstOrDefault(b => b.Criterion.Code == c.Code)?.Weighted ?? 0 : 0;
+            return new AssetCriticalityCriterion
+            {
+                CriterionId = c.CriterionId,
+                Code = c.Code,
+                Name = c.Name,
+                Weight = (decimal)c.Weight,
+                Rating = rated ? rating : null,
+                Score = rated ? rating : 0,
+                WeightedScore = weighted,
+                Justification = comments.GetValueOrDefault(c.Code) ?? string.Empty
+            };
         }).ToList();
-        assessment.CriticalityScore = scored.Score;
-        assessment.CalculatedLevel = scored.Level.Name;
-        assessment.CriticalityLevel = final.Name;
-        assessment.CriticalityLevelId = final.Id;
-        assessment.CriticalityLevelCode = final.Code;
+        assessment.CriticalityScore = scored?.Score ?? 0;
+        assessment.CalculatedLevel = scored?.Level?.Name;
+        assessment.CriticalityLevel = final?.Name ?? string.Empty;
+        assessment.CriticalityLevelId = final?.Id;
+        assessment.CriticalityLevelCode = final?.Code;
         assessment.IsOverride = isOverride;
         assessment.Justification = justification;
         assessment.PreviousApprovedAssessmentId = current?.Id;
@@ -675,7 +706,7 @@ public static class AssetCriticalityAssessmentEndpoints
     }
 
     /// <summary>One integer rating (1-5) for each criterion of the template, no unknown or repeated codes.</summary>
-    private static Dictionary<string, int>? ReadRatings(List<AssessmentRatingRequest>? sent, AssetCriticalityTemplate template, Dictionary<string, string[]> errors)
+    private static Dictionary<string, int>? ReadRatings(List<AssessmentRatingRequest>? sent, AssetCriticalityTemplate template, Dictionary<string, string[]> errors, bool allowMissing = false)
     {
         var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var known = template.Criteria.Select(c => c.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -686,6 +717,11 @@ public static class AssetCriticalityAssessmentEndpoints
             {
                 errors["Ratings"] = [$"'{row.CriterionCode}' is not a criterion of this template"];
                 return null;
+            }
+
+            if (row.Rating is null && allowMissing)
+            {
+                continue; // an unrated criterion on a draft
             }
 
             if (row.Rating is null or < CriticalityScoring.MinRating or > CriticalityScoring.MaxRating)
@@ -702,6 +738,11 @@ public static class AssetCriticalityAssessmentEndpoints
         }
 
         var missing = template.Criteria.Where(c => !result.ContainsKey(c.Code)).Select(c => c.Name).ToList();
+        if (allowMissing)
+        {
+            return result;
+        }
+
         if (missing.Count > 0)
         {
             errors["Ratings"] = [$"Rate every criterion (missing: {string.Join(", ", missing)})"];
@@ -827,7 +868,7 @@ public static class AssetCriticalityAssessmentEndpoints
             a.TemplateId,
             a.TemplateName ?? a.TemplateCode,
             a.TemplateVersion,
-            a.Criteria.Select(c => new AssessmentBreakdownRow(c.CriterionId, c.Code ?? c.Name, c.Name, (double)c.Weight, c.Rating ?? (int)Math.Round(c.Score, MidpointRounding.AwayFromZero), c.WeightedScore, ContractText.TrimOrNull(c.Justification))).ToList(),
+            a.Criteria.Select(c => new AssessmentBreakdownRow(c.CriterionId, c.Code ?? c.Name, c.Name, (double)c.Weight, c.Rating ?? (c.Score > 0 ? (int)Math.Round(c.Score, MidpointRounding.AwayFromZero) : null), c.WeightedScore, ContractText.TrimOrNull(c.Justification))).ToList(),
             a.CriticalityScore,
             a.CalculatedLevel ?? a.CriticalityLevel,
             a.CriticalityLevel,
@@ -852,7 +893,8 @@ public static class AssetCriticalityAssessmentEndpoints
             a.Trail.OrderBy(t => t.At).Select(t => new AssessmentTrailResponse(t.Action, t.By, t.At, t.Comments)).ToList(),
             a.ConcurrencyVersion,
             a.TemplateId is null,
-            new AssessmentActions(editable, editable, editable, mayDecide && !self, mayDecide && !self, blocked));
+            new AssessmentActions(editable, editable, editable, mayDecide && !self, mayDecide && !self, blocked),
+            a.TemplateId is null || (a.Criteria.Count > 0 && a.Criteria.All(c => c.Rating is not null)));
     }
 
     private static string Status(AssetCriticalityAssessment a) => a.ApprovalStatus ?? AssetCriticalityApprovalStatuses.Approved;
