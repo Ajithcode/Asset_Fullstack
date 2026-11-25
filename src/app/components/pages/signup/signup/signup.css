@@ -2,10 +2,10 @@
    login.css (loaded first), so both pages look the same. */
 
 /* tighter rhythm than sign-in: the sign-up card holds seven fields */
-.form { gap: 14px; }
+.form { gap: 0.875rem; }
 
 /* two fields side by side */
-.field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .field-row .field { min-width: 0; }
 
 .field-label em { font-style: normal; color: #dc2626; }
@@ -21,7 +21,7 @@
   outline: none;
   background: none;
   font: inherit;
-  font-size: 1.063rem;
+  font-size: 0.861rem;
   color: var(--lg-text);
   appearance: none;
   cursor: pointer;
@@ -31,18 +31,18 @@
 .input--select select:disabled { cursor: default; }
 .select-caret { position: absolute; right: 16px; color: #6b7280; pointer-events: none; }
 
-.hint { font-size: 0.813rem; color: var(--lg-muted); }
+.hint { font-size: 0.75rem; color: var(--lg-muted); }
 .hint--error { color: #b91c1c; }
 .link-btn { padding: 0; border: 0; background: none; font: inherit; color: var(--lg-primary); text-decoration: underline; cursor: pointer; }
 
 .submit { margin-top: 4px; }
 
-.card-foot--switch { margin-top: 16px; font-size: 0.938rem; }
+.card-foot--switch { margin-top: 1rem; font-size: 0.82rem; }
 .card-foot--switch .link { font-weight: 700; }
 
 /* desktop: the taller form starts a little higher in the card */
-.is-scaled .card { padding-top: 28px; padding-bottom: 22px; }
-.is-scaled .card-sub { margin-bottom: 14px; }
+.is-scaled .card { padding-top: 1.75rem; padding-bottom: 1.375rem; }
+.is-scaled .card-sub { margin-bottom: 0.875rem; }
 
 /* phones: one field per row */
 @container (max-width: 440px) {
