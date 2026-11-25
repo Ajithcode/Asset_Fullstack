@@ -24,6 +24,7 @@ import {
 import { Router, NavigationEnd, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
 import { AccessService, AlertFeedService, AuthService, DesktopAlertsService, FeedAlert } from 'shared-ui';
+import { prefsKey } from '../landing-page';
 import { environment } from '../../../../environments/environment';
 import { AlertPopups } from '../alert-popups/alert-popups';
 
@@ -42,7 +43,6 @@ interface Preferences {
 }
 
 const PROFILE_KEY = 'a360.profile';
-const PREFS_KEY = 'a360.prefs';
 const SITE_KEY = 'a360.site';
 const WHATS_NEW_KEY = 'a360.whatsNewSeen';
 /** Bump when the release notes below change; the red dot shows until the user opens them. */
@@ -176,7 +176,8 @@ export class Topbar {
   private readonly profileKey = `${PROFILE_KEY}:${(inject(AuthService).getUserEmail() ?? '').toLowerCase()}`;
   profile: Profile = readJson<Profile>(this.profileKey, { displayName: '', phone: '' });
   profileForm: Profile = { ...this.profile };
-  prefs: Preferences = readJson<Preferences>(PREFS_KEY, { landing: '/dashboard', timeFormat: '12h', notifySound: true });
+  private readonly prefsStorageKey = prefsKey(inject(AuthService).getUserEmail());
+  prefs: Preferences = readJson<Preferences>(this.prefsStorageKey, { landing: '/dashboard', timeFormat: '12h', notifySound: true });
   prefsForm: Preferences = { ...this.prefs };
   site = this.readSite();
   whatsNewSeen = this.readSeen();
@@ -342,7 +343,7 @@ export class Topbar {
 
   savePrefs(): void {
     this.prefs = { ...this.prefsForm };
-    writeValue(PREFS_KEY, this.prefs);
+    writeValue(this.prefsStorageKey, this.prefs);
     this.desktopAlerts.soundEnabled = this.prefs.notifySound;
     this.dialog = '';
     this.showToast('Preferences saved.');

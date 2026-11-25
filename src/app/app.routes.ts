@@ -13,6 +13,7 @@ import { moduleGuard } from './components/guard/module-guard';
 import { NoAccess } from './section-unavailable/no-access';
 import { ProcessAutomation } from './components/pages/process-automation/process-automation/process-automation';
 import { ProcessAutomationAdd } from './components/pages/process-automation/process-automation-add/process-automation-add';
+import { rootRedirectGuard } from './components/shared/landing-page';
 import { licensed, lockedModuleRoutes } from './licence/licence.guard';
 
 function remoteRoutes(remoteName: string) {
@@ -32,7 +33,8 @@ function withLicenceLock(children: Routes): Routes {
 }
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'login', pathMatch: 'full' },
+  // '/' = the signed-in user's landing page (Preferences), else sign-in
+  { path: '', pathMatch: 'full', canActivate: [rootRedirectGuard], children: [] },
   { path: 'login', component: Login },
   { path: 'signup', component: Signup },
   { path: 'accept-invite', component: AcceptInvite },

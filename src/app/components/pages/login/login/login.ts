@@ -23,6 +23,7 @@ import {
 } from 'lucide-angular';
 import { AccessService, AuthService, AuthUser, LoginData, LoginResponse } from 'shared-ui';
 import { Observable } from 'rxjs';
+import { landingFor } from '../../../shared/landing-page';
 
 const REMEMBER_KEY = 'a360.rememberedUser';
 /** Design canvas of the login page (the mock is 1536 × 1024, drawn here with a tighter vertical rhythm). */
@@ -170,15 +171,9 @@ export class Login {
     this.errorMsg = message;
   }
 
-  /** Start page chosen in Preferences (account menu), else the IoT & Tracking Overview dashboard. */
+  /** Start page chosen in Preferences (account menu) by this user, default Dashboard. */
   private startPage(): string {
-    const home = '/dashboard/iot-tracking-overview';
-    try {
-      const landing = JSON.parse(localStorage.getItem('a360.prefs') ?? '{}').landing;
-      return typeof landing === 'string' && landing.startsWith('/') ? landing : home;
-    } catch {
-      return home;
-    }
+    return landingFor(this.auth.getUserEmail() || this.challengeUser);
   }
 
   useDirectory(dir: Directory): void {
