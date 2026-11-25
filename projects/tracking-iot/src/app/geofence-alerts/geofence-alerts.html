@@ -80,6 +80,7 @@
           <div *ngIf="!floorId" class="map-ctrl">
             <button type="button" (click)="zoomIn()" [disabled]="zoomInfo.zoom >= zoomInfo.max" title="Zoom in" aria-label="Zoom in"><lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon></button>
             <button type="button" (click)="zoomOut()" [disabled]="zoomInfo.zoom <= zoomInfo.min" title="Zoom out" aria-label="Zoom out"><lucide-icon [img]="icons.Minus" [size]="16"></lucide-icon></button>
+            <app-map-controls [inline]="true" (fit)="gmap?.fitView()" (fullscreenChange)="gmap?.refit()"></app-map-controls>
             <button type="button" (click)="locate()" title="Locate selected zone" aria-label="Locate selected zone"><lucide-icon [img]="icons.Locate" [size]="16"></lucide-icon></button>
             <span class="menu-wrap">
               <button type="button" [class.is-on]="layersOpen" (click)="$event.stopPropagation(); layersOpen = !layersOpen; menuOpen = ''" title="Layers" aria-label="Layers"><lucide-icon [img]="icons.Layers" [size]="16"></lucide-icon></button>

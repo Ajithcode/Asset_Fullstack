@@ -19,7 +19,9 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import type { LucideIconData } from 'lucide-angular';
 import { FloorPlan, MapZone, PlotItem, SiteNode, TONE_HEX, ZoneGeometry, ZoneShape, isImageFormat, zoneIcon } from '../maps.data';
+import { MapControls } from 'shared-ui';
 import { MapsStore } from '../maps.store';
+import { MapViewer } from '../map-viewer/map-viewer';
 
 /** Plan size used when the floor plan has no width / height in metres (same 600 × 320 shape as before). */
 const DEFAULT_WIDTH_M = 60;
@@ -53,6 +55,7 @@ interface Frame {
 @Component({
   standalone: true,
   selector: 'app-map-canvas',
+  imports: [MapControls],
   encapsulation: ViewEncapsulation.None,
   template: `
     <div class="mfp-viewport" [class.mfp-viewport--preview]="preview" [class.mfp-placing]="placing || !!drawShape" [class.mfp-viewport--image]="imageMode">
@@ -67,6 +70,9 @@ interface Frame {
         </div>
       } @else if (!preview && geoNote; as note) {
         <div class="mfp-note" role="status">{{ note }}</div>
+      }
+      @if (!preview && viewer; as v) {
+        <app-map-controls [zoom]="true" [canZoomIn]="v.zoom < 200" [canZoomOut]="v.zoom > 50" [fullscreenHost]="v.panel" (zoomIn)="v.step(25)" (zoomOut)="v.step(-25)" (fit)="v.zoom = 100"></app-map-controls>
       }
     </div>
   `,
@@ -208,6 +214,8 @@ interface Frame {
 })
 export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
   readonly store = inject(MapsStore);
+  /** The viewer panel around this canvas (null for thumbnails / minimap): it owns the zoom %, and its Full screen. */
+  readonly viewer = inject(MapViewer, { optional: true });
   private readonly ngZone = inject(NgZone);
   private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));

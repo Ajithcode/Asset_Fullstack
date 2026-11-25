@@ -7,11 +7,7 @@ import {
   Eye,
   History,
   LucideAngularModule,
-  Maximize,
-  Maximize2,
-  Minus,
   Pencil,
-  Plus,
   Redo2,
   Trash2,
   Undo2,
@@ -68,9 +64,6 @@ import { MapsStore } from '../maps.store';
               </div>
             }
           </div>
-          <button type="button" class="icon-btn" aria-label="Full screen" (click)="fullscreen()">
-            <lucide-icon [img]="icons.Maximize" [size]="15"></lucide-icon>
-          </button>
         </div>
       </header>
 
@@ -82,15 +75,6 @@ import { MapsStore } from '../maps.store';
         </button>
         <button type="button" class="icon-btn icon-btn--bare" aria-label="Redo" [disabled]="!store.canRedo || !store.editing" (click)="store.redo()">
           <lucide-icon [img]="icons.Redo2" [size]="16"></lucide-icon>
-        </button>
-        <button type="button" class="icon-btn icon-btn--bare" aria-label="Fit to view" (click)="zoom = 100">
-          <lucide-icon [img]="icons.Maximize2" [size]="15"></lucide-icon>
-        </button>
-        <button type="button" class="icon-btn icon-btn--bare" aria-label="Zoom out" (click)="step(-25)">
-          <lucide-icon [img]="icons.Minus" [size]="16"></lucide-icon>
-        </button>
-        <button type="button" class="icon-btn icon-btn--bare" aria-label="Zoom in" (click)="step(25)">
-          <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
         </button>
         <select class="zoom-select" aria-label="Zoom" [(ngModel)]="zoom">
           <option [ngValue]="null" disabled>Select Zoom</option>
@@ -115,7 +99,7 @@ export class MapViewer {
   readonly store = inject(MapsStore);
   private readonly host = inject(ElementRef<HTMLElement>);
   readonly icons = {
-    Building2, ChevronDown, Download, Eye, History, Maximize, Maximize2, Minus, Pencil, Plus, Redo2, Trash2, Undo2, Upload
+    Building2, ChevronDown, Download, Eye, History, Pencil, Redo2, Trash2, Undo2, Upload
   };
   readonly zoomLevels = [50, 75, 100, 125, 150, 200];
 
@@ -169,9 +153,8 @@ export class MapViewer {
     }
   }
 
-  fullscreen(): void {
-    const panel = (this.host.nativeElement as HTMLElement).querySelector('.viewer');
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void panel?.requestFullscreen?.();
+  /** The panel that goes full screen (the map's Full screen button). */
+  get panel(): HTMLElement | null {
+    return (this.host.nativeElement as HTMLElement).querySelector('.viewer');
   }
 }

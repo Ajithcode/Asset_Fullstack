@@ -2,7 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ExportMenu, ExportRequest, ExportService, pushToast } from 'shared-ui';
+import { ExportMenu, MapControls, ExportRequest, ExportService, pushToast } from 'shared-ui';
 import { Observable, Subscription, catchError, forkJoin, of, switchMap } from 'rxjs';
 import {
   LucideAngularModule,
@@ -91,7 +91,7 @@ const DEFAULT_TEAMS = ['Security Team', 'Operations Team', 'Maintenance Team', '
 @Component({
   selector: 'app-geofence-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LucideAngularModule, GeofenceMap, MapDrawTools, FloorPlanMap, ExportMenu],
+  imports: [CommonModule, FormsModule, RouterLink, LucideAngularModule, GeofenceMap, MapDrawTools, FloorPlanMap, ExportMenu, MapControls],
   templateUrl: './geofence-alerts.html',
   styleUrls: ['./geofence-alerts.css', './geofence-alerts-sections.css', '../shared/iot-purple-theme.css', './geofence-alerts-v2.css'],
 })
@@ -179,7 +179,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   showGateways = true;
   showLabels = true;
   layersOpen = false;
-  @ViewChild(GeofenceMap) private gmap?: GeofenceMap;
+  @ViewChild(GeofenceMap) gmap?: GeofenceMap;
   mapMode: MapMode = 'view';
   editId = '';
   drawCount = 0;

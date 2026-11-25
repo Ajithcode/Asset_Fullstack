@@ -1,6 +1,5 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, Input, NgZone, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import type * as Leaflet from 'leaflet';
-import { MapControls } from 'shared-ui';
 import { Zone } from './geofence-data';
 import { LL, zoneShape } from './geofence-geo';
 
@@ -43,9 +42,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 @Component({
   selector: 'app-geofence-map',
   standalone: true,
-  imports: [MapControls],
-  template: `<div #host class="gz-map" [class.is-draw]="mode === 'draw'" [class.is-edit]="mode === 'edit'"></div>
-    <app-map-controls [bottom]="30" (fit)="fitView()" (fullscreenChange)="refit()"></app-map-controls>`,
+  template: `<div #host class="gz-map" [class.is-draw]="mode === 'draw'" [class.is-edit]="mode === 'edit'"></div>`,
   styleUrls: ['./geofence-map.css'],
   encapsulation: ViewEncapsulation.None,
 })

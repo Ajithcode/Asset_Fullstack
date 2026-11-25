@@ -69,7 +69,7 @@ const ASSET_SVG =
   standalone: true,
   imports: [MapControls],
   template: `<div #host class="fp-map" [class.fp-map--blank]="imageMissing"></div>
-    <app-map-controls (fit)="fitView()" (fullscreenChange)="refit()"></app-map-controls>
+    <app-map-controls [zoom]="true" (zoomIn)="zoomBy(0.5)" (zoomOut)="zoomBy(-0.5)" (fit)="fitView()" (fullscreenChange)="refit()"></app-map-controls>
     @if (note) {
       <div class="fp-note" role="status">{{ note }}</div>
     } @else if (imageMissing) {
@@ -209,7 +209,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     const Lf: L = (typeof (mod as { map?: unknown }).map === 'function' ? mod : mod.default) as L;
     this.L = Lf;
     this.ngZone.runOutsideAngular(() => {
-      const map = Lf.map(this.host.nativeElement, { crs: Lf.CRS.Simple, minZoom: -3, maxZoom: 3, zoomSnap: 0.25, zoomDelta: 0.5, attributionControl: false, zoomControl: true });
+      const map = Lf.map(this.host.nativeElement, { crs: Lf.CRS.Simple, minZoom: -3, maxZoom: 3, zoomSnap: 0.25, zoomDelta: 0.5, attributionControl: false, zoomControl: false });
       this.map = map;
       this.shapes = Lf.layerGroup().addTo(map);
       this.markers = Lf.layerGroup().addTo(map);
@@ -387,6 +387,12 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     this.scopeBounds = this.zoneId !== undefined && focus ? focus : null;
     this.updateLive();
     this.updateAssets();
+  }
+
+  /** + / - of the shared control stack. */
+  zoomBy(delta: number): void {
+    if (delta > 0) this.map?.zoomIn(delta);
+    else this.map?.zoomOut(-delta);
   }
 
   /** Fit to screen: the whole plan (or the zone in zone view). */
