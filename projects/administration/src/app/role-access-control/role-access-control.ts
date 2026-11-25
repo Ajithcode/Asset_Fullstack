@@ -157,8 +157,12 @@ export class RoleAccessControlPage extends AdminPage {
     return ROLE_ICONS[r.icon] ?? Settings;
   }
 
+  /**
+   * True only when the draft differs from what was loaded (existing role) or started (new role / copy): `snapshot` is
+   * taken in load() and startDraft(), so opening "New role" and leaving it untouched is not a change.
+   */
   get dirty(): boolean {
-    return this.isNew || JSON.stringify(this.draft) !== this.snapshot;
+    return JSON.stringify(this.draft) !== this.snapshot;
   }
 
   /** Existing system roles keep their name, code and type */
