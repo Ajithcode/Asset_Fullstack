@@ -1001,8 +1001,9 @@ export class TagManagement implements OnInit, OnDestroy {
     if (!t) return;
     const code = d.code.trim();
     if (d.type === t.type && code === t.code) return void (this.dialog = null);
-    if (!code) return void (this.formError = `Enter the ${this.codeLabel(t).toLowerCase()}.`);
-    const bad = formatError(t.tech, code);
+    // optional when the tag has none; once a value is stored it can be corrected but the API cannot clear it
+    if (!code && t.code) return void (this.formError = `Enter the ${this.codeLabel(t).toLowerCase()} (a stored value can be changed, not removed).`);
+    const bad = code ? formatError(t.tech, code) : '';
     if (bad) return void (this.formError = bad);
     const draft = this.draftOf(t);
     draft.type = d.type;
@@ -1071,9 +1072,9 @@ export class TagManagement implements OnInit, OnDestroy {
     const id = tagIdFromNumber(d.tech, d.number);
     if (!id) return void (this.formError = "Tag ID can only contain letters, digits, ':', '-' and '_' (up to 50 characters).");
     if (TAGS.some((t) => t.id.toLowerCase() === id.toLowerCase())) return void (this.formError = `Tag ID ${id} already exists.`);
+    // EPC / MAC / barcode / QR value is optional: only a value that was typed is checked
     const code = d.code.trim();
-    if (!code) return void (this.formError = `Enter the ${this.codeLabel(d).toLowerCase()}.`);
-    const bad = formatError(d.tech, code);
+    const bad = code ? formatError(d.tech, code) : '';
     if (bad) return void (this.formError = bad);
     const draft = this.newTag(d.tech, id, d.type, d.site, d.location, d.asset, code);
     this.saving = true;
@@ -1156,15 +1157,14 @@ export class TagManagement implements OnInit, OnDestroy {
       const siteText = get(r, 'site');
       const site = SITES.find((s) => s.name.toLowerCase() === siteText.toLowerCase())?.name ?? siteText;
       const location = get(r, 'location');
-      // EPC / MAC / barcode / QR payload / UID: required by the API
+      // EPC / MAC / barcode / QR payload / UID: optional (only checked when given)
       const code = get(r, 'value', 'encoded value', 'epc', 'mac', 'mac address', 'uid', 'barcode', 'code');
       let error = '';
       if (!tech) error = techText ? `Unknown technology "${techText}"` : 'Technology missing';
       else if (!numText) error = 'Tag number missing';
       else if (!id) error = `Tag number "${numText}" can only contain letters, digits, '-' and '_'`;
       else if (ids.has(id)) error = `${id} already exists`;
-      else if (!code) error = `${this.codeLabel({ tech })} missing`;
-      else if (formatError(tech, code)) error = formatError(tech, code);
+      else if (code && formatError(tech, code)) error = formatError(tech, code);
       if (!error) ids.add(id);
       return { line: i + 2, tech, id, type, code, site, location, asset: get(r, 'asset code', 'asset'), error };
     });

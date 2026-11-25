@@ -77,7 +77,7 @@ export interface TagIdRequest {
   tagId: string;
   /** The number part of the tag id (BLE-000123 → "000123"; a device id kept as entered). Required. */
   tagNumber: string;
-  /** The encoded value (EPC / MAC / barcode / QR payload / UID). Required. */
+  /** The encoded value (EPC / MAC / barcode / QR payload / UID). Optional; checked when given. */
   value: string | null;
   tagType: string;
   technology: string;
