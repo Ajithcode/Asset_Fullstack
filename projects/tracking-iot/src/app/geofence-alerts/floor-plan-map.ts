@@ -1,6 +1,6 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, NgZone, Output, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, Output, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import type * as Leaflet from 'leaflet';
-import { MapControls } from 'shared-ui';
+import { MapControls, MapPopup } from 'shared-ui';
 import { GatewayFeed, PlanPlot, PlanZone } from './floor-map-api.service';
 
 type L = typeof Leaflet;
@@ -35,12 +35,35 @@ export interface PlanAsset {
   zoneName: string;
   /** Moving (changed zone in the last minute), Stationary or Unknown (no live location). */
   state: 'Moving' | 'Stationary' | 'Unknown';
+  /** Tag id and last valid location time, shown in the click popup. */
+  tag?: string;
+  lastSeenAt?: string | null;
 }
 
 /** Highlight these assets (ripple + bounce for ~3 s, then a steady ring) and fit the view to their zones; new `key` = new request. */
 export interface AssetFocus {
   key: string;
   ids: string[];
+}
+
+interface PopupTarget {
+  kind: 'gateway' | 'zone' | 'asset' | 'plot';
+  id: string;
+}
+
+interface PopupView {
+  kind: 'gateway' | 'zone' | 'asset' | 'plot';
+  title: string;
+  subtitle: string;
+  badge: string;
+  tone: 'ok' | 'bad' | 'mute';
+  rows: [string, string][];
+  /** Zone popup: the first five asset names, the total and how many are not listed. */
+  names: string[];
+  total: number;
+  more: number;
+  /** Asset popup: show Locate / LED / Buzzer. */
+  actions: boolean;
 }
 
 const reducedMotion = (): boolean => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -67,9 +90,39 @@ const ASSET_SVG =
 @Component({
   selector: 'app-floor-plan-map',
   standalone: true,
-  imports: [MapControls],
+  imports: [MapControls, MapPopup],
   template: `<div #host class="fp-map" [class.fp-map--blank]="imageMissing"></div>
     <app-map-controls [zoom]="true" (zoomIn)="zoomBy(0.5)" (zoomOut)="zoomBy(-0.5)" (fit)="fitView()" (fullscreenChange)="refit()"></app-map-controls>
+    @if (view; as v) {
+      <app-map-popup [heading]="v.title" [subtitle]="v.subtitle" [badge]="v.badge" [badgeTone]="v.tone" [anchor]="anchor" (close)="closePopup()">
+        <svg mpIcon viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          @switch (v.kind) {
+            @case ('gateway') { <path d="M4.9 19.1a10 10 0 0 1 0-14.2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/> }
+            @case ('zone') { <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/> }
+            @default { <path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/> }
+          }
+        </svg>
+        @if (v.kind === 'zone') {
+          <h4 class="mp__h">Total assets <span class="mp__n">{{ v.total }}</span></h4>
+          @for (n of v.names; track n) {
+            <article class="mp__asset"><span class="mp__aic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7Z"/></svg></span><div class="mp__ainfo"><strong>{{ n }}</strong></div></article>
+          }
+          @if (v.more) { <p class="mp__note">+ {{ v.more }} more</p> }
+        } @else {
+          <dl class="mp__grid">
+            @for (r of v.rows; track r[0]) {
+              <div [class.mp__wide]="r[0] === 'Last seen'"><dt>{{ r[0] }}</dt><dd>{{ r[1] }}</dd></div>
+            }
+          </dl>
+        }
+        @if (v.kind === 'asset' && v.actions) {
+          <div mpActions class="mp__acts">
+            <button type="button" class="mp__btn mp__btn--primary" (click)="popupAction('locate')">Locate</button>
+            <button type="button" class="mp__btn" (click)="popupAction('signal')">LED / Buzzer</button>
+          </div>
+        }
+      </app-map-popup>
+    }
     @if (note) {
       <div class="fp-note" role="status">{{ note }}</div>
     } @else if (imageMissing) {
@@ -177,6 +230,9 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   /** The "Total Assets" bubble in the middle of each zone (off where the assets themselves are drawn). */
   @Input() showTotals = true;
   @Output() assetSelect = new EventEmitter<string>();
+  /** Popup buttons of an asset marker (Real-Time Location): Locate, and LED / Buzzer (the page opens its existing panel). */
+  @Output() assetLocate = new EventEmitter<string>();
+  @Output() assetSignal = new EventEmitter<string>();
 
   @ViewChild('host', { static: true }) private host!: ElementRef<HTMLDivElement>;
   private readonly ngZone = inject(NgZone);
@@ -216,6 +272,9 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.liveLayer = Lf.layerGroup().addTo(map);
       this.assetLayer = Lf.layerGroup().addTo(map);
       map.setView([this.h / 2, W / 2], -1);
+      // the popup follows its object, and closes on a click on the map or a drag (pan)
+      map.on('move zoom resize', () => this.placePopup());
+      map.on('click dragstart', () => this.closePopup());
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
       this.resize.observe(this.host.nativeElement);
       this.sync();
@@ -227,6 +286,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     // must not clear and redraw the whole plan (it made the map flicker every second)
     const h = changes['highlight'];
     if (h && Object.keys(changes).length === 1 && sameList(h.previousValue, h.currentValue)) return;
+    if (this.popup) this.rebuildView();
     if (!this.map) return;
     if (Object.keys(changes).every((k) => LIVE_INPUTS.has(k))) {
       this.ngZone.runOutsideAngular(() => {
@@ -241,6 +301,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.destroyed = true;
     clearTimeout(this.hlTimer);
+    clearInterval(this.viewTimer);
     this.resize?.disconnect();
     this.map?.remove();
   }
@@ -356,6 +417,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
           icon: L.divIcon({ className: '', html: `<span class="fp-total">Total Assets <b>${names.length}</b></span>`, iconSize: [0, 0] }),
         })
           .bindTooltip(`<div class="fp-tip"><strong>${esc(z.name)} · ${names.length} asset${names.length === 1 ? '' : 's'}</strong>${names.map((n) => `<span>${esc(n)}</span>`).join('')}</div>`, { direction: 'top', opacity: 1 })
+          .on('click', () => this.openPopup({ kind: 'zone', id: z.id }, b.getCenter()))
           .addTo(this.markers!);
       }
     }
@@ -374,6 +436,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
         }),
       })
         .bindTooltip(`<div class="fp-tip"><strong>${esc(p.name)}</strong><span>${esc(p.code)} · ${esc(p.type || (p.kind === 'device' ? 'Device' : 'Asset'))}</span><span>${esc(p.status || '')}</span>${extra}</div>`, { direction: 'top', offset: [0, -14], opacity: 1 })
+        .on('click', () => this.openPopup({ kind: p.kind === 'device' ? 'gateway' : 'plot', id: p.itemId || p.code }, L.latLng(pos)))
         .addTo(this.markers!);
       if (this.zoneId !== undefined) focus = focus ? focus.extend(pos) : L.latLngBounds(pos, pos);
     }
@@ -387,6 +450,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     this.scopeBounds = this.zoneId !== undefined && focus ? focus : null;
     this.updateLive();
     this.updateAssets();
+    this.checkPopup();
   }
 
   /** + / - of the shared control stack. */
@@ -501,7 +565,10 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       if (!e) {
         const m = L.marker(at, { keyboard: false, riseOnHover: true, zIndexOffset: 600, icon: L.divIcon({ className: 'fp-asset-marker', html: this.assetHtml(a), iconSize: [22, 22], iconAnchor: [11, 11] }) })
           .bindTooltip(this.assetTip(a), { direction: 'top', offset: [0, -10], opacity: 1 })
-          .on('click', () => this.ngZone.run(() => this.assetSelect.emit(a.id)))
+          .on('click', () => {
+            this.openPopup({ kind: 'asset', id: a.id }, null);
+            this.ngZone.run(() => this.assetSelect.emit(a.id));
+          })
           .addTo(this.assetLayer);
         this.assetMk.set(a.id, { m, zoneId: a.zoneId, state: a.state });
         continue;
@@ -525,7 +592,122 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       e.m.setTooltipContent(this.assetTip(a));
     }
     this.applyAssetFocus(zones);
+    this.checkPopup();
     if (this.live?.assetId || this.signal?.assetId) this.updateLive();
+  }
+
+
+  // ---------------------------------------------------------------- click popup (same card as Maps & Floor Plans › Map Library)
+
+  /** The object whose popup is open (one at a time); `ll` is where it sits (an asset marker is looked up live, it glides). */
+  private popup: PopupTarget | null = null;
+  private popupLL: Leaflet.LatLng | null = null;
+  private viewTimer?: ReturnType<typeof setInterval>;
+  /** Popup content (null = closed) and the object's position in the map's pixels. */
+  view: PopupView | null = null;
+  anchor: { x: number; y: number; inView: boolean } | null = null;
+
+  private openPopup(p: PopupTarget, ll: Leaflet.LatLng | null): void {
+    this.popup = p;
+    this.popupLL = ll;
+    this.ngZone.run(() => {
+      this.rebuildView();
+      this.placePopup(false);
+      clearInterval(this.viewTimer);
+      // "12 s ago" and the gateway's online state keep up while the popup is open
+      this.viewTimer = setInterval(() => this.rebuildView(), 1000);
+    });
+  }
+
+  closePopup(): void {
+    if (!this.popup && !this.view) return;
+    this.popup = null;
+    this.popupLL = null;
+    clearInterval(this.viewTimer);
+    this.ngZone.run(() => {
+      this.view = null;
+      this.anchor = null;
+    });
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.closePopup();
+  }
+
+  popupAction(kind: 'locate' | 'signal'): void {
+    const id = this.popup?.id;
+    this.closePopup();
+    if (!id) return;
+    if (kind === 'locate') this.assetLocate.emit(id);
+    else this.assetSignal.emit(id);
+  }
+
+  /** Keeps the popup on its object while the map pans / zooms / resizes. */
+  private placePopup(inZone = true): void {
+    const map = this.map;
+    if (!this.popup || !map) return;
+    const ll = this.popup.kind === 'asset' ? this.assetMk.get(this.popup.id)?.m.getLatLng() : this.popupLL;
+    if (!ll) return;
+    const pt = map.latLngToContainerPoint(ll);
+    const size = map.getSize();
+    const next = { x: Math.round(pt.x), y: Math.round(pt.y), inView: pt.x >= 0 && pt.y >= 0 && pt.x <= size.x && pt.y <= size.y };
+    if (this.anchor && this.anchor.x === next.x && this.anchor.y === next.y && this.anchor.inView === next.inView) return;
+    if (inZone) this.ngZone.run(() => (this.anchor = next));
+    else this.anchor = next;
+  }
+
+  /** After a redraw: close the popup when its object is gone, else refresh it. */
+  private checkPopup(): void {
+    const p = this.popup;
+    if (!p) return;
+    const gone =
+      p.kind === 'asset' ? !this.assetMk.has(p.id)
+      : p.kind === 'zone' ? !this.zones.some((z) => z.id === p.id) || (this.zoneId !== undefined && this.zoneId !== p.id)
+      : !this.plots.some((x) => (x.itemId || x.code) === p.id);
+    if (gone) this.closePopup();
+    else this.ngZone.run(() => this.rebuildView());
+  }
+
+  private ago(iso: string | null | undefined): string {
+    if (!iso) return 'No readings yet';
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return 'No readings yet';
+    const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+    return s < 5 ? 'Just now' : s < 60 ? `${s} s ago` : s < 3600 ? `${Math.floor(s / 60)} min ago` : s < 86400 ? `${Math.floor(s / 3600)} h ago` : `${Math.floor(s / 86400)} d ago`;
+  }
+
+  private rebuildView(): void {
+    const p = this.popup;
+    if (!p) {
+      this.view = null;
+      return;
+    }
+    const zoneName = (id: string | null | undefined) => this.zones.find((z) => z.id === id)?.name || '–';
+    const base = { kind: p.kind, subtitle: '', badge: '', tone: 'mute' as const, rows: [] as [string, string][], names: [] as string[], total: 0, more: 0, actions: false };
+    if (p.kind === 'gateway') {
+      const plot = this.plots.find((x) => x.kind === 'device' && (x.itemId || x.code) === p.id);
+      if (!plot) return;
+      const feed = this.gatewayOf(plot);
+      const seen = feed?.lastSeenAt ?? null;
+      const online = !!seen && Date.now() - new Date(seen).getTime() <= 120_000;
+      this.view = { ...base, title: plot.name || plot.code, subtitle: `Gateway ID: ${plot.code || plot.itemId}`, badge: online ? 'Online' : 'Offline', tone: online ? 'ok' : 'bad',
+        rows: [['Zone', zoneName(plot.zoneId)], ['Status', online ? 'Online' : 'Offline'], ['Assets in range', String(online ? (feed?.assetCount ?? 0) : 0)], ['Last seen', this.ago(seen)]] };
+    } else if (p.kind === 'zone') {
+      const z = this.zones.find((x) => x.id === p.id);
+      if (!z) return;
+      const names = this.zoneAssets(z.id);
+      this.view = { ...base, title: z.name, subtitle: `Zone ID: ${z.code}`, total: names.length, names: names.slice(0, 5), more: Math.max(0, names.length - 5) };
+    } else if (p.kind === 'asset') {
+      const a = this.assetMarkers.find((x) => x.id === p.id);
+      if (!a) return;
+      this.view = { ...base, title: a.name, subtitle: `Asset ID: ${a.code}`, actions: this.assetLocate.observed || this.assetSignal.observed,
+        rows: [['Tag', a.tag || '–'], ['Zone', a.zoneName || '–'], ['Status', a.state === 'Unknown' ? 'No signal' : a.state], ['Last seen', this.ago(a.lastSeenAt)]] };
+    } else {
+      const x = this.plots.find((q) => q.kind === 'asset' && (q.itemId || q.code) === p.id);
+      if (!x) return;
+      this.view = { ...base, title: x.name, subtitle: `Asset ID: ${x.code}`, rows: [['Type', x.type || '–'], ['Zone', zoneName(x.zoneId)], ['Status', x.status || '–']] };
+    }
   }
 
   private drawTrail(a: [number, number], b: [number, number]): void {

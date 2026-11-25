@@ -26,6 +26,7 @@ export * from './lib/reports-analytics/reports-analytics-menu';
 export * from './lib/success-dialog/success-dialog';
 export * from './lib/menu-viewport/menu-viewport';
 export * from './lib/map-controls/map-controls';
+export * from './lib/map-popup/map-popup';
 export * from './lib/licence/licence.config';
 export * from './lib/export/export.service';
 export * from './lib/export/export-menu';

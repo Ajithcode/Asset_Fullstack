@@ -78,7 +78,9 @@ export interface PlanPlot {
 export interface GatewayFeed {
   gatewayId: string;
   assetCount: number;
-  assets: { assetId: string; assetName: string | null }[];
+  /** Newest reading that came through this gateway (UTC ISO); the endpoint sends it, null when it never heard anything. */
+  lastSeenAt?: string | null;
+  assets: { assetId: string; assetName: string | null; tagIds?: string[]; lastSeenAt?: string | null }[];
 }
 
 export type LiveState = 'connecting' | 'live' | 'reconnecting';

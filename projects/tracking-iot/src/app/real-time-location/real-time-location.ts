@@ -326,9 +326,9 @@ export class RealTimeLocation implements OnInit, OnDestroy {
       const moving = until > now;
       if (moving) nextExpiry = Math.min(nextExpiry, until);
       const state = a.freshness === 'Offline' || a.freshness === 'Unknown' ? 'Unknown' : moving ? 'Moving' : 'Stationary';
-      list.push({ id: a.assetId, name: a.name, code: a.assetTag || a.assetId, zoneId, zoneName: a.location?.zoneName ?? '', state });
+      list.push({ id: a.assetId, name: a.name, code: a.assetTag || a.assetId, zoneId, zoneName: a.location?.zoneName ?? '', state, tag: a.tags[0] ?? a.tracker ?? '', lastSeenAt: a.lastValidLocationAt });
     }
-    const key = list.map((x) => `${x.id}|${x.zoneId}|${x.state}`).join(',');
+    const key = list.map((x) => `${x.id}|${x.zoneId}|${x.state}|${x.lastSeenAt ?? ''}`).join(',');
     if (key !== this.mapAssetsKey) {
       this.mapAssetsKey = key;
       this.mapAssets = list;
@@ -610,6 +610,20 @@ export class RealTimeLocation implements OnInit, OnDestroy {
     const gw = first?.gatewayId?.toLowerCase();
     const plot = gw ? this.planPlots.find((p) => p.kind === 'device' && p.itemId?.toLowerCase() === gw) : undefined;
     if (plot) this.mapFocus = { key: `${picked[0].assetId}:gw:${Date.now()}`, x: plot.x, y: plot.y };
+  }
+
+  /** Map popup buttons: Locate / LED & Buzzer for the asset marker that was clicked. */
+  mapAssetLocate(id: string): void {
+    const a = this.assets.find((x) => x.assetId === id);
+    if (a) this.locate(a);
+  }
+
+  mapAssetSignal(id: string): void {
+    const a = this.assets.find((x) => x.assetId === id);
+    if (!a) return;
+    // the LED / buzzer form lives in the Locate asset dialog
+    this.locateOpen = true;
+    this.openSignal(a);
   }
 
   /** Locate: go to the asset's floor (all floors first, so it is in view), highlight it, open its details. */

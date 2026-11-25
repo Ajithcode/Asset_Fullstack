@@ -30,7 +30,7 @@
       <app-floor-plan-map *ngIf="mapFloorId" [imageUrl]="mapImage" [fallbackUrl]="mapFallback" [zones]="planZones" [plots]="planPlots" [feed]="feed" [zoneId]="mapZone"
         [showLabels]="layers.labels" [showDevices]="layers.gateways" [showAssets]="layers.assets" [highlight]="highlight" [note]="followId ? '' : mapNote"
         [live]="livePoint" [liveTrail]="liveTrail" [focus]="mapFocus"
-        [assetMarkers]="mapAssets" [assetFocus]="assetFocus" [showTotals]="false" (assetSelect)="select($event)"></app-floor-plan-map>
+        [assetMarkers]="mapAssets" [assetFocus]="assetFocus" [showTotals]="false" (assetSelect)="select($event)" (assetLocate)="mapAssetLocate($event)" (assetSignal)="mapAssetSignal($event)"></app-floor-plan-map>
       <p *ngIf="!mapFloorId" class="map-empty muted">{{ mapNote || 'Loading floor plans…' }}</p>
       <div class="mo mo-top">
         <select class="control control-sm" [ngModel]="mapFloorId" (ngModelChange)="setFloor($event)" aria-label="Floor"><option value="">All floors</option><option *ngFor="let f of floors; trackBy: byFloor" [value]="f.id">{{ f.label }}</option></select>
