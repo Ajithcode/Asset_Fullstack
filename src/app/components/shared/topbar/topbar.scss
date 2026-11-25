@@ -65,7 +65,8 @@
   display: flex;
   align-items: center;
   flex: none;
-  height: 42px;
+  // The logo file has wide empty margins, so the image uses the bar's full height (the bar itself stays the same)
+  height: 54px;
   margin-right: 4px;
 
   img {
@@ -211,7 +212,7 @@
   }
 
   .topbar-logo {
-    height: 36px;
+    height: 46px;
   }
 
   .chip-text,
