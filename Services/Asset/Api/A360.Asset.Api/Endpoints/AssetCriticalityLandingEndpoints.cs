@@ -303,7 +303,12 @@ public sealed record CriticalityAssetRowResponse(
     DateTime? NextReviewDate,
     bool ReviewOverdue,
     string? OpenAssessmentId,
-    string ApprovalStatus)
+    string ApprovalStatus,
+    string? OpenLevel = null,
+    decimal? OpenScore = null,
+    string? OpenAssessedBy = null,
+    DateTime? OpenSubmittedAt = null,
+    string? OpenType = null)
 {
     public static CriticalityAssetRowResponse FromRow(AssetCriticalityLandingRow row) => new(
         row.AssetRegistrationId,
@@ -326,7 +331,12 @@ public sealed record CriticalityAssetRowResponse(
         row.NextReviewDate,
         row.Level is not null && row.NextReviewDate is not null && row.NextReviewDate.Value < DateTime.UtcNow.Date,
         row.OpenAssessmentId,
-        row.ApprovalStatus);
+        row.ApprovalStatus,
+        row.OpenLevel,
+        row.OpenScore,
+        row.OpenAssessedBy,
+        row.OpenSubmittedAt,
+        row.OpenType);
 
     /// <summary>"PendingApproval" → "Pending Approval" for people (the API keeps the code).</summary>
     public static string StatusLabel(string? status) => status switch

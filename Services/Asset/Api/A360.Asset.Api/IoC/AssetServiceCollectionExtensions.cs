@@ -143,6 +143,9 @@ public static class AssetServiceCollectionExtensions
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityApprovalRuleRepository>());
         services.AddScoped<AssetCriticalityReassessmentRuleRepository>();
         services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityReassessmentRuleRepository>());
+        services.AddScoped<A360.Asset.Api.Endpoints.AssessmentServices>();
+        services.AddScoped<AssetCriticalityHistoryRepository>();
+        services.AddScoped<IMongoIndexConfigurator>(serviceProvider => serviceProvider.GetRequiredService<AssetCriticalityHistoryRepository>());
         services.AddScoped<A360.Asset.Api.Services.AssetCriticalityConfigSeeder>();
 
         services.AddScoped<AssetRiskMitigationActionRepository>();

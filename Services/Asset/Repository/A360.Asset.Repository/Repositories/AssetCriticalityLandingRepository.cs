@@ -59,6 +59,11 @@ public sealed class AssetCriticalityLandingRow
     // The latest Draft / Submitted / PendingApproval / Rejected assessment.
     [BsonElement("open_assessment_id")] public string? OpenAssessmentId { get; set; }
     [BsonElement("open_status")] public string? OpenStatus { get; set; }
+    [BsonElement("open_level")] public string? OpenLevel { get; set; }
+    [BsonElement("open_score")] public decimal? OpenScore { get; set; }
+    [BsonElement("open_assessed_by")] public string? OpenAssessedBy { get; set; }
+    [BsonElement("open_submitted_at")] public DateTime? OpenSubmittedAt { get; set; }
+    [BsonElement("open_type")] public string? OpenType { get; set; }
 
     // Open status if there is one, else Approved or Unassessed.
     [BsonElement("approval_status")] public string ApprovalStatus { get; set; } = AssetCriticalityApprovalStatuses.Unassessed;
@@ -446,6 +451,11 @@ public sealed class AssetCriticalityLandingRepository(IMongoDatabase database) :
                 ["next_review_date"] = "$c.next_review_date",
                 ["open_assessment_id"] = new BsonDocument("$toString", "$o._id"),
                 ["open_status"] = "$o.approval_status",
+                ["open_level"] = "$o.criticality_level",
+                ["open_score"] = "$o.criticality_score",
+                ["open_assessed_by"] = "$o.assessed_by",
+                ["open_submitted_at"] = "$o.submitted_at",
+                ["open_type"] = "$o.assessment_type",
                 ["approval_status"] = new BsonDocument("$ifNull", new BsonArray
                 {
                     "$o.approval_status",

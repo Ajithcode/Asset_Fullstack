@@ -160,3 +160,41 @@ public sealed class AssetCriticalityReassessmentRuleRepository(IMongoDatabase da
             new CreateIndexOptions { Name = "ix_criticality_reassessment_rule_client_level", Unique = true }), cancellationToken: cancellationToken);
     }
 }
+
+/// <summary>Approved classification changes (AssetCriticalityHistory) and the sync of the approved level into the asset.</summary>
+public sealed class AssetCriticalityHistoryRepository(IMongoDatabase database)
+    : MongoRepository<AssetCriticalityHistory>(database.GetCollection<AssetCriticalityHistory>(CollectionName)), IMongoIndexConfigurator
+{
+    public const string CollectionName = "AssetCriticalityHistory";
+
+    private readonly IMongoCollection<MongoDB.Bson.BsonDocument> _assets = database.GetCollection<MongoDB.Bson.BsonDocument>(AssetRegistrationRepository.CollectionName);
+
+    public async Task<List<AssetCriticalityHistory>> ListForAssetAsync(string assetRegistrationId, CancellationToken cancellationToken = default) =>
+        await Collection.Find(x => x.AssetRegistrationId == assetRegistrationId).SortByDescending(x => x.EffectiveFrom).ToListAsync(cancellationToken);
+
+    /// <summary>
+    /// Writes the approved level into the asset: level name into both asset criticality fields (the text copy the Asset
+    /// List, dashboards and reports read), the level id, and the next review date.
+    /// </summary>
+    public async Task SyncAssetAsync(string assetRegistrationId, string levelName, string? levelId, DateTime? nextReviewDate, decimal score, string assessmentId, CancellationToken cancellationToken = default)
+    {
+        var update = Builders<MongoDB.Bson.BsonDocument>.Update
+            .Set("basic_information.criticality", levelName)
+            .Set("classification.criticality", levelName)
+            .Set("classification.criticality_id", levelId is null ? MongoDB.Bson.BsonNull.Value : (MongoDB.Bson.BsonValue)levelId)
+            .Set("classification.criticality_score", score)
+            .Set("classification.criticality_assessment_id", assessmentId)
+            .Set("classification.criticality_next_review_date", nextReviewDate is null ? MongoDB.Bson.BsonNull.Value : (MongoDB.Bson.BsonValue)nextReviewDate.Value);
+        await _assets.UpdateOneAsync(
+            Builders<MongoDB.Bson.BsonDocument>.Filter.Eq("asset_registration_id", assetRegistrationId),
+            update,
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task CreateIndexesAsync(CancellationToken cancellationToken = default)
+    {
+        await Collection.Indexes.CreateOneAsync(new CreateIndexModel<AssetCriticalityHistory>(
+            Builders<AssetCriticalityHistory>.IndexKeys.Ascending(x => x.AssetRegistrationId).Descending(x => x.EffectiveFrom),
+            new CreateIndexOptions { Name = "ix_criticality_history_asset_effective" }), cancellationToken: cancellationToken);
+    }
+}

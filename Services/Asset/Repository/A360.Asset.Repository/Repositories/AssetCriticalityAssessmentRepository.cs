@@ -85,6 +85,67 @@ public sealed class AssetCriticalityAssessmentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyCollection<AssetCriticalityAssessment>> GetVersionsAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
+    {
+        return await Collection
+            .Find(assessment => assessment.AssetRegistrationId == assetRegistrationId && !assessment.IsDeleted
+                && assessment.ApprovalStatus != AssetCriticalityApprovalStatuses.Cancelled)
+            .Sort(Builders<AssetCriticalityAssessment>.Sort
+                .Descending(assessment => assessment.AssessmentDate)
+                .Descending(assessment => assessment.CreatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<string> NextNumberAsync(CancellationToken cancellationToken = default)
+    {
+        var year = DateTime.UtcNow.Year;
+        var prefix = $"ACA-{year}-";
+        var count = await Collection.CountDocumentsAsync(
+            Builders<AssetCriticalityAssessment>.Filter.Regex(assessment => assessment.AssessmentNumber, new BsonRegularExpression("^" + prefix)),
+            cancellationToken: cancellationToken);
+        return prefix + (count + 1).ToString("D6");
+    }
+
+    public async Task<bool> ReplaceIfAsync(AssetCriticalityAssessment assessment, int expectedVersion, IReadOnlyCollection<string> allowedStatuses, CancellationToken cancellationToken = default)
+    {
+        assessment.ConcurrencyVersion = expectedVersion + 1;
+        var statuses = allowedStatuses.ToArray();
+        var result = await Collection.ReplaceOneAsync(
+            stored => stored.Id == assessment.Id && stored.ConcurrencyVersion == expectedVersion && statuses.Contains(stored.ApprovalStatus),
+            assessment,
+            cancellationToken: cancellationToken);
+        return result.ModifiedCount > 0;
+    }
+
+    public async Task<AssetCriticalityAssessment?> TransitionAsync(
+        string id,
+        IReadOnlyCollection<string> fromStatuses,
+        int? expectedVersion,
+        UpdateDefinition<AssetCriticalityAssessment> update,
+        CancellationToken cancellationToken = default)
+    {
+        var builder = Builders<AssetCriticalityAssessment>.Filter;
+        var filter = builder.Eq(assessment => assessment.Id, id) & builder.In(assessment => assessment.ApprovalStatus, fromStatuses);
+        if (expectedVersion is not null)
+        {
+            filter &= builder.Eq(assessment => assessment.ConcurrencyVersion, expectedVersion.Value);
+        }
+
+        return await Collection.FindOneAndUpdateAsync(
+            filter,
+            update.Inc(assessment => assessment.ConcurrencyVersion, 1),
+            new FindOneAndUpdateOptions<AssetCriticalityAssessment> { ReturnDocument = ReturnDocument.After },
+            cancellationToken);
+    }
+
+    public async Task ClearCurrentExceptAsync(string assetRegistrationId, string keepId, CancellationToken cancellationToken = default)
+    {
+        await Collection.UpdateManyAsync(
+            assessment => assessment.AssetRegistrationId == assetRegistrationId && assessment.IsCurrent && assessment.Id != keepId,
+            Builders<AssetCriticalityAssessment>.Update.Set(assessment => assessment.IsCurrent, false),
+            cancellationToken: cancellationToken);
+    }
+
     public async Task ClearCurrentAsync(string assetRegistrationId, CancellationToken cancellationToken = default)
     {
         await Collection.UpdateManyAsync(
@@ -131,7 +192,10 @@ public sealed class AssetCriticalityAssessmentRepository
                 new CreateIndexOptions { Name = "ix_asset_criticality_approval_status_created_at" }),
             new CreateIndexModel<AssetCriticalityAssessment>(
                 Builders<AssetCriticalityAssessment>.IndexKeys.Ascending(assessment => assessment.NextReviewDate),
-                new CreateIndexOptions { Name = "ix_asset_criticality_next_review_date" })
+                new CreateIndexOptions { Name = "ix_asset_criticality_next_review_date" }),
+            new CreateIndexModel<AssetCriticalityAssessment>(
+                Builders<AssetCriticalityAssessment>.IndexKeys.Ascending(assessment => assessment.AssessmentNumber),
+                new CreateIndexOptions { Name = "ix_asset_criticality_assessment_number" })
         };
 
         await Collection.Indexes.CreateManyAsync(indexes, cancellationToken);

@@ -95,6 +95,139 @@ public sealed class AssetCriticalityAssessment : BaseEntity
     // Template the ratings were made with; "LEGACY" for assessments saved before templates existed.
     [BsonElement("template_code")]
     public string? TemplateCode { get; set; }
+
+    // ----- Phase 3: scoring, workflow ------------------------------------------------------------------------------
+
+    // ACA-2026-000123
+    [BsonElement("assessment_number")]
+    public string? AssessmentNumber { get; set; }
+
+    // Template version the ratings were scored with (weights come from it, never from the client).
+    [BsonElement("template_id")]
+    public string? TemplateId { get; set; }
+
+    [BsonElement("template_name")]
+    public string? TemplateName { get; set; }
+
+    [BsonElement("template_version")]
+    public int? TemplateVersion { get; set; }
+
+    // Level the score gives (CriticalityLevel is the final level, after an override).
+    [BsonElement("calculated_level")]
+    public string? CalculatedLevel { get; set; }
+
+    [BsonElement("criticality_level_id")]
+    public string? CriticalityLevelId { get; set; }
+
+    [BsonElement("criticality_level_code")]
+    public string? CriticalityLevelCode { get; set; }
+
+    [BsonElement("is_override")]
+    public bool IsOverride { get; set; }
+
+    // Required for an override and when the level is lowered.
+    [BsonElement("justification")]
+    public string? Justification { get; set; }
+
+    [BsonElement("previous_approved_assessment_id")]
+    public string? PreviousApprovedAssessmentId { get; set; }
+
+    [BsonElement("previous_level")]
+    public string? PreviousLevel { get; set; }
+
+    [BsonElement("risk")]
+    public AssetCriticalityRisk Risk { get; set; } = new();
+
+    [BsonElement("attachments")]
+    public List<AssetCriticalityAttachment> Attachments { get; set; } = [];
+
+    [BsonElement("assessed_by_user_id")]
+    public string? AssessedByUserId { get; set; }
+
+    [BsonElement("created_by_user_id")]
+    public string? CreatedByUserId { get; set; }
+
+    [BsonElement("submitted_by")]
+    public string? SubmittedBy { get; set; }
+
+    [BsonElement("submitted_by_user_id")]
+    public string? SubmittedByUserId { get; set; }
+
+    [BsonElement("submitted_at")]
+    public DateTime? SubmittedAt { get; set; }
+
+    [BsonElement("approved_by_user_id")]
+    public string? ApprovedByUserId { get; set; }
+
+    [BsonElement("approved_at")]
+    public DateTime? ApprovedAt { get; set; }
+
+    [BsonElement("rejected_reason")]
+    public string? RejectedReason { get; set; }
+
+    // Approval rule that applied when submitted (information only; permissions decide who may approve).
+    [BsonElement("approval_scenario")]
+    public string? ApprovalScenario { get; set; }
+
+    [BsonElement("approver_roles")]
+    public List<string> ApproverRoles { get; set; } = [];
+
+    [BsonElement("approval_type")]
+    public string? ApprovalType { get; set; }
+
+    [BsonElement("trail")]
+    public List<AssetCriticalityTrailEntry> Trail { get; set; } = [];
+
+    // Bumped on every save; edits and decisions must match the version they were read at.
+    [BsonElement("concurrency_version")]
+    public int ConcurrencyVersion { get; set; } = 1;
+}
+
+[BsonIgnoreExtraElements]
+public sealed class AssetCriticalityRisk
+{
+    [BsonElement("failure_consequences")] public string? FailureConsequences { get; set; }
+    [BsonElement("alternative_equipment_available")] public bool? AlternativeEquipmentAvailable { get; set; }
+    [BsonElement("downtime_impact")] public string? DowntimeImpact { get; set; }
+    [BsonElement("financial_loss")] public string? FinancialLoss { get; set; }
+    [BsonElement("safety_environmental_consequences")] public string? SafetyEnvironmentalConsequences { get; set; }
+}
+
+[BsonIgnoreExtraElements]
+public sealed class AssetCriticalityAttachment
+{
+    [BsonElement("file_name")] public string FileName { get; set; } = string.Empty;
+    [BsonElement("file_url")] public string FileUrl { get; set; } = string.Empty;
+    [BsonElement("file_type")] public string? FileType { get; set; }
+    [BsonElement("file_size")] public long FileSize { get; set; }
+    [BsonElement("uploaded_by")] public string? UploadedBy { get; set; }
+    [BsonElement("uploaded_at")] public DateTime? UploadedAt { get; set; }
+}
+
+/// <summary>One step of the approval trail: Created, Saved, Submitted, Approved, Rejected, Cancelled.</summary>
+[BsonIgnoreExtraElements]
+public sealed class AssetCriticalityTrailEntry
+{
+    [BsonElement("action")] public string Action { get; set; } = string.Empty;
+    [BsonElement("by")] public string? By { get; set; }
+    [BsonElement("by_user_id")] public string? ByUserId { get; set; }
+    [BsonElement("at")] public DateTime At { get; set; }
+    [BsonElement("comments")] public string? Comments { get; set; }
+}
+
+/// <summary>Approved classification changes of an asset (written when an assessment is approved).</summary>
+[BsonIgnoreExtraElements]
+public sealed class AssetCriticalityHistory : BaseEntity
+{
+    [BsonElement("asset_registration_id")] public string AssetRegistrationId { get; set; } = string.Empty;
+    [BsonElement("assessment_id")] public string AssessmentId { get; set; } = string.Empty;
+    [BsonElement("from_level")] public string? FromLevel { get; set; }
+    [BsonElement("to_level")] public string ToLevel { get; set; } = string.Empty;
+    [BsonElement("to_level_id")] public string? ToLevelId { get; set; }
+    [BsonElement("score")] public decimal Score { get; set; }
+    [BsonElement("effective_from")] public DateTime EffectiveFrom { get; set; }
+    [BsonElement("approved_by")] public string? ApprovedBy { get; set; }
+    [BsonElement("change_reason")] public string? ChangeReason { get; set; }
 }
 
 /// <summary>Workflow states of a criticality assessment.</summary>
@@ -145,4 +278,14 @@ public sealed class AssetCriticalityCriterion
 
     [BsonElement("justification")]
     public string Justification { get; set; } = string.Empty;
+
+    // Phase 3: set by the template-based form; older rows have none. Score = Rating for these rows.
+    [BsonElement("criterion_id")]
+    public string? CriterionId { get; set; }
+
+    [BsonElement("code")]
+    public string? Code { get; set; }
+
+    [BsonElement("rating")]
+    public int? Rating { get; set; }
 }

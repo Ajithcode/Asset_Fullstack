@@ -6,7 +6,7 @@ namespace A360.Asset.Api.Services;
 
 /// <summary>A criticality level from the MDM Criticality master, e.g. Critical / CRIT-A / #C62828.</summary>
 /// <param name="Rank">Severity for sorting: 4 = Critical, 3 = High, 2 = Medium, 1 = Low, 0 = any other level.</param>
-public sealed record CriticalityLevelInfo(string Name, string? Code, string? Color, int Rank, int? MinScore = null, int? MaxScore = null);
+public sealed record CriticalityLevelInfo(string Name, string? Code, string? Color, int Rank, int? MinScore = null, int? MaxScore = null, string? Id = null);
 
 /// <summary>Criticality levels owned by the Master Data Management service (GET /api/master-data/criticalities).</summary>
 public interface ICriticalityLevelClient
@@ -75,7 +75,7 @@ public sealed class CriticalityLevelClient(
             var levels = rows
                 .Where(row => !row.IsDeleted && !string.IsNullOrWhiteSpace(row.CriticalityName)
                     && !string.Equals(row.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
-                .Select(row => new CriticalityLevelInfo(row.CriticalityName!.Trim(), row.Code, row.Color, Security.CriticalityAccess.LevelRank(row.CriticalityName), row.MinScore, row.MaxScore))
+                .Select(row => new CriticalityLevelInfo(row.CriticalityName!.Trim(), row.Code, row.Color, Security.CriticalityAccess.LevelRank(row.CriticalityName), row.MinScore, row.MaxScore, row.Id))
                 .OrderByDescending(level => level.MaxScore ?? -1)
                 .ThenByDescending(level => level.Rank)
                 .ThenBy(level => level.Code, StringComparer.OrdinalIgnoreCase)
@@ -94,5 +94,5 @@ public sealed class CriticalityLevelClient(
         }
     }
 
-    private sealed record MasterCriticality(string? CriticalityName, string? Code, string? Color, string? Status, bool IsDeleted, int? MinScore = null, int? MaxScore = null);
+    private sealed record MasterCriticality(string? Id, string? CriticalityName, string? Code, string? Color, string? Status, bool IsDeleted, int? MinScore = null, int? MaxScore = null);
 }
