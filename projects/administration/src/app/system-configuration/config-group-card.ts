@@ -1,3 +1,4 @@
+import { TimeZoneSelect } from 'shared-ui';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Info, LucideAngularModule, Upload } from 'lucide-angular';
@@ -10,7 +11,7 @@ const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 @Component({
   standalone: true,
   selector: 'app-config-group-card',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, TimeZoneSelect],
   styleUrls: ['../shared/admin-workspace.css', './system-configuration.css'],
   template: `
     <section class="sub-panel cfg-card">
@@ -45,11 +46,15 @@ const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
             @switch (s.type) {
               @case ('select') {
+                @if (s.key === 'timeZone') {
+                  <app-time-zone-select class="cfg-tz" [inputId]="'cfg-' + s.key" [ngModel]="values[s.key]" (ngModelChange)="change(s, $event)" (focusin)="select(s)" />
+                } @else {
                 <select [attr.aria-label]="s.label" [ngModel]="values[s.key]" (ngModelChange)="change(s, $event)" (focus)="select(s)">
                   @for (o of s.options; track o) {
                     <option [value]="o">{{ o }}</option>
                   }
                 </select>
+                }
               }
               @case ('toggle') {
                 <label class="switch cfg-switch">

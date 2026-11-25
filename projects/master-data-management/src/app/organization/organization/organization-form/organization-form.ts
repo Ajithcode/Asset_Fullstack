@@ -1,7 +1,8 @@
+import { TimeZoneSelect } from 'shared-ui';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
-import { COUNTRIES, CURRENCIES, DATE_FORMATS, LANGUAGES, TIME_ZONES, blankOrganization } from '../organization.data';
+import { COUNTRIES, CURRENCIES, DATE_FORMATS, LANGUAGES, blankOrganization } from '../organization.data';
 import { ORGANIZATION_TYPES, OrganizationRecord } from '../organization.model';
 import { OrganizationService } from '../organization.service';
 import { StepOf, errorsOnStep, firstStepWithError } from '../../../shared/step-validation';
@@ -27,7 +28,7 @@ const STEP_OF: StepOf = (k) => ['name', 'code', 'type', 'website', 'logo'].inclu
 
 @Component({
   selector: 'app-organization-form',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, TimeZoneSelect],
   templateUrl: './organization-form.html',
   styleUrls: ['../../../shared/styles/mdm-drawer.css', './organization-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
@@ -44,7 +45,6 @@ export class OrganizationForm implements OnChanges {
   readonly types = ORGANIZATION_TYPES;
   readonly countries = COUNTRIES;
   readonly currencies = CURRENCIES;
-  readonly timeZones = TIME_ZONES;
   readonly languages = LANGUAGES;
   readonly dateFormats = DATE_FORMATS;
   readonly tabs: { id: FormTab; label: string }[] = [

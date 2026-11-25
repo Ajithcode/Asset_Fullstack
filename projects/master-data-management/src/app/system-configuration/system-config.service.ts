@@ -1,3 +1,4 @@
+import { toTimeZoneId } from 'shared-ui';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, throwError } from 'rxjs';
@@ -5,7 +6,7 @@ import { environment } from 'shared-ui';
 import { CURRENCIES } from '../organization/organization/organization.data';
 import { ApiCodeStore } from '../shared/code-store';
 import { MDM_API, MdmApi, MdmAudit } from '../shared/mdm-api';
-import { DATE_FORMATS, LANGUAGE_CODES, TIME_FORMATS, TIME_ZONE_IDS, defaultSettings } from './system-config.data';
+import { DATE_FORMATS, LANGUAGE_CODES, TIME_FORMATS, defaultSettings } from './system-config.data';
 import { ChartPreview, ChartTypeRecord, ConfigStatus, SyncStatusRecord, SystemSettings, UpdateSourceRecord } from './system-config.model';
 
 /* System configuration masters and settings, backed by /api/master-data. */
@@ -198,7 +199,7 @@ export class SystemSettingsService {
       general: {
         systemName: general.systemName,
         systemUrl: general.systemUrl,
-        defaultTimeZone: TIME_ZONE_IDS[general.timeZone] ?? general.timeZone,
+        defaultTimeZone: toTimeZoneId(general.timeZone),
         dateFormat: firstWord(general.dateFormat),
         timeFormat: timeKey(general.timeFormat),
         defaultLanguage: LANGUAGE_CODES[general.language] ?? general.language,
@@ -229,7 +230,7 @@ export class SystemSettingsService {
   private adopt(dto: SettingsDto): SystemSettings {
     const defaults = defaultSettings();
     const g = dto.general;
-    const timeZone = Object.keys(TIME_ZONE_IDS).find((label) => TIME_ZONE_IDS[label] === g.defaultTimeZone) ?? g.defaultTimeZone;
+    const timeZone = g.defaultTimeZone;
     const language = Object.keys(LANGUAGE_CODES).find((name) => LANGUAGE_CODES[name] === g.defaultLanguage) ?? g.defaultLanguage;
     const settings: SystemSettings = {
       ...defaults,

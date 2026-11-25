@@ -5,9 +5,10 @@ import { MasterForm } from '../../../maintenance/form-base';
 import { SiteService } from '../../../organization/site/site.service';
 import { EmployeeService } from '../../../people/employee/employee.service';
 import { EMAIL, readPhoto } from '../../../people/people.data';
-import { DATE_FORMATS, LANGUAGES, TIME_ZONES, blankUser } from '../../security.data';
+import { DATE_FORMATS, LANGUAGES, blankUser } from '../../security.data';
 import { UserRecord } from '../../security.model';
 import { RoleService, UserService } from '../../security.service';
+import { TimeZoneSelect } from 'shared-ui';
 
 type Tab = 'basic' | 'access' | 'preferences';
 
@@ -16,7 +17,7 @@ const USERNAME = /^[a-z0-9]+([._-][a-z0-9]+)*$/;
 /** Right-hand "Add / Edit User" panel. Passwords are never typed here; new users get an invitation. */
 @Component({
   selector: 'app-user-form',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, TimeZoneSelect],
   templateUrl: './user-form.html',
   styleUrls: ['../../../shared/styles/mdm-drawer.css', '../../../shared/styles/mdm-drawer-extras.css', '../../../people/people-form.css', './user-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
@@ -27,7 +28,6 @@ export class UserForm extends MasterForm<UserRecord, Tab> implements OnChanges {
   readonly icons = { X, Camera };
   private readonly siteMaster = inject(SiteService);
   readonly languages = LANGUAGES;
-  readonly timeZones = TIME_ZONES;
   readonly dateFormats = DATE_FORMATS;
   readonly tabs: { id: Tab; label: string }[] = [
     { id: 'basic', label: 'Basic Information' },

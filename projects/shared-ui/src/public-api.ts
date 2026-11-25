@@ -29,3 +29,5 @@ export * from './lib/map-controls/map-controls';
 export * from './lib/licence/licence.config';
 export * from './lib/export/export.service';
 export * from './lib/export/export-menu';
+export * from './lib/time-zone/time-zones';
+export * from './lib/time-zone/time-zone-select';

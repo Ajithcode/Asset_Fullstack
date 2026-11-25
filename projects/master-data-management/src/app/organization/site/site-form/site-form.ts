@@ -1,7 +1,8 @@
+import { TimeZoneSelect } from 'shared-ui';
 import { Component, EventEmitter, Input, OnChanges, Output, inject, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Building2, LucideAngularModule, X } from 'lucide-angular';
-import { COUNTRIES, TIME_ZONES } from '../../organization/organization.data';
+import { COUNTRIES } from '../../organization/organization.data';
 import { OrganizationService } from '../../organization/organization.service';
 import { blankSite } from '../site.data';
 import { BusinessUnitService } from '../../business-unit/business-unit.service';
@@ -22,7 +23,7 @@ const STEP_OF: StepOf = (k) => k === 'lat' || k === 'lng' ? 'address' : k === 'm
 
 @Component({
   selector: 'app-site-form',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, TimeZoneSelect],
   templateUrl: './site-form.html',
   styleUrls: ['../../../shared/styles/mdm-drawer.css', './site-form.css', '../../../shared/styles/mdm-purple-theme.css']
 })
@@ -41,7 +42,6 @@ export class SiteForm implements OnChanges {
   readonly siteTypes = SITE_TYPES;
   readonly businessUnits = inject(BusinessUnitService);
   readonly departmentService = inject(DepartmentService);
-  readonly timeZones = TIME_ZONES;
   readonly countries = COUNTRIES;
   readonly weekDays = WEEK_DAYS;
   readonly tabs: { id: SiteFormTab; label: string }[] = [

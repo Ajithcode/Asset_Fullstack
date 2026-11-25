@@ -124,7 +124,7 @@
                   <span class="unit-pair"><input class="control" type="number" min="1" [(ngModel)]="complValue" name="complValue" aria-label="Completion target" />
                     <select class="control" [(ngModel)]="complUnit" name="complUnit" aria-label="Unit"><option value="" disabled>Select Unit</option><option value="hours">hours</option><option value="minutes">minutes</option></select></span></label>
                 <label class="field"><span class="field-label">Working Calendar</span><select class="control" [(ngModel)]="draft.calendar" name="calendar"><option value="" disabled>Select Working Calendar</option><option *ngFor="let c of calendars" [value]="c.name">{{ c.name }}</option></select></label>
-                <label class="field"><span class="field-label">Time Zone</span><select class="control" [(ngModel)]="draft.timeZone" name="timeZone"><option value="" disabled>Select Time Zone</option><option *ngFor="let z of timeZones" [value]="z">{{ z }}</option></select></label>
+                <label class="field"><span class="field-label">Time Zone</span><app-time-zone-select [(ngModel)]="draft.timeZone" name="timeZone" /></label>
               </div>
               <p class="hint cal-note"><lucide-icon [img]="icons.Info" [size]="14"></lucide-icon>{{ calendar(draft.calendar).note }}</p>
 

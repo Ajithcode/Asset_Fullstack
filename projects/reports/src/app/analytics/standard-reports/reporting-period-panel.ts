@@ -1,7 +1,8 @@
+import { DEFAULT_TIME_ZONE, TimeZoneSelect } from 'shared-ui';
 import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CalendarDays, Globe, LucideAngularModule } from 'lucide-angular';
-import { ReportPeriod, SR_TIME_ZONES } from './standard-reports.data';
+import { ReportPeriod } from './standard-reports.data';
 import { quickRange } from './standard-reports.util';
 
 const PRESETS = ['Today', 'This week', 'This month', 'This quarter', 'This year'];
@@ -10,7 +11,7 @@ const PRESETS = ['Today', 'This week', 'This month', 'This quarter', 'This year'
 @Component({
   selector: 'app-sr-period-panel',
   standalone: true,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, TimeZoneSelect],
   template: `
     <section class="widget sr-period">
       <div class="widget__head">
@@ -38,12 +39,7 @@ const PRESETS = ['Today', 'This week', 'This month', 'This quarter', 'This year'
       <div class="sr-period__row">
         <label class="sr-tz">
           <lucide-icon [img]="icons.Globe" [size]="18" />
-          <select aria-label="Time zone" [(ngModel)]="timeZone">
-            <option value="" disabled>Select Time Zone</option>
-            @for (z of timeZones; track z.value) {
-              <option [value]="z.value">{{ z.label }}</option>
-            }
-          </select>
+          <app-time-zone-select class="sr-tz__pick" [(ngModel)]="timeZone" name="periodTimeZone" />
         </label>
         <label class="switch">
           <input type="checkbox" [(ngModel)]="includeTime" (ngModelChange)="edited()" />
@@ -64,14 +60,13 @@ export class ReportingPeriodPanel implements OnChanges {
 
   readonly icons = { CalendarDays, Globe };
   readonly presets = PRESETS;
-  readonly timeZones = SR_TIME_ZONES;
 
   start = '';
   end = '';
   startTime = '00:00';
   endTime = '23:59';
   includeTime = false;
-  timeZone = 'Asia/Dubai';
+  timeZone = DEFAULT_TIME_ZONE;
   preset = '';
   error = '';
 

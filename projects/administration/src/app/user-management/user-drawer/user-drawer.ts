@@ -18,10 +18,11 @@ import {
   X
 } from 'lucide-angular';
 import { ADMIN_LOCATIONS, avatarTone, departmentsOf, initials } from '../../shared/admin-common';
-import { ALL_LOCATIONS, LOCATION_TIME_ZONES, TIME_ZONES, USER_MODULES, USER_ROLES, roleModules } from '../user-management.data';
+import { ALL_LOCATIONS, LOCATION_TIME_ZONES, USER_MODULES, USER_ROLES, roleModules } from '../user-management.data';
 import { AdminUser, UserStatus } from '../user-management.model';
 import { UserAdminService } from '../user-management.service';
 import { loginLabel, roleOf } from '../user-format';
+import { TimeZoneSelect, displayTimeZone } from 'shared-ui';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const EMPLOYEE_ID = /^EMP-\d{4,}$/;
@@ -50,7 +51,7 @@ const MODULE_ICONS: Record<string, LucideIconData> = {
 @Component({
   standalone: true,
   selector: 'app-user-drawer',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, TimeZoneSelect],
   templateUrl: './user-drawer.html',
   styleUrls: ['../../shared/admin-workspace.css', '../user-management.css', './user-drawer.css']
 })
@@ -72,7 +73,7 @@ export class UserDrawer implements OnChanges {
     return current && !list.includes(current) ? [current, ...list] : list;
   }
   readonly locations = ADMIN_LOCATIONS;
-  readonly timeZones = TIME_ZONES;
+  readonly displayZone = displayTimeZone;
   readonly modules = USER_MODULES;
   readonly allLocations = ALL_LOCATIONS;
   readonly statuses: UserStatus[] = ['Active', 'Pending', 'Suspended'];
@@ -128,6 +129,7 @@ export class UserDrawer implements OnChanges {
   }
 
   onLocationChange(): void {
+    // the user's own time zone is picked separately; a location only suggests one when it has a mapped zone
     this.form.timeZone = LOCATION_TIME_ZONES[this.form.location] ?? this.form.timeZone;
   }
 

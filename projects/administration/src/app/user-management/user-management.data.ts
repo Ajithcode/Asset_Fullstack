@@ -39,7 +39,6 @@ export const ALL_LOCATIONS = 'All Locations';
 /** Site -> time zone lookup; comes from the locations API (empty until wired). */
 export const LOCATION_TIME_ZONES: Record<string, string> = {};
 
-export const TIME_ZONES = ['(GMT+0) London, UK', '(GMT+3) Riyadh, KSA', '(GMT+4) Dubai, UAE', '(GMT+8) Singapore'];
 
 /** Counts at the end of last month, for the "vs last month" trends on the stat cards (no history API yet). */
 export const LAST_MONTH = { total: 0, active: 0, pending: 0, suspended: 0 };

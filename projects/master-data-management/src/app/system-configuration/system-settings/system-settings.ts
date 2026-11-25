@@ -1,3 +1,4 @@
+import { TimeZoneSelect } from 'shared-ui';
 import { Component, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -40,7 +41,6 @@ import {
   NUMBER_FORMATS,
   RECORDS_PER_PAGE,
   TIME_FORMATS,
-  TIME_ZONES,
   WEEK_START
 } from '../system-config.data';
 import { SystemSettings } from '../system-config.model';
@@ -75,7 +75,7 @@ const IPV4 = /^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)(\/([0
 /** Master Data Management > System Configuration > System Settings */
 @Component({
   selector: 'app-mdm-system-configuration-system-settings',
-  imports: [FormsModule, RouterLink, LucideAngularModule],
+  imports: [FormsModule, RouterLink, LucideAngularModule, TimeZoneSelect],
   templateUrl: './system-settings.html',
   styleUrls: ['../../shared/styles/mdm-page.css', '../../shared/styles/mdm-drawer.css', '../../people/people-form.css', '../../asset/level-form.css', './system-settings.css', '../../shared/styles/mdm-purple-theme.css']
 })
@@ -90,7 +90,6 @@ export class SystemSettingsPage {
   readonly icons = { Settings, Save, Info };
 
   readonly options = {
-    timeZones: TIME_ZONES,
     dateFormats: DATE_FORMATS,
     timeFormats: TIME_FORMATS,
     languages: LANGUAGES,

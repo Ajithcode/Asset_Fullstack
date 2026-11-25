@@ -1,10 +1,11 @@
+import { displayTimeZone } from 'shared-ui';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { ExportMenu, ExportRequest } from 'shared-ui';
 import { Download, LucideAngularModule, Pencil, Play, Trash2, X } from 'lucide-angular';
 import { CartesianChart, ChartSeries, RA_COLORS, ValueFormat, compactNumber } from '../shared/charts';
-import { StandardReport, SR_TIME_ZONES } from './standard-reports.data';
+import { StandardReport } from './standard-reports.data';
 import { MovementRecord, PreviewRow, StandardReportDetails, StandardReportsService } from './standard-reports.service';
 import { formatDay, formatPeriod, formatStamp } from './standard-reports.util';
 
@@ -231,8 +232,7 @@ export class ReportViewerDialog implements OnChanges, OnDestroy {
   }
 
   get timeZone(): string {
-    const tz = this.shown.period.timeZone;
-    return SR_TIME_ZONES.find((z) => z.value === tz)?.label ?? tz;
+    return displayTimeZone(this.shown.period.timeZone);
   }
 
   rowLabel(r: PreviewRow): string {

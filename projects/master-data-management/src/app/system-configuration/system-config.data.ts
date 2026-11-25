@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from 'shared-ui';
 import { ChartTypeRecord, ConfigStatus, SyncStatusRecord, SystemSettings, UpdateSourceRecord } from './system-config.model';
 
 /* Option lists, blank records and default settings for System Configuration. */
@@ -19,18 +20,8 @@ export function blankUpdateSource(): UpdateSourceRecord {
 }
 
 /* System Settings choices */
-export const TIME_ZONES = ['(UTC+04:00) Dubai, Abu Dhabi', '(UTC+03:00) Riyadh, Kuwait', '(UTC+03:00) Doha', '(UTC+05:30) Mumbai, Chennai', '(UTC+00:00) London', '(UTC-05:00) New York'];
 export const DATE_FORMATS = ['dd-MMM-yyyy (26-Oct-2026)', 'dd/MM/yyyy (26/10/2026)', 'MM/dd/yyyy (10/26/2026)', 'yyyy-MM-dd (2026-10-26)'];
 export const TIME_FORMATS = ['24 Hour (14:30)', '12 Hour (2:30 PM)'];
-/** Time zone ids the API stores for the TIME_ZONES choices. */
-export const TIME_ZONE_IDS: Record<string, string> = {
-  '(UTC+04:00) Dubai, Abu Dhabi': 'Asia/Dubai',
-  '(UTC+03:00) Riyadh, Kuwait': 'Asia/Riyadh',
-  '(UTC+03:00) Doha': 'Asia/Qatar',
-  '(UTC+05:30) Mumbai, Chennai': 'Asia/Kolkata',
-  '(UTC+00:00) London': 'Europe/London',
-  '(UTC-05:00) New York': 'America/New_York'
-};
 export const LANGUAGES = ['English', 'Arabic', 'Hindi', 'French'];
 /** Language codes the API stores for the LANGUAGES choices. */
 export const LANGUAGE_CODES: Record<string, string> = { English: 'en', Arabic: 'ar', Hindi: 'hi', French: 'fr' };
@@ -50,7 +41,7 @@ export function defaultSettings(): SystemSettings {
     general: {
       systemName: 'Asset360',
       systemUrl: 'https://asset360.purpleiq.com',
-      timeZone: TIME_ZONES[0],
+      timeZone: DEFAULT_TIME_ZONE,
       dateFormat: DATE_FORMATS[0],
       timeFormat: TIME_FORMATS[0],
       language: 'English',

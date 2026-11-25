@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, concat, forkJoin, last, map, of, switchMap, tap, throwError } from 'rxjs';
-import { AuthService, environment } from 'shared-ui';
+import { AuthService, environment, toTimeZoneId } from 'shared-ui';
 import { CURRENT_USER } from '../shared/admin-common';
 import { ConfigChange, ConfigSection, ConfigSetting, ConfigValue, buildSections } from './system-configuration.data';
 
@@ -117,16 +117,6 @@ interface EventLogDto {
   message: string;
 }
 
-/** UI time-zone labels and the IANA ids the API stores. */
-const TIME_ZONE_IDS: Record<string, string> = {
-  '(GMT+04:00) Dubai': 'Asia/Dubai',
-  '(GMT+03:00) Riyadh': 'Asia/Riyadh',
-  '(GMT+03:00) Doha': 'Asia/Qatar',
-  '(GMT+00:00) London': 'Europe/London',
-  '(GMT+08:00) Singapore': 'Asia/Singapore',
-  '(GMT+05:30) Kolkata': 'Asia/Kolkata',
-  '(GMT+00:00) UTC': 'UTC'
-};
 
 /** UI auto-save labels and the interval in seconds the API stores (0 = off). */
 const AUTO_SAVE_SECONDS: Record<string, number> = {
@@ -194,7 +184,7 @@ function toRequest(v: ConfigValues, updatedBy: string | null): SaveSystemConfigu
     },
     regionalDefaults: {
       country: text(v['country']),
-      timeZone: TIME_ZONE_IDS[String(v['timeZone'])] ?? text(v['timeZone']),
+      timeZone: text(v['timeZone']) ? toTimeZoneId(text(v['timeZone'])) : null,
       dateFormat: text(v['dateFormat']),
       // "AED (د.إ)" -> "AED"
       currency: currency ? currency.slice(0, 3).toUpperCase() : null,
@@ -238,7 +228,7 @@ function toValues(dto: SystemConfigurationDto, settings: ConfigSetting[]): Confi
   // Optional values the API left empty keep the client default
   if (p.defaultLandingPage) out['defaultLandingPage'] = p.defaultLandingPage;
   if (r.country) out['country'] = r.country;
-  if (r.timeZone) out['timeZone'] = labelFor(TIME_ZONE_IDS, r.timeZone) ?? r.timeZone;
+  if (r.timeZone) out['timeZone'] = r.timeZone;
   if (r.dateFormat) out['dateFormat'] = r.dateFormat;
   if (r.currency) {
     const code = r.currency;

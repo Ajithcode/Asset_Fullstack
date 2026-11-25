@@ -94,15 +94,6 @@ function setting(key: string, label: string, type: ConfigFieldType, value: Confi
 }
 
 const COUNTRIES = ['United Arab Emirates', 'Saudi Arabia', 'Qatar', 'United Kingdom', 'Singapore', 'India'];
-const TIME_ZONES = [
-  '(GMT+04:00) Dubai',
-  '(GMT+03:00) Riyadh',
-  '(GMT+03:00) Doha',
-  '(GMT+00:00) London',
-  '(GMT+08:00) Singapore',
-  '(GMT+05:30) Kolkata',
-  '(GMT+00:00) UTC'
-];
 // Formats accepted by the Administration API
 const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY', 'DD.MM.YYYY'];
 const CURRENCIES = ['AED (د.إ)', 'SAR (﷼)', 'QAR (ر.ق)', 'USD ($)', 'GBP (£)', 'EUR (€)'];
@@ -165,8 +156,7 @@ export function buildSections(): ConfigSection[] {
               options: COUNTRIES,
               description: 'Country used for public holidays, tax defaults and address formats.'
             }),
-            setting('timeZone', 'Time Zone', 'select', '(GMT+04:00) Dubai', {
-              options: TIME_ZONES,
+            setting('timeZone', 'Time Zone', 'select', 'Asia/Kolkata', {
               hint: 'Applies to all users.',
               allowed: 'All time zones (IANA)',
               description: 'Configure the default time zone for your organization.'

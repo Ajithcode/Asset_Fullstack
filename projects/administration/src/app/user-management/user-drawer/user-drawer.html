@@ -123,10 +123,7 @@
         </div>
         <div class="field">
           <label for="u-tz">Time Zone</label>
-          <select id="u-tz" name="timeZone" [(ngModel)]="form.timeZone">
-            <option value="" disabled>Select Time Zone</option>
-            @for (z of timeZones; track z) { <option [value]="z">{{ z }}</option> }
-          </select>
+          <app-time-zone-select inputId="u-tz" name="timeZone" [(ngModel)]="form.timeZone" [defaultToIndia]="isAdd" />
         </div>
       </div>
     } @else {
@@ -135,7 +132,7 @@
         <dt>Job Title</dt><dd>{{ form.jobTitle || '—' }}</dd>
         <dt>Phone</dt><dd>{{ form.phone || '—' }}</dd>
         <dt>Location</dt><dd><lucide-icon [img]="icons.MapPin" [size]="14"></lucide-icon> {{ form.location }}</dd>
-        <dt>Time Zone</dt><dd>{{ form.timeZone }}</dd>
+        <dt>Time Zone</dt><dd>{{ displayZone(form.timeZone) }}</dd>
       </dl>
     }
 

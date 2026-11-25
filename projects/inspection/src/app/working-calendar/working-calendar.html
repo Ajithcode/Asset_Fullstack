@@ -50,10 +50,7 @@
               @for (s of sites(); track s) { <option [value]="s">{{ s }}</option> }
             </select></label>
           <label class="field"><span class="field-label">Timezone</span>
-            <select class="control" [(ngModel)]="d.timezone" (ngModelChange)="touch()">
-              <option value="" disabled>Select Timezone</option>
-              @for (t of timezones; track t) { <option [value]="t">{{ t }}</option> }
-            </select></label>
+            <app-time-zone-select [(ngModel)]="d.timezone" name="timezone" (ngModelChange)="touch()" /></label>
           <label class="field"><span class="field-label">Effective from</span>
             <input class="control" type="date" [(ngModel)]="d.effectiveFrom" (ngModelChange)="touch()" /></label>
 

@@ -57,10 +57,7 @@
           </div>
           <div class="field">
             <label for="s-tz">Default Time Zone</label>
-            <select id="s-tz" name="timeZone" [(ngModel)]="form.general.timeZone">
-              <option value="" disabled>Select Default Time Zone</option>
-              @for (o of options.timeZones; track o) { <option [value]="o">{{ o }}</option> }
-            </select>
+            <app-time-zone-select inputId="s-tz" name="timeZone" [(ngModel)]="form.general.timeZone" />
           </div>
           <div class="field">
             <label for="s-df">Date Format</label>

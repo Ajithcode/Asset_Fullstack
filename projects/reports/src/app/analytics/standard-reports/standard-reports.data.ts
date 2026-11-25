@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from 'shared-ui';
 // Standard report types and option lists. Report records come from the reporting API (none are seeded here).
 // Dates are local wall-clock times written as 'YYYY-MM-DD' / 'YYYY-MM-DDTHH:mm'.
 
@@ -16,7 +17,7 @@ export function defaultReportPeriod(): ReportPeriod {
     end: localIsoDay(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
     startTime: null,
     endTime: null,
-    timeZone: 'Asia/Dubai'
+    timeZone: DEFAULT_TIME_ZONE
   };
 }
 
@@ -34,15 +35,6 @@ export type ReportFormat = 'PDF' | 'Excel' | 'CSV';
 export const SR_STATUSES: ReportStatus[] = ['Ready', 'Scheduled', 'Needs review', 'Draft'];
 export const SR_SCHEDULE_FREQUENCIES: ReportFrequency[] = ['Daily', 'Weekly', 'Monthly', 'Quarterly'];
 export const SR_FORMATS: ReportFormat[] = ['PDF', 'Excel', 'CSV'];
-
-export const SR_TIME_ZONES = [
-  { value: 'Asia/Dubai', label: 'Asia/Dubai (GST)' },
-  { value: 'Asia/Riyadh', label: 'Asia/Riyadh (AST)' },
-  { value: 'Asia/Qatar', label: 'Asia/Qatar (AST)' },
-  { value: 'Europe/London', label: 'Europe/London (GMT)' },
-  { value: 'Asia/Singapore', label: 'Asia/Singapore (SGT)' },
-  { value: 'UTC', label: 'UTC' }
-];
 
 export interface ReportPeriod {
   start: string;

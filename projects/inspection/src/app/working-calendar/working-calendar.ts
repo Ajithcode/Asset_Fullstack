@@ -1,3 +1,4 @@
+import { TimeZoneSelect } from 'shared-ui';
 import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -42,7 +43,7 @@ interface Affected {
 @Component({
   selector: 'app-insp-working-calendar',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideAngularModule, CalendarMonthView],
+  imports: [FormsModule, RouterLink, LucideAngularModule, CalendarMonthView, TimeZoneSelect],
   templateUrl: './working-calendar.html',
   styleUrls: ['../shared/insp-page.css', './working-calendar.css']
 })
@@ -52,7 +53,6 @@ export class WorkingCalendarPage implements OnInit {
   readonly store = this.api.calendars;
   readonly fmtDate = fmtDate;
   readonly exceptionTypes = EXCEPTION_TYPES;
-  readonly timezones = ['Asia/Dubai', 'Asia/Riyadh', 'Asia/Kolkata', 'Europe/London', 'UTC'];
   readonly rules = ['Move to next working day', 'Move to previous working day', 'Keep date'];
   readonly dueCalcs = ['Working days', 'Calendar days'];
 

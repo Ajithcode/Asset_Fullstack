@@ -78,10 +78,7 @@
           </div>
           <div class="field">
             <label for="site-tz">Time Zone</label>
-            <select id="site-tz" name="timeZone" [(ngModel)]="form.timeZone">
-              <option value="" disabled>Select Time Zone</option>
-              @for (z of timeZones; track z) { <option [value]="z">{{ z }}</option> }
-            </select>
+            <app-time-zone-select inputId="site-tz" name="timeZone" [(ngModel)]="form.timeZone" />
           </div>
           <div class="field field--wide">
             <label for="site-desc">Description</label>

@@ -1,3 +1,4 @@
+import { TimeZoneSelect } from 'shared-ui';
 import { Component, DestroyRef, HostListener, OnDestroy, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
@@ -100,7 +101,7 @@ function addWorking(cal: WorkCalendar, from: string, mins: number): string {
 @Component({
   selector: 'app-sla-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, TimeZoneSelect],
   templateUrl: './sla-management.html',
   // Buttons, controls, tabs, switches, modal and toast come from the Job Templates stylesheet
   styleUrls: ['../job-templates/job-templates.css', '../shared/wip-board.css', './sla-management.css', '../shared/wip-purple-theme.css'],
@@ -118,7 +119,6 @@ export class SlaManagement implements OnDestroy {
   readonly appliesToOptions = Object.keys(SCOPE_FOR);
   readonly scopes: SlaScope[] = ['Job', 'Stage', 'Task', 'Issue'];
   readonly priorities = ['High', 'Medium', 'Low'];
-  readonly timeZones = ['Asia/Dubai', 'Asia/Riyadh', 'Asia/Kolkata', 'Europe/London'];
   readonly startEvents = ['Stage ready', 'Job released', 'Task assigned', 'Issue reported', 'Job completed'];
   readonly stopEvents = ['Stage approved', 'Job completed', 'Task completed', 'Issue closed', 'Job dispatched'];
   readonly resumeEvents = ['Dependency resolved', 'Material received', 'Approval received'];

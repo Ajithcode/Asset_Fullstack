@@ -1,7 +1,8 @@
+import { DEFAULT_TIME_ZONE, TimeZoneSelect } from 'shared-ui';
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  ReportFrequency, ReportModule, ReportPeriod, ReportStatus, SR_STATUSES, SR_TIME_ZONES, StandardReport
+  ReportFrequency, ReportModule, ReportPeriod, ReportStatus, SR_STATUSES, StandardReport
 } from './standard-reports.data';
 import { NewStandardReport } from './standard-reports.service';
 
@@ -11,7 +12,7 @@ const FREQUENCIES: ReportFrequency[] = ['On demand', 'Daily', 'Weekly', 'Monthly
 @Component({
   selector: 'app-sr-create-dialog',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, TimeZoneSelect],
   template: `
     <div class="overlay" (click)="close.emit()">
       <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="sr-create-title" (click)="stop($event)" (ngSubmit)="submit()">
@@ -74,12 +75,7 @@ const FREQUENCIES: ReportFrequency[] = ['On demand', 'Daily', 'Weekly', 'Monthly
           }
           <div class="field" [class.invalid]="submitted && !timeZone">
             <label for="sr-c-tz">Time zone <span class="req">*</span></label>
-            <select id="sr-c-tz" name="timeZone" [(ngModel)]="timeZone">
-              <option value="" disabled>Select Time Zone</option>
-              @for (z of timeZones; track z.value) {
-                <option [value]="z.value">{{ z.label }}</option>
-              }
-            </select>
+            <app-time-zone-select inputId="sr-c-tz" name="timeZone" [(ngModel)]="timeZone" />
             @if (submitted && !timeZone) {
               <small>Choose a time zone.</small>
             }
@@ -155,7 +151,6 @@ export class ReportCreateDialog implements OnInit {
 
   readonly statuses = SR_STATUSES;
   readonly frequencies = FREQUENCIES;
-  readonly timeZones = SR_TIME_ZONES;
 
   name = '';
   description = '';
@@ -184,6 +179,7 @@ export class ReportCreateDialog implements OnInit {
   ngOnInit(): void {
     this.start = this.period.start;
     this.end = this.period.end;
+    this.timeZone = this.period.timeZone || DEFAULT_TIME_ZONE;
     this.includeTime = !!this.period.startTime;
     this.startTime = this.period.startTime ?? '00:00';
     this.endTime = this.period.endTime ?? '23:59';

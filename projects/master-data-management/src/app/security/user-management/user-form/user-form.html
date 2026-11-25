@@ -152,10 +152,7 @@
           </div>
           <div class="field field--wide">
             <label for="user-tz">Time Zone</label>
-            <select id="user-tz" name="timeZone" [(ngModel)]="form.timeZone">
-              <option value="" disabled>Select Time Zone</option>
-              @for (t of timeZones; track t) { <option [value]="t">{{ t }}</option> }
-            </select>
+            <app-time-zone-select inputId="user-tz" name="timeZone" [(ngModel)]="form.timeZone" [defaultToIndia]="true" />
           </div>
         </div>
         <div class="toggles">

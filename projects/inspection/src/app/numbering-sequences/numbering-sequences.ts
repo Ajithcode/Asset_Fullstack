@@ -1,3 +1,4 @@
+import { TimeZoneSelect } from 'shared-ui';
 import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -32,7 +33,7 @@ interface LogRow extends SequenceAllocation {
 @Component({
   selector: 'app-insp-numbering-sequences',
   standalone: true,
-  imports: [FormsModule, RouterLink, LucideAngularModule],
+  imports: [FormsModule, RouterLink, LucideAngularModule, TimeZoneSelect],
   templateUrl: './numbering-sequences.html',
   styleUrls: ['../shared/insp-page.css', './numbering-sequences.css']
 })
@@ -57,7 +58,6 @@ export class NumberingSequencesPage implements OnInit {
   readonly digitOptions = [3, 4, 5, 6];
   readonly resetRules = ['Annually', 'Monthly', 'Never'];
   readonly scopes = ['Tenant-wide', 'Site-wide'];
-  readonly timezones = ['Asia/Dubai', 'Asia/Riyadh', 'Asia/Kolkata', 'Europe/London', 'UTC'];
 
   readonly search = signal('');
   readonly selectedId = signal<string | null>(null);

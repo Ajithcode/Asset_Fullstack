@@ -121,13 +121,11 @@ app-sr-report-calendar {
   color: #334155;
 }
 
-.sr-tz select {
-  border: 0;
-  background: transparent;
-  font: inherit;
+.sr-tz__pick {
+  width: 300px;
+  max-width: 100%;
   font-weight: 600;
   color: #0f172a;
-  cursor: pointer;
 }
 
 .sr-period__error {
