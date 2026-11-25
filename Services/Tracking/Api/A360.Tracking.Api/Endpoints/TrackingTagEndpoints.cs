@@ -869,7 +869,12 @@ public static class TrackingTagEndpoints
             return TagValidationResult.Invalid(problem);
         }
 
-        var duplicateOf = await tags.FindTagIdByValueAsync(tag.Technology, tag.Value!, tag.TagId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(tag.Value))
+        {
+            return TagValidationResult.Valid;
+        }
+
+        var duplicateOf = await tags.FindTagIdByValueAsync(tag.Technology, tag.Value, tag.TagId, cancellationToken);
         return duplicateOf is null
             ? TagValidationResult.Valid
             : TagValidationResult.Invalid($"Same {TagMappings.ValueLabelOf(tag.Technology)} as {duplicateOf}");
@@ -890,7 +895,12 @@ public static class TrackingTagEndpoints
                 return TagValidationResult.Invalid(problem);
             }
 
-            var other = holders[(tag.Technology, tag.Value!.ToUpperInvariant())].FirstOrDefault(id => id != tag.TagId);
+            if (string.IsNullOrWhiteSpace(tag.Value))
+            {
+                return TagValidationResult.Valid;
+            }
+
+            var other = holders[(tag.Technology, tag.Value.ToUpperInvariant())].FirstOrDefault(id => id != tag.TagId);
             return other is null
                 ? TagValidationResult.Valid
                 : TagValidationResult.Invalid($"Same {TagMappings.ValueLabelOf(tag.Technology)} as {other}");

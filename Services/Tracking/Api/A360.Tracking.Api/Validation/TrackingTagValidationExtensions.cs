@@ -49,13 +49,13 @@ public static partial class TagValueFormat
         }
     }
 
-    /// <summary>Null when the (normalized) value fits the technology; otherwise why it does not.</summary>
+    /// <summary>Null when the (normalized) value is empty (optional) or fits the technology; otherwise why it does not.</summary>
     public static string? Problem(string technology, string? value)
     {
-        var label = TagMappings.ValueLabelOf(technology);
+        // The value (EPC / MAC / barcode / ...) is optional: only a value that was entered has to fit the technology.
         if (string.IsNullOrWhiteSpace(value))
         {
-            return $"{label} is missing";
+            return null;
         }
 
         var hex = Separators().Replace(value, string.Empty);
