@@ -2,7 +2,7 @@ import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, MapPin, Network, Plus, Search, Users } from 'lucide-angular';
-import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { MASTER_DATA_BASE_PATH, pushToast } from 'shared-ui';
 import { apiErrorMessage, inParallel } from '../../shared/mdm-api';
 import { DepartmentService } from '../department/department.service';
 import { OrganizationService } from '../organization/organization.service';
@@ -295,8 +295,7 @@ export class BusinessUnitPage {
   }
 
   notify(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

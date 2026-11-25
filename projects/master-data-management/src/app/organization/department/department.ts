@@ -3,7 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Boxes, ChevronLeft, ChevronRight, Ellipsis, LucideAngularModule, Network, Plus, Search, Users } from 'lucide-angular';
-import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { MASTER_DATA_BASE_PATH, pushToast } from 'shared-ui';
 import { apiErrorMessage, inParallel } from '../../shared/mdm-api';
 import { MASTER_ICONS } from '../../shared/master-icons';
 import { BusinessUnitService } from '../business-unit/business-unit.service';
@@ -287,8 +287,7 @@ export class DepartmentPage {
   }
 
   notify(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

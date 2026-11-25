@@ -40,7 +40,7 @@ import { Assignment, AssignmentStatus, AssignmentType, AssetKind, ENTITIES, TARG
 import {
   AssetAssignmentDto, AssetAssignmentService, AssignmentLookups, DEFAULT_ASSIGNMENT_TYPE, EMPTY_LOOKUPS, choicesFor, requestFrom, targetFor, toRows, uniqueSorted,
 } from './asset-assignment.service';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 
 type ColumnKey = 'tag' | 'type' | 'assignee' | 'from' | 'to' | 'status';
 type DetailTab = 'assignment' | 'history' | 'related';
@@ -554,8 +554,7 @@ export class AssetAssignment implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

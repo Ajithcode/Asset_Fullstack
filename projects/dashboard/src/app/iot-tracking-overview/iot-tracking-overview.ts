@@ -5,7 +5,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import L from 'leaflet';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -1229,8 +1229,7 @@ export class IotTrackingOverview implements AfterViewInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

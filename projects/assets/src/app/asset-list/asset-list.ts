@@ -40,7 +40,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import { Observable, Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
-import { TODAY, ExportMenu, ExportRequest } from 'shared-ui';
+import { TODAY, ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
 import { apiErrorMessage } from '../services/asset-api';
 import {
@@ -705,8 +705,7 @@ export class AssetList {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 2600);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

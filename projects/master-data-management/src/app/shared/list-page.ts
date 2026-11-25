@@ -1,6 +1,7 @@
 import { Directive, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { Observable, isObservable } from 'rxjs';
 import { apiErrorMessage } from './mdm-api';
+import { pushToast } from 'shared-ui';
 
 /**
  * List + side drawer behaviour shared by the People masters: filters, sorting, paging, row
@@ -216,8 +217,7 @@ export abstract class ListPage<T, F extends object, S extends string = string> {
   }
 
   notify(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

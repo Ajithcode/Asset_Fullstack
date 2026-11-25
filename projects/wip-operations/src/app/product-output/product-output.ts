@@ -38,6 +38,7 @@ import {
   nowStamp,
   handoverState,
 } from './output-store';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'summary' | 'records' | 'quality' | 'trace' | 'handover';
 
@@ -426,9 +427,7 @@ export class ProductOutput implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

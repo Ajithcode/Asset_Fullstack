@@ -29,7 +29,7 @@ import {
   X,
 } from 'lucide-angular';
 import { Subject, catchError, forkJoin, of, switchMap, tap } from 'rxjs';
-import { ASSET_TYPE_ICONS, AssetCondition, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetLocation, assetTabs, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetCondition, AssetHeader, AssetRecord, AssetTabLink, TODAY, assetHeader, assetLocation, assetTabs, toIsoDate, pushToast } from 'shared-ui';
 import { blankAssetRecord } from '../shared/blank-asset';
 import { AssetDetail, Assessment, loadAssetDetail } from '../asset-details/asset-details';
 import {
@@ -1008,8 +1008,7 @@ export class AssetDetailTab implements OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

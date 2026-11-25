@@ -21,7 +21,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-angular';
-import { ExportColumn, ExportMenu, ExportRequest, ExportService } from 'shared-ui';
+import { ExportColumn, ExportMenu, ExportRequest, ExportService, pushToast } from 'shared-ui';
 import { Subject, Subscription, debounceTime, forkJoin, map } from 'rxjs';
 import { apiErrorMessage } from '../../services/asset-api';
 import { FilterSelect, FilterSelectOption } from '../../shared/filter-select/filter-select';
@@ -369,9 +369,8 @@ export class CriticalityLanding implements OnInit, OnDestroy {
   };
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 
   // ===== Display helpers =====

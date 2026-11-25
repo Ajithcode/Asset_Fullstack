@@ -58,7 +58,7 @@ import {
   HierarchyTypeOption,
   toInput,
 } from './asset-hierarchy.service';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 
 /** Grouping levels plus the assets themselves. Assets can also parent other assets (sub-components). */
 type NodeKind = 'root' | 'site' | 'building' | 'area' | 'floor' | 'system' | 'asset';
@@ -892,8 +892,7 @@ export class AssetHierarchy implements OnInit {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 2800);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

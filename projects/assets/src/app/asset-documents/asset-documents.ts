@@ -38,8 +38,7 @@ import {
   assetTabs,
   conditionPill,
   criticalityPill,
-  statusPill,
-} from 'shared-ui';
+  statusPill, pushToast } from 'shared-ui';
 import { Observable, Subscription, finalize, of, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, AssetOption } from './asset-lookup.service';
@@ -891,9 +890,8 @@ export class AssetDocuments implements OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }
 

@@ -52,8 +52,7 @@ import {
   assetTabs,
   conditionPill,
   criticalityPill,
-  statusPill,
-} from 'shared-ui';
+  statusPill, pushToast } from 'shared-ui';
 import { FROM_RELATIONSHIPS } from '../asset-relationship-list/user-relationships';
 import {
   API_RELATIONSHIP_TYPES,
@@ -882,8 +881,7 @@ export class AssetRelationship {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 2600);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

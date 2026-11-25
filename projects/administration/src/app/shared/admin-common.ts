@@ -1,7 +1,7 @@
 import { Directive, Injectable, OnDestroy, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subscription, catchError, forkJoin, map, of, shareReplay } from 'rxjs';
-import { AccessService, environment } from 'shared-ui';
+import { AccessService, environment, pushToast } from 'shared-ui';
 
 // Tenant lookups (organizations, people, locations, departments, asset categories) are filled in place by
 // AdminLookupService from the APIs, so pages that hold these arrays see the values once they arrive; empty until loaded.
@@ -174,11 +174,8 @@ export abstract class AdminPage implements OnDestroy {
     });
 
   notify(message: string, tone: ToastTone = 'info'): void {
-    this.toast = message;
-    this.toastTone = tone;
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    // errors stay a little longer so the reason can be read
-    this.toastTimer = setTimeout(() => (this.toast = null), tone === 'error' ? 5000 : 3200);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, tone);
   }
 
   ngOnDestroy(): void {

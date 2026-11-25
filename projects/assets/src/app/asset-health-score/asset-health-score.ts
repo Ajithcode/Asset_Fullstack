@@ -29,7 +29,7 @@ import {
   X,
 } from 'lucide-angular';
 import { Subscription, forkJoin, from } from 'rxjs';
-import { ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, AuthService, Criticality, assetTabs } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, AuthService, Criticality, assetTabs, pushToast } from 'shared-ui';
 import { HealthData, HealthRecord, HealthStatus, MaintenanceTask, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, EMPTY_HEADER } from '../asset-status-condition/asset-lookup.service';
@@ -473,8 +473,7 @@ export class AssetHealthScore implements OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

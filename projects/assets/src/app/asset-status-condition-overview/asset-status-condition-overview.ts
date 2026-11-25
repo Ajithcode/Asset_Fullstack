@@ -33,6 +33,7 @@ import {
   stateTone,
   statusTone,
 } from './status-condition.service';
+import { pushToast } from 'shared-ui';
 
 type View = 'assets' | 'history';
 
@@ -307,9 +308,8 @@ export class AssetStatusConditionOverview implements OnInit, OnDestroy {
   }
 
   showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 
   trackAsset = (_: number, a: StatusConditionAsset) => a.assetRegistrationId;

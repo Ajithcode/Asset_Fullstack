@@ -2,7 +2,7 @@ import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowDown, ArrowUp, Box, ChevronLeft, ChevronRight, Ellipsis, Factory, LucideAngularModule, Plus, Search } from 'lucide-angular';
-import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { MASTER_DATA_BASE_PATH, pushToast } from 'shared-ui';
 import { apiErrorMessage } from '../../shared/mdm-api';
 import { AssetModelService } from '../asset-model/asset-model.service';
 import { badgeInk, badgeText } from './manufacturer.data';
@@ -276,8 +276,7 @@ export class ManufacturerPage implements OnInit {
   }
 
   notify(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

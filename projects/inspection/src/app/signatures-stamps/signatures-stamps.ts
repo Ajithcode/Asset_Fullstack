@@ -23,6 +23,7 @@ import { SignoffPanel } from './signoff-panel';
 import { SignoffRules } from './signoff-rules';
 import { SigningHistory } from './signing-history';
 import { StampSeal } from './stamp-seal';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'signatures' | 'rules' | 'history';
 
@@ -317,7 +318,7 @@ export class SignaturesStampsPage implements OnInit {
   }
 
   private flash(msg: string): void {
-    this.toast.set(msg);
-    setTimeout(() => this.toast.set(null), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

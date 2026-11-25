@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Observable, Subscription, catchError, forkJoin, map, of } from 'rxjs';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import {
   LucideAngularModule, ArrowLeft, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, Lightbulb, LocateFixed, MapPin, Pause, Play, Power,
   Radio, Route, Search, Send, Settings, ShieldAlert, Square, TriangleAlert, Volume2, Wifi, X, HelpCircle,
@@ -1145,9 +1145,8 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   }
 
   showToast(msg: string): void {
-    this.toast = msg;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }
 

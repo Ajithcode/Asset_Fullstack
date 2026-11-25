@@ -4,7 +4,7 @@ import { Subscription, catchError, concatMap, from, map, of, switchMap, toArray 
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import * as XLSX from 'xlsx';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import {
   LucideAngularModule,
   ArrowDown,
@@ -1271,9 +1271,8 @@ export class TagManagement implements OnInit, OnDestroy {
 
   /** Short action title ("Tag registered") and a one-line detail ("c3000071fe4c → TV12333"). */
   private showToast(title: string, message: string, tone: ToastTone = 'success'): void {
-    this.toast = { id: ++this.toastSeq, tone, title, message };
-    this.toastPaused = false;
-    this.runToastTimer(TOAST_MS);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message ? `${title}: ${message}` : title, tone);
   }
 
   closeToast(): void {

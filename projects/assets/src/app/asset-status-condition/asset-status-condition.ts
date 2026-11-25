@@ -33,8 +33,7 @@ import {
   assetTabs,
   conditionPill,
   criticalityPill,
-  statusPill,
-} from 'shared-ui';
+  statusPill, pushToast } from 'shared-ui';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, EMPTY_HEADER } from './asset-lookup.service';
 import { AssetConditionService, ConditionAssessment, ConditionAssessmentFields } from './asset-condition.service';
@@ -651,9 +650,8 @@ export class AssetStatusCondition implements OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }
 

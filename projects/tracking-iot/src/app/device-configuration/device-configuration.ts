@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, Subscription, forkJoin, map, of } from 'rxjs';
-import { AlertFeedService, AuthService } from 'shared-ui';
+import { AlertFeedService, AuthService, pushToast } from 'shared-ui';
 import {
   LucideAngularModule,
   Activity, Antenna, AudioWaveform, Battery, Bell, Bluetooth, Building2, Calendar, ChartColumn, Check, CircleAlert, CircleCheck, CircleX,
@@ -942,8 +942,7 @@ export class DeviceConfiguration implements OnInit, DoCheck, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3800);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

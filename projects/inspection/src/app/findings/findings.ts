@@ -20,6 +20,7 @@ import { InspectionFinding } from '../shared/inspection.models';
 import { Pager, downloadCsv, fmtDate, isoDay, pillClass } from '../shared/insp-utils';
 import { FindingDetail } from './finding-detail';
 import { FindingFormDrawer } from './finding-form-drawer';
+import { pushToast } from 'shared-ui';
 
 export const FINDING_STATUSES = ['Open', 'In Progress', 'Pending Verification', 'Overdue', 'Closed'];
 export const SEVERITIES = ['Critical', 'High', 'Medium', 'Low'];
@@ -210,8 +211,7 @@ export class FindingsPage {
   }
 
   flash(message: string): void {
-    this.toast.set(message);
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toast.set(null), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

@@ -69,6 +69,7 @@ import {
   CategoryStatus,
 } from '../services/asset-category/asset-category';
 import { FilterSelect, FilterSelectOption } from '../shared/filter-select/filter-select';
+import { pushToast } from 'shared-ui';
 
 type DetailTab = 'subcategories' | 'fields' | 'attributes' | 'assets';
 
@@ -714,8 +715,7 @@ export class AssetCategories {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 2800);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

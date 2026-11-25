@@ -34,6 +34,7 @@ import {
   X,
 } from 'lucide-angular';
 import { Allocation, AssetLink, JobRef, LinkHistory, RegisterAsset } from './asset-link.model';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'linked' | 'available' | 'history' | 'readiness';
 
@@ -659,9 +660,7 @@ export class AssetLinking implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

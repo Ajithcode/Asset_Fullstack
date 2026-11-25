@@ -22,6 +22,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
+import { pushToast } from 'shared-ui';
 
 export type IntervalUnit = 'Hours' | 'Days' | 'Months';
 export type MaintenanceKind = 'Preventive' | 'Inspection' | 'Replacement' | 'Calibration';
@@ -528,8 +529,7 @@ export class ComponentMaintenance {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 2800);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

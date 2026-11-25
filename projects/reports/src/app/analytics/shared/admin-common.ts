@@ -1,4 +1,5 @@
 import { Directive, OnDestroy } from '@angular/core';
+import { pushToast } from 'shared-ui';
 
 // Organizations, people, locations and departments come from the Administration APIs (not wired yet).
 
@@ -54,9 +55,8 @@ export abstract class AdminPage implements OnDestroy {
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   notify(message: string): void {
-    this.toast = message;
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = null), 3200);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 
   ngOnDestroy(): void {

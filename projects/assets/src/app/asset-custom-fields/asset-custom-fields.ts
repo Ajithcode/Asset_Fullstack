@@ -56,6 +56,7 @@ import {
   toFieldRequest,
 } from './custom-fields.service';
 import { apiErrorMessage } from '../services/asset-api';
+import { pushToast } from 'shared-ui';
 
 
 type ListTab = FieldScope | 'compound';
@@ -1081,9 +1082,7 @@ export class AssetCustomFields implements OnInit {
   }
 
   showToast(message: string): void {
-    if (!message) return;
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

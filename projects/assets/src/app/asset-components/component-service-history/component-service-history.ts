@@ -28,7 +28,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import type { AssetComponent } from '../asset-components';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 
 export type ServiceType = 'Preventive' | 'Corrective' | 'Inspection';
 export type ServiceStatus = 'Completed' | 'In Progress' | 'Scheduled' | 'Cancelled';
@@ -587,8 +587,7 @@ export class ComponentServiceHistory {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 2800);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

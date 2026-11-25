@@ -23,7 +23,7 @@ import {
 } from 'lucide-angular';
 import { Router, NavigationEnd, RouterModule } from '@angular/router';
 import { filter } from 'rxjs';
-import { AccessService, AlertFeedService, AuthService, DesktopAlertsService, FeedAlert } from 'shared-ui';
+import { AccessService, AlertFeedService, AuthService, DesktopAlertsService, FeedAlert, pushToast } from 'shared-ui';
 import { prefsKey } from '../landing-page';
 import { environment } from '../../../../environments/environment';
 import { AlertPopups } from '../alert-popups/alert-popups';
@@ -436,9 +436,8 @@ export class Topbar {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 
   logout(): void {

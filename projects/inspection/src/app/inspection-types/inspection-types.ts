@@ -25,6 +25,7 @@ import {
 import { InspectionApi, apiErrorMessage } from '../shared/inspection-api';
 import { InspectionType } from '../shared/inspection.models';
 import { Pager, downloadCsv, pillClass } from '../shared/insp-utils';
+import { pushToast } from 'shared-ui';
 
 type SortKey = 'inspectionTypeCode' | 'inspectionTypeName' | 'category' | 'defaultChecklistName' | 'status';
 
@@ -308,8 +309,7 @@ export class InspectionTypesPage implements OnInit {
   }
 
   private flash(msg: string): void {
-    this.toast.set(msg);
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toast.set(null), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

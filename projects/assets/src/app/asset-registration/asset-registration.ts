@@ -2,7 +2,7 @@ import { Component, ElementRef, HostListener, ViewChild, inject, signal } from '
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Coords, SuccessDialog, SuccessDialogAction } from 'shared-ui';
+import { Coords, SuccessDialog, SuccessDialogAction, pushToast } from 'shared-ui';
 import {
   AssetAdditionalInformation, AssetBasicInformation, AssetClassification, AssetDocumentRef, AssetLocationAssignment, AssetPurchaseWarranty,
   AssetRegistrationResult, AssetRegistrationSection, AssetRegistrationSectionBody, AssetRegistrationService,
@@ -2333,8 +2333,7 @@ export class AssetRegistration {
   }
 
   private showToast(message: string): void {
-    this.toastMessage = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toastMessage = ''), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

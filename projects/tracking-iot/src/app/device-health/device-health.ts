@@ -53,6 +53,7 @@ import { API_CONNECTIVITY, API_HEALTH, API_POWER, ApiConnectivity, ApiHealth, Ap
 import { Assignee, MaintenanceApiService, toTechnician } from '../device-maintenance/maintenance-api.service';
 import { TelemetryReadApi, paramKind } from '../tracking-telemetry/telemetry-api';
 import { ASSIGNEES, DevEvent, Device, Level, PRIORITIES, Status, Telemetry, baseEvents, healthScore, hourlyTelemetry, isStale, signalQuality } from './health-data';
+import { pushToast } from 'shared-ui';
 
 type Range = '1h' | '24h' | '7d';
 type Tab = 'overview' | 'diagnostics' | 'events' | 'configuration';
@@ -855,8 +856,7 @@ export class DeviceHealth implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3800);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

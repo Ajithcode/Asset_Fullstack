@@ -43,6 +43,7 @@ import {
 import { apiErrorMessage } from '../shared/tracking-api';
 import { Candidate, CheckResult, Compat, DeviceKind, ExistingDevice, HistoryEvent, QUEUE, REASONS, SESSION, STOCK, blankDevice, checksFor, compatOf } from './replacement-data';
 import { IoTDeviceDto, ReplacementDeviceApiService, requestOf, toCandidate, toExisting } from './replacement-device-api.service';
+import { pushToast } from 'shared-ui';
 
 type OptKey = 'telemetry' | 'alerts' | 'group' | 'gateway' | 'history' | 'endPrior';
 interface OptDef { key: OptKey; label: string; desc: string }
@@ -534,8 +535,7 @@ export class DeviceReplacement implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

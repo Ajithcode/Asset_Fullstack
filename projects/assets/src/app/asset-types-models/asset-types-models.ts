@@ -59,6 +59,7 @@ import {
 import { AssetCategory, AssetCategoryService } from '../services/asset-category/asset-category';
 import { AssetDropdownService, DropdownOption } from '../services/asset-dropdowns/asset-dropdown';
 import { FilterSelect } from '../shared/filter-select/filter-select';
+import { pushToast } from 'shared-ui';
 
 type Status = TypeModelStatus;
 
@@ -813,8 +814,7 @@ export class AssetTypesModels {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 2800);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

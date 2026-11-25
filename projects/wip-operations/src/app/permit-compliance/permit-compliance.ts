@@ -26,6 +26,7 @@ import {
   X,
 } from 'lucide-angular';
 import { CheckResult, ChecklistItem, Evidence, Permit, PermitEvent, PermitState } from './permit.model';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'register' | 'requirements' | 'risk' | 'approvals' | 'evidence' | 'history';
 
@@ -523,9 +524,7 @@ export class PermitCompliance implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

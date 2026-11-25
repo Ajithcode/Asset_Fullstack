@@ -1,4 +1,4 @@
-import { TimeZoneSelect } from 'shared-ui';
+import { TimeZoneSelect, pushToast } from 'shared-ui';
 import { Component, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -322,8 +322,7 @@ export class SystemSettingsPage {
   }
 
   notify(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

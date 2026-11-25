@@ -34,6 +34,7 @@ import {
   X,
 } from 'lucide-angular';
 import { JobTemplate, ResourceType, Stage, VersionEntry } from './job-template.model';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'general' | 'routing' | 'tasks' | 'resources' | 'quality' | 'sla' | 'access';
 type ListKind = 'stage' | 'task' | 'checklist' | 'resource' | 'material' | 'check' | 'permit' | 'kpi' | 'alert';
@@ -437,9 +438,7 @@ export class JobTemplates implements OnDestroy {
   readonly today = toIsoDate(new Date());
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

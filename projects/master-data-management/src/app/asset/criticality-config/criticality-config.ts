@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { LucideAngularModule, Plus, SlidersHorizontal } from 'lucide-angular';
-import { AccessService, AuthService, MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { AccessService, AuthService, MASTER_DATA_BASE_PATH, pushToast } from 'shared-ui';
 import { apiErrorMessage } from '../../shared/mdm-api';
 import {
   ApprovalRuleDto,
@@ -317,8 +317,7 @@ export class CriticalityConfigPage implements OnInit {
   }
 
   private notify(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

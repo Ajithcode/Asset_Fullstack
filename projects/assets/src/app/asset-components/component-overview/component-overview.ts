@@ -22,6 +22,7 @@ import { buildMockServiceHistory, type ServiceRecord } from '../component-servic
 import { toDocument, type ComponentDocument } from '../component-documents/component-documents';
 import { AssetComponentsService, componentFileTag } from '../asset-components.service';
 import { formatSize, saveBlob } from '../file-preview/file-preview';
+import { pushToast } from 'shared-ui';
 
 type ReplacementStatus = 'Overdue' | 'Due Soon' | 'On Track';
 type HealthLabel = 'Good' | 'Fair' | 'Poor';
@@ -272,8 +273,7 @@ export class ComponentOverview implements OnChanges {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3200);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

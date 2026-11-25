@@ -15,7 +15,7 @@ import {
   Search,
   Workflow
 } from 'lucide-angular';
-import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { MASTER_DATA_BASE_PATH, pushToast } from 'shared-ui';
 import { apiErrorMessage, inParallel } from '../../shared/mdm-api';
 import { BusinessUnitService } from '../business-unit/business-unit.service';
 import { SiteService } from '../site/site.service';
@@ -294,8 +294,7 @@ export class OrganizationPage {
   }
 
   private notify(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

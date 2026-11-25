@@ -1,4 +1,4 @@
-import { TimeZoneSelect } from 'shared-ui';
+import { TimeZoneSelect, pushToast } from 'shared-ui';
 import { Component, DestroyRef, HostListener, OnDestroy, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
@@ -545,9 +545,7 @@ export class SlaManagement implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

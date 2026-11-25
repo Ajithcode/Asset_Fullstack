@@ -1,4 +1,4 @@
-import { TimeZoneSelect } from 'shared-ui';
+import { TimeZoneSelect, pushToast } from 'shared-ui';
 import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -318,7 +318,7 @@ export class NumberingSequencesPage implements OnInit {
   }
 
   private flash(msg: string): void {
-    this.toast.set(msg);
-    setTimeout(() => this.toast.set(null), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

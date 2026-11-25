@@ -28,7 +28,7 @@ import {
   Wrench,
   X,
 } from 'lucide-angular';
-import { AssetRecord } from 'shared-ui';
+import { AssetRecord, pushToast } from 'shared-ui';
 import { Availability, Booking, BookingRequest, Resource, ResourceType } from './resource.model';
 
 type Tab = 'directory' | 'calendar' | 'assignments' | 'skills' | 'capacity';
@@ -675,9 +675,7 @@ export class Resources implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

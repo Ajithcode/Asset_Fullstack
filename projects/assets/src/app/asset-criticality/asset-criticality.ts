@@ -26,7 +26,7 @@ import {
   X,
 } from 'lucide-angular';
 import { Subscription, catchError, combineLatest, forkJoin, from, of } from 'rxjs';
-import { ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, AuthService, assetTabs } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetHeader, AssetTabLink, AuthService, assetTabs, pushToast } from 'shared-ui';
 import { CriticalityCriterion, CriticalityImpact, CriticalityLevel, cloneDetail, loadAssetDetail } from '../asset-details/asset-details';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetLookupService, EMPTY_HEADER } from '../asset-status-condition/asset-lookup.service';
@@ -748,8 +748,7 @@ export class AssetCriticality implements OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

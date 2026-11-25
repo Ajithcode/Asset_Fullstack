@@ -22,7 +22,7 @@ import {
   Timer,
   Wrench,
 } from 'lucide-angular';
-import { ASSET_TYPE_ICONS, AssetHeader, AssetRecord, AssetTabLink, ExportMenu, ExportRequest, TODAY, assetHeader, assetTabs, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetHeader, AssetRecord, AssetTabLink, ExportMenu, ExportRequest, TODAY, assetHeader, assetTabs, toIsoDate, pushToast } from 'shared-ui';
 import { blankAssetRecord } from '../shared/blank-asset';
 import { MaintenanceData, WorkOrder } from '../asset-maintenance/asset-maintenance';
 import { MaintenanceApiService, buildMaintenanceData, emptyMaintenanceData } from '../asset-maintenance/maintenance-api.service';
@@ -431,8 +431,7 @@ export class AssetMaintenanceTab implements OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

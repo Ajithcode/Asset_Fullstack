@@ -36,7 +36,7 @@ import {
   X,
   HeartPulse,
 } from 'lucide-angular';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 
 type StageKey =
   | 'planning'
@@ -893,8 +893,7 @@ export class AssetLifecycle implements OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

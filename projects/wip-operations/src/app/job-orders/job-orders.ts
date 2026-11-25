@@ -26,6 +26,7 @@ import {
   X,
 } from 'lucide-angular';
 import { Issue, JobOrder, OrderStage, OrderTask, Severity, TaskStatus } from './job-order.model';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'overview' | 'stages' | 'resources' | 'materials' | 'quality' | 'issues' | 'output' | 'activity';
 type Dialog = 'issue' | 'progress' | 'output' | 'consumption' | 'checklist' | 'completeStage' | null;
@@ -424,9 +425,7 @@ export class JobOrders implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

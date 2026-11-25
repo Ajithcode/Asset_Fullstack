@@ -26,7 +26,7 @@ import {
   CircleDot,
   X,
 } from 'lucide-angular';
-import { ASSET_TYPE_ICONS, AssetIconKey, AuthService } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetIconKey, AuthService, TOAST_CONFIG } from 'shared-ui';
 import { iconForAsset } from '../asset-details/asset-details.service';
 import { Comparable, DEFAULT_RULES, DedupRules, MATCH_FIELDS, MatchField, confidence } from './dedup-match';
 import { AssetDedupService, AssetMergeDto, DedupGroupDto, DedupRecordDto, MergeField, dedupErrorMessage } from './asset-dedup.service';
@@ -676,6 +676,6 @@ export class AssetMerge implements OnDestroy {
     this.toastTimer = setTimeout(() => {
       this.toast = '';
       this.undoIds = [];
-    }, undoIds.length ? 8000 : 3500);
+    }, undoIds.length ? 8000 : TOAST_CONFIG.durationMs.success);
   }
 }

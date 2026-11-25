@@ -82,6 +82,7 @@ function buildStructure(dtos: ComponentStructureNodeDto[]): StructureNode[] {
   return roots;
 }
 import { apiErrorMessage } from '../services/asset-api';
+import { pushToast } from 'shared-ui';
 
 type ComponentStatus = 'Active' | 'Under Maintenance' | 'Needs Replacement' | 'Inactive';
 type LifeUnit = 'hrs' | 'months';
@@ -1165,8 +1166,7 @@ export class AssetComponents {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 2800);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

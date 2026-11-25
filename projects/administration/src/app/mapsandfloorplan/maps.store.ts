@@ -27,6 +27,7 @@ import {
   zoneIcon,
   zoneTone
 } from './maps.data';
+import { pushToast } from 'shared-ui';
 
 const EMPTY_SUMMARY: MapsSummary = { floorPlans: 0, zones: 0, devicesPlotted: 0, assetsPlotted: 0 };
 
@@ -117,11 +118,8 @@ export class MapsStore implements OnDestroy {
   }
 
   notify(message: string, tone: ToastTone = 'info'): void {
-    this.toast = message;
-    this.toastTone = tone;
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    // errors stay a little longer so the reason can be read
-    this.toastTimer = setTimeout(() => (this.toast = null), tone === 'error' ? 5000 : 3200);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, tone);
   }
 
   /** Readable reason for a failed call. */

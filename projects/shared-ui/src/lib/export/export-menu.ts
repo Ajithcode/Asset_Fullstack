@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, Input, inject } from '@angular/core';
 import { ExportFormat, ExportRequest, ExportService, PDF_LIMIT_MESSAGE } from './export.service';
+import { pushToast } from 'shared-ui';
 
 /**
  * "Export ▾" with exactly two options, CSV and PDF. Same look on every page:
@@ -88,9 +89,7 @@ export class ExportMenu {
   }
 
   private show(text: string, bad: boolean): void {
-    this.toast = text;
-    this.toastBad = bad;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 6000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(text, bad);
   }
 }

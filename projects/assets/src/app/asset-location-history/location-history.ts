@@ -26,7 +26,7 @@ import {
   Users,
   X,
 } from 'lucide-angular';
-import { ASSET_TYPE_ICONS, AssetRecord } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetRecord, pushToast } from 'shared-ui';
 import { blankAssetRecord } from '../shared/blank-asset';
 import { Subscription } from 'rxjs';
 import { LocationHistoryService } from './location-history.service';
@@ -620,8 +620,7 @@ export class LocationHistory implements AfterViewInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

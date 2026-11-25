@@ -29,6 +29,7 @@ import { CAL_STATUSES, calibrationStatus, certHref, certLabel } from './calibrat
 import { InstrumentDetail } from './instrument-detail';
 import { CalibrationDrawer, DrawerMode } from './calibration-drawer';
 import { ScheduleDialog } from './schedule-dialog';
+import { pushToast } from 'shared-ui';
 
 type SortKey = 'name' | 'range' | 'last' | 'next' | 'status' | 'cert';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -288,9 +289,8 @@ export class CalibrationPage {
   }
 
   flash(message: string): void {
-    this.toast.set(message);
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toast.set(null), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 
   private sortValue(i: CalibrationInstrument, key: SortKey): string {

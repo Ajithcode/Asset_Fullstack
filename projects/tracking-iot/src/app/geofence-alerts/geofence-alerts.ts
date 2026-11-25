@@ -2,7 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ExportMenu, ExportRequest, ExportService } from 'shared-ui';
+import { ExportMenu, ExportRequest, ExportService, pushToast } from 'shared-ui';
 import { Observable, Subscription, catchError, forkJoin, of, switchMap } from 'rxjs';
 import {
   LucideAngularModule,
@@ -1545,8 +1545,7 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

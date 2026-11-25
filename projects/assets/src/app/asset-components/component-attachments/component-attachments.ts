@@ -34,6 +34,7 @@ import {
 } from '../file-preview/file-preview';
 import { AssetComponentsService, isoLocalDateTime, type AssetDocumentDto, type ComponentFileDetails, type UploadedFile } from '../asset-components.service';
 import { apiErrorMessage } from '../../services/asset-api';
+import { pushToast } from 'shared-ui';
 
 export type AttachmentCategory = 'Manual' | 'Drawing' | 'Parts List' | 'Image' | 'Report' | 'Certificate' | 'Other';
 
@@ -579,8 +580,7 @@ export class ComponentAttachments {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3200);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

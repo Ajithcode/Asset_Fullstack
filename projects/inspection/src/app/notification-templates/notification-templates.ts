@@ -29,7 +29,7 @@ import {
   Wrench,
   X
 } from 'lucide-angular';
-import { AuthService } from 'shared-ui';
+import { AuthService, pushToast } from 'shared-ui';
 import { InspectionApi, apiErrorMessage } from '../shared/inspection-api';
 import { NotificationTemplate } from '../shared/inspection.models';
 import { fmtDate, pillClass } from '../shared/insp-utils';
@@ -376,7 +376,7 @@ export class NotificationTemplatesPage implements OnInit {
   }
 
   private flash(msg: string): void {
-    this.toast.set(msg);
-    setTimeout(() => this.toast.set(null), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

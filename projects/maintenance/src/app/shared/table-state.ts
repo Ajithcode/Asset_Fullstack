@@ -1,4 +1,5 @@
 import { Signal, computed, signal } from '@angular/core';
+import { pushToast } from 'shared-ui';
 
 /** Paging, checkbox selection, row menu and inline delete confirmation for one register table. */
 export class TableState<T extends { id: string }> {
@@ -76,8 +77,7 @@ export class Toast {
   private timer?: ReturnType<typeof setTimeout>;
 
   show(message: string): void {
-    this.message.set(message);
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.message.set(null), 3200);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

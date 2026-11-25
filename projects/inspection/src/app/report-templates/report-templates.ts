@@ -28,6 +28,7 @@ import { pillClass } from '../shared/insp-utils';
 import { nextVersionLabel, withoutAudit } from '../checklists/checklist-utils';
 import { ReportPreview, reportPageCount } from './report-preview';
 import { ReportVersionHistory } from './report-version-history';
+import { pushToast } from 'shared-ui';
 
 const DEFAULT_SECTIONS = [
   'Header & Branding',
@@ -369,8 +370,7 @@ export class ReportTemplatesPage implements OnInit {
   }
 
   private flash(msg: string): void {
-    this.toast.set(msg);
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toast.set(null), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

@@ -14,6 +14,7 @@ import {
   subAssetKey,
   toSubAssetRef,
 } from './asset-relationship.service';
+import { pushToast } from 'shared-ui';
 
 type Step = 'main' | 'sub';
 
@@ -511,8 +512,7 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

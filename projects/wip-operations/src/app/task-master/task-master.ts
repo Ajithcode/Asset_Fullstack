@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-angular';
 import { TaskDef, TaskVersion } from './task.model';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'general' | 'instructions' | 'checklist' | 'resources' | 'materials' | 'safety' | 'sla' | 'versions';
 
@@ -365,9 +366,7 @@ export class TaskMaster implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

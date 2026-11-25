@@ -23,7 +23,7 @@ import {
   ShieldCheck,
   User
 } from 'lucide-angular';
-import { AuthService } from 'shared-ui';
+import { AuthService, pushToast } from 'shared-ui';
 import { InspectionApi, apiErrorMessage } from '../shared/inspection-api';
 import { Checklist, Inspection, InspectionFinding, InspectionResponse } from '../shared/inspection.models';
 import { fmtDateTime, fmtTime, isoDay, pillClass } from '../shared/insp-utils';
@@ -392,7 +392,7 @@ export class ExecutionPage {
   }
 
   private flash(msg: string): void {
-    this.toast = msg;
-    setTimeout(() => (this.toast = ''), 2500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

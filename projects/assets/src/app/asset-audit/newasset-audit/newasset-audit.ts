@@ -70,6 +70,7 @@ import {
   apiDate,
 } from '../asset-audit.service';
 import { apiErrorMessage } from '../../services/asset-api';
+import { pushToast } from 'shared-ui';
 
 type AssetSelection = 'all' | 'selected' | 'range' | 'filter';
 type AssetKind = 'generator' | 'electrical' | 'tank' | 'cooling' | 'exhaust' | 'hvac' | 'it' | 'vehicle' | 'furniture' | 'safety' | 'tool';
@@ -1936,9 +1937,8 @@ export class NewassetAudit implements OnInit, OnDestroy {
   }
 
   showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 5000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 
   ngOnDestroy(): void {

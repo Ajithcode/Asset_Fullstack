@@ -27,6 +27,7 @@ import { InspectionApi, apiErrorMessage } from '../shared/inspection-api';
 import { Inspection, InspectionFinding } from '../shared/inspection.models';
 import { OverviewCalendar, inspectionDay } from './overview-calendar';
 import { Pager, downloadCsv, fmtDate, fmtTime, initials, isoDay, pillClass } from '../shared/insp-utils';
+import { pushToast } from 'shared-ui';
 
 type FilterKey = 'site' | 'type' | 'status' | 'search' | 'from' | 'to';
 
@@ -244,7 +245,7 @@ export class OverviewPage {
   }
 
   private flash(msg: string): void {
-    this.toast = msg;
-    setTimeout(() => (this.toast = ''), 2500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

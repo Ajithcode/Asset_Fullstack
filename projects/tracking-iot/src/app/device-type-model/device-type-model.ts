@@ -61,6 +61,7 @@ import {
   STATUSES, TYPES, TYPE_ICONS, TypeIcon, API_THUMBNAILS, API_TYPE_ICONS, blankModel, formFactorOf, normalizePower, typeIconOf,
 } from './model-data';
 import { DeviceModelApiService, DeviceModelDto, DeviceModelFormOptions, DeviceTypeDto, modelFromDto } from './device-model-api.service';
+import { pushToast } from 'shared-ui';
 
 type Icon = typeof Box;
 
@@ -1005,9 +1006,8 @@ export class DeviceTypeModel implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 
   /** Narrow a dialog for the template (strict templates cannot narrow a union on their own). */

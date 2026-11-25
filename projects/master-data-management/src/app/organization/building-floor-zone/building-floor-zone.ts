@@ -15,7 +15,7 @@ import {
   Plus,
   Search
 } from 'lucide-angular';
-import { MASTER_DATA_BASE_PATH } from 'shared-ui';
+import { MASTER_DATA_BASE_PATH, pushToast } from 'shared-ui';
 import { apiErrorMessage } from '../../shared/mdm-api';
 import { DecimalPipe } from '@angular/common';
 import { BfzDetail } from './bfz-detail/bfz-detail';
@@ -346,8 +346,7 @@ export class BuildingFloorZonePage {
   }
 
   notify(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

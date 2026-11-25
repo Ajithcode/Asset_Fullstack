@@ -21,6 +21,7 @@ import { InspectionPlan } from '../shared/inspection.models';
 import { downloadCsv, fmtDate, isoDay, pillClass } from '../shared/insp-utils';
 import { ScheduleCalendar } from './schedule-calendar';
 import { PlanFormDrawer } from './plan-form-drawer';
+import { pushToast } from 'shared-ui';
 
 const CLOSED = ['Completed', 'Cancelled'];
 const PREVIEW = 4;
@@ -195,8 +196,7 @@ export class PlansSchedulesPage {
   }
 
   private flash(message: string): void {
-    this.toast.set(message);
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toast.set(null), 3000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

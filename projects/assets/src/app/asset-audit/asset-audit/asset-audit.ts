@@ -21,7 +21,7 @@ import {
   X,
 } from 'lucide-angular';
 import { AssetAuditService, AuditCounts, AuditListItemDto, AuditLocation, apiDate } from '../asset-audit.service';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import { apiErrorMessage } from '../../services/asset-api';
 
 export type AuditType = 'Periodic' | 'Ad-hoc' | 'Compliance' | 'Annual' | 'Spot Check' | 'Preventive';
@@ -439,8 +439,7 @@ export class AssetAudit implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

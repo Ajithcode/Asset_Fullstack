@@ -28,6 +28,7 @@ import {
   X,
 } from 'lucide-angular';
 import { Movement, MovementControls, Occupancy, OpLocation } from './location.model';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'directory' | 'layout' | 'occupancy' | 'history' | 'routing';
 type LocState = 'Available' | 'Full' | 'Inactive';
@@ -500,9 +501,7 @@ export class LocationManagement implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

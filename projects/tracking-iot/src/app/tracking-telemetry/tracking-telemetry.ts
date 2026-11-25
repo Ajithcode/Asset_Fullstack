@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subscription, catchError, forkJoin, of } from 'rxjs';
-import { ExportMenu, ExportRequest } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import {
   LucideAngularModule, Activity, Battery, BatteryLow, Bell, Box, Building2, Calendar, Clock, Cpu, Download, Filter, Heart,
   History, Layers, Link, MapPin, RadioTower, Search, Signal, TriangleAlert, Wifi, WifiOff, X,
@@ -592,8 +592,7 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
   }
 
   showToast(msg: string): void {
-    this.toast = msg;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

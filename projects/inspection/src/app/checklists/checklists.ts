@@ -8,6 +8,7 @@ import { Pager, pillClass } from '../shared/insp-utils';
 import { ChecklistDetail } from './checklist-detail';
 import { ChecklistPreview } from './checklist-preview';
 import { MODULES, SCORING_METHODS, checklistIcon } from './checklist-utils';
+import { pushToast } from 'shared-ui';
 
 function blankChecklist(): Partial<Checklist> {
   return {
@@ -202,8 +203,7 @@ export class ChecklistsPage implements OnInit {
   }
 
   flash(msg: string): void {
-    this.toast.set(msg);
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.toast.set(null), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 }

@@ -31,3 +31,5 @@ export * from './lib/export/export.service';
 export * from './lib/export/export-menu';
 export * from './lib/time-zone/time-zones';
 export * from './lib/time-zone/time-zone-select';
+export * from './lib/toast/toast';
+export * from './lib/toast/toast-host';

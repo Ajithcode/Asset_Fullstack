@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs';
 import { DEVICES } from '../../device-management/device-data';
 import { DeviceFix, DevicePositionFeed } from './device-position-feed';
 import { MdPortal } from './md-portal';
+import { pushToast } from 'shared-ui';
 
 type L = typeof Leaflet;
 type LL = [number, number];
@@ -723,9 +724,8 @@ export class MapDrawTools implements OnChanges, OnDestroy {
   }
 
   private showToast(msg: string): void {
-    this.toast = msg;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 3500);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(msg);
   }
 
   @HostListener('document:keydown', ['$event'])

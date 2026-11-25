@@ -1,5 +1,5 @@
 import { Directive, OnDestroy, inject } from '@angular/core';
-import { ExportFormat, ExportRequest, ExportService, PDF_LIMIT_MESSAGE } from 'shared-ui';
+import { ExportFormat, ExportRequest, ExportService, PDF_LIMIT_MESSAGE, pushToast } from 'shared-ui';
 import { ADMIN_LOCATIONS, ADMIN_PEOPLE, CURRENT_USER, ORGANIZATIONS } from './admin-common';
 
 // Entity lists (organizations, locations, categories, people) and figures come from the APIs (not wired yet).
@@ -198,9 +198,8 @@ export abstract class AnalyticsPage implements OnDestroy {
   }
 
   notify(message: string): void {
-    this.toast = message;
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = null), 3200);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 
   ngOnDestroy(): void {

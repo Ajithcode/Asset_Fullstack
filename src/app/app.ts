@@ -1,12 +1,12 @@
 import { Component, NgZone, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { installMenuViewportGuard } from 'shared-ui';
+import { ToastHost, installMenuViewportGuard } from 'shared-ui';
 
 @Component({
   standalone: true,
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, ToastHost],
   templateUrl: './app.html',
   styleUrls: ['./app.css']
 })

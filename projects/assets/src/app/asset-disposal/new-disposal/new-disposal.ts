@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Observable, concatMap, defer, from, last, map, of, tap } from 'rxjs';
-import { AuthService } from 'shared-ui';
+import { AuthService, pushToast } from 'shared-ui';
 import {
   LucideAngularModule,
   ArrowLeft,
@@ -954,8 +954,7 @@ export class NewDisposal implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

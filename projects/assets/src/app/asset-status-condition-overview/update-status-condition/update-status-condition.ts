@@ -35,7 +35,7 @@ import {
   Zap,
 } from 'lucide-angular';
 import { Subject, Subscription, catchError, debounceTime, forkJoin, of, switchMap } from 'rxjs';
-import { AuthService } from 'shared-ui';
+import { AuthService, pushToast } from 'shared-ui';
 import { apiErrorMessage } from '../../services/asset-api';
 import {
   Approval,
@@ -797,8 +797,7 @@ export class UpdateStatusCondition implements OnDestroy {
   trackCheck = (_: number, c: ValidationCheck) => c.text;
 
   showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

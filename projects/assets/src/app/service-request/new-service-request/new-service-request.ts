@@ -18,7 +18,7 @@ import {
   X,
 } from 'lucide-angular';
 import { Observable, Subject, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
-import { ASSET_TYPE_ICONS, AssetRecord, AuthService, TODAY, assetLocation, toIsoDate } from 'shared-ui';
+import { ASSET_TYPE_ICONS, AssetRecord, AuthService, TODAY, assetLocation, toIsoDate, pushToast } from 'shared-ui';
 import { blankAssetRecord } from '../../shared/blank-asset';
 import { loadAssetDetail } from '../../asset-details/asset-details';
 import { AssetDetailsService, AssetRegistrationDto } from '../../asset-details/asset-details.service';
@@ -593,8 +593,7 @@ export class NewServiceRequest implements OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

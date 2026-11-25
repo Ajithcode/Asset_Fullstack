@@ -26,7 +26,7 @@ import {
   X,
   Box,
 } from 'lucide-angular';
-import { ASSET_TYPE_ICONS } from 'shared-ui';
+import { ASSET_TYPE_ICONS, pushToast } from 'shared-ui';
 import { LocationHistory } from './location-history';
 import { LocationEventDto, LocationHistoryService, MovementType } from './location-history.service';
 import { SITE_POINTS, ZONE_POINTS } from './location-overview.data';
@@ -656,8 +656,7 @@ export class LocationOverview implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

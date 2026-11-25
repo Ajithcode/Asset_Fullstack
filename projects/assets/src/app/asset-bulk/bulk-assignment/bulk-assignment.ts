@@ -41,6 +41,7 @@ import {
   AssetAssignmentService, AssignmentLookups, EMPTY_LOOKUPS, assignToOf, choicesFor, dayOf, departmentRequest, employeeRequest, locationFrom, uniqueSorted,
 } from '../../asset-assignment/asset-assignment.service';
 import { BulkConfirmDto, BulkDetailsRequest, BulkFieldKey, BulkFileCheckDto, BulkRecordDto, BulkAssignmentService, BulkValuesDto, saveBlob } from './bulk-assignment.service';
+import { pushToast } from 'shared-ui';
 
 type BulkField = 'tag' | 'assetName' | 'assetType' | 'type' | 'assignee' | 'department' | 'location' | 'from' | 'to' | 'reason' | 'costCenter' | 'remarks';
 type RecordState = 'valid' | 'warning' | 'error';
@@ -922,8 +923,7 @@ export class BulkAssignment implements OnInit, OnDestroy {
   }
 
   private showToast(message: string): void {
-    this.toast = message;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message);
   }
 }

@@ -31,6 +31,7 @@ import {
   X,
 } from 'lucide-angular';
 import { ActionStatus, CorrectiveAction, Issue, IssueStatus, Severity } from './issue.model';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'register' | 'delays' | 'actions' | 'escalations' | 'history';
 
@@ -657,9 +658,7 @@ export class IssuesDelays implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }

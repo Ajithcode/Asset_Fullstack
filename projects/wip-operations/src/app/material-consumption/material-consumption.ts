@@ -24,6 +24,7 @@ import {
   X,
 } from 'lucide-angular';
 import { JobMaterials, MaterialException, MaterialLine, MaterialTx, TxType } from './material.model';
+import { pushToast } from 'shared-ui';
 
 type Tab = 'summary' | 'transactions' | 'issues' | 'trace' | 'cost';
 type Dialog = 'return' | 'issue' | 'scrap' | null;
@@ -443,9 +444,7 @@ export class MaterialConsumption implements OnDestroy {
   }
 
   private showToast(message: string, error = false): void {
-    this.toast = message;
-    this.toastError = error;
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => (this.toast = ''), 4000);
+    // shared toast: durations, hover-pause and close button live in shared-ui (toast.ts)
+    pushToast(message, error);
   }
 }
