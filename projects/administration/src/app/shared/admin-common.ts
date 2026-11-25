@@ -58,7 +58,7 @@ function list<T>(request: Observable<T[]>): Observable<T[]> {
 /**
  * Fills the shared Administration lookups once per session:
  * - ORGANIZATIONS: System Configuration organization name, then Master Data organizations
- * - ADMIN_LOCATIONS: Administration organization locations (the hidden organization root left out)
+ * - ADMIN_LOCATIONS: Master Data locations (Organization > Location), active ones
  * - ADMIN_DEPARTMENTS: Master Data departments
  * - ADMIN_PEOPLE: Administration users
  * - ASSET_CATEGORIES: Asset service categories
@@ -87,8 +87,9 @@ export class AdminLookupService {
       businessUnits: list(
         this.http.get<{ id: string; parentOrganization?: { id?: string | null } | null }[]>(`${environment.masterDataApiUrl}api/master-data/business-units`)
       ),
+      // Master Data > Organization > Location (the Administration service has no location list API)
       locations: list(
-        this.http.get<{ locationName: string; locationType: string }[]>(`${admin}api/organization/locations`, { params: scope })
+        this.http.get<{ locationName: string; status?: string | null; isDeleted?: boolean }[]>(`${environment.masterDataApiUrl}api/master-data/locations`)
       ),
       departments: list(
         this.http.get<{ departmentName: string; businessUnit?: { id?: string | null } | null }[]>(`${environment.masterDataApiUrl}api/master-data/departments`)
@@ -101,7 +102,7 @@ export class AdminLookupService {
         const configured = config?.platformIdentity?.organizationName?.trim();
         const orgs = names(organizations.map((o) => o.organizationName)).filter((n) => n !== configured);
         fill(ORGANIZATIONS, configured ? [configured, ...orgs] : orgs);
-        fill(ADMIN_LOCATIONS, names(locations.filter((l) => l.locationType !== 'Organization').map((l) => l.locationName)));
+        fill(ADMIN_LOCATIONS, names(locations.filter((l) => l.isDeleted !== true && !/^(inactive|disabled|deleted)$/i.test(l.status ?? '')).map((l) => l.locationName)));
         fill(ADMIN_DEPARTMENTS, names(departments.map((d) => d.departmentName)));
         ORG_DEPARTMENTS.clear();
         for (const org of organizations) {
