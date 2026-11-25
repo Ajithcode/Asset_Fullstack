@@ -1,7 +1,13 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, NgZone, Output, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, Output, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import type * as Leaflet from 'leaflet';
 import { MapControls } from 'shared-ui';
 import { GatewayFeed, PlanPlot, PlanZone } from './floor-map-api.service';
+import { AssetLivePopup } from '../shared/asset-live/asset-live-popup';
+
+/** Same plotted item (kind and id) across redraws. */
+function samePlot(a: PlanPlot, b: PlanPlot): boolean {
+  return a.kind === b.kind && a.itemId === b.itemId;
+}
 
 type L = typeof Leaflet;
 
@@ -65,9 +71,12 @@ const ASSET_SVG =
 @Component({
   selector: 'app-floor-plan-map',
   standalone: true,
-  imports: [MapControls],
+  imports: [MapControls, AssetLivePopup],
   template: `<div #host class="fp-map" [class.fp-map--blank]="imageMissing"></div>
     <app-map-controls (fit)="fitView()" (fullscreenChange)="refit()"></app-map-controls>
+    @if (popupItem) {
+      <app-asset-live-popup [item]="popupItem" [anchor]="popupAnchor" [gateway]="popupGateway(popupItem)" [feedAvailable]="hasFeed" (close)="closePopup()"></app-asset-live-popup>
+    }
     @if (note) {
       <div class="fp-note" role="status">{{ note }}</div>
     } @else if (imageMissing) {
@@ -214,6 +223,11 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.liveLayer = Lf.layerGroup().addTo(map);
       this.assetLayer = Lf.layerGroup().addTo(map);
       map.setView([this.h / 2, W / 2], -1);
+      // Keep the open popup on its marker while the map pans / zooms; a click on the map itself closes it
+      map.on('move zoom resize', () => this.placePopup());
+      map.on('click', () => {
+        if (this.popupItem) this.ngZone.run(() => this.closePopup());
+      });
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
       this.resize.observe(this.host.nativeElement);
       this.sync();
@@ -249,6 +263,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     const map = this.map;
     if (!L || !map) return;
     if (this.imageUrl !== this.shownImage) {
+      // another floor plan: the open details popup belongs to the old one
+      if (this.popupItem) this.ngZone.run(() => this.closePopup());
       this.shownImage = this.imageUrl;
       this.image?.remove();
       this.image = undefined;
@@ -362,7 +378,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       const pos = this.at(p.x, p.y);
       const heard = p.kind === 'device' ? this.gatewayOf(p) : null;
       const extra = heard ? `<span>Hears ${heard.assetCount} linked asset${heard.assetCount === 1 ? '' : 's'}</span>` : '';
-      L.marker(pos, {
+      const marker = L.marker(pos, {
         keyboard: false,
         icon: L.divIcon({
           className: '',
@@ -373,8 +389,16 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       })
         .bindTooltip(`<div class="fp-tip"><strong>${esc(p.name)}</strong><span>${esc(p.code)} · ${esc(p.type || (p.kind === 'device' ? 'Device' : 'Asset'))}</span><span>${esc(p.status || '')}</span>${extra}</div>`, { direction: 'top', offset: [0, -14], opacity: 1 })
         .addTo(this.markers!);
+      // Click a plotted asset / device: live details popup (as in Administration > Maps & Floor Plans)
+      marker.on('click', () => {
+        marker.closeTooltip();
+        this.ngZone.run(() => this.openPopup(p, pos));
+      });
+      if (this.popupItem && samePlot(this.popupItem, p)) this.popupAt = pos;
       if (this.zoneId !== undefined) focus = focus ? focus.extend(pos) : L.latLngBounds(pos, pos);
     }
+    // keep the open popup on its marker after a redraw
+    if (this.popupItem) this.placePopup();
 
     // frame the plan (floor view) or the zone (zone view) when the scope changes
     if (this.shownScope !== this.zoneId) {
@@ -641,6 +665,51 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.shownFocus = focus.key;
       map.flyTo(this.at(focus.x, focus.y), Math.max(map.getZoom(), 1.25), { duration: 0.8 });
     }
+  }
+
+  // ===== Live details popup of a plotted item =====
+
+  /** Plotted item whose details popup is open. */
+  popupItem: PlanPlot | null = null;
+  /** Its marker in map pixels (null until placed). */
+  popupAnchor: { x: number; y: number; inView: boolean } | null = null;
+  private popupAt: [number, number] | null = null;
+
+  private openPopup(p: PlanPlot, at: [number, number]): void {
+    this.popupItem = p;
+    this.popupAt = at;
+    this.placePopup(true);
+  }
+
+  closePopup(): void {
+    this.popupItem = null;
+    this.popupAt = null;
+    this.popupAnchor = null;
+  }
+
+  /** The page passes a live gateways feed (Geofence & Alerts does; other pages may not). */
+  get hasFeed(): boolean {
+    return Object.keys(this.feed ?? {}).length > 0;
+  }
+
+  /** Gateways feed for a plotted device (the linked assets it hears now). */
+  popupGateway(p: PlanPlot): GatewayFeed | null {
+    return p.kind === 'device' ? this.gatewayOf(p) : null;
+  }
+
+  /** Moves the popup to its marker's current screen position. */
+  private placePopup(inZone = false): void {
+    if (!this.map || !this.popupAt || !this.popupItem) return;
+    const pt = this.map.latLngToContainerPoint(this.popupAt);
+    const size = this.map.getSize();
+    const anchor = { x: pt.x, y: pt.y, inView: pt.x >= 0 && pt.y >= 0 && pt.x <= size.x && pt.y <= size.y };
+    if (inZone) this.popupAnchor = anchor;
+    else this.ngZone.run(() => (this.popupAnchor = anchor));
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.popupItem) this.closePopup();
   }
 
   private gatewayOf(p: PlanPlot): GatewayFeed | null {
