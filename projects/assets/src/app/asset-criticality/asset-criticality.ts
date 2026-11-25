@@ -480,136 +480,13 @@ export class AssetCriticality implements OnDestroy {
     });
   }
 
-  // ===== Re-assessment =====
+  // ===== Assessment =====
 
+  /** Assess / Re-assess opens the assessment form (Draft -> Submit -> Approve); nothing is saved on this page. */
   openAssessment(): void {
     this.closeMenus();
     if (!this.assetId || this.notFound) return;
-    this.formError = '';
-    const c = this.crit;
-    // The first assessment of an asset starts from the standard criteria
-    const criteria: CriticalityCriterion[] = c
-      ? c.criteria.map((x) => ({ ...x }))
-      : (this.options?.criteria ?? DEFAULT_CRITERIA).map((x) => ({
-          key: x.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          name: x.name,
-          weight: Number(x.weight),
-          score: null as unknown as number,
-          justification: '',
-        }));
-    this.assessForm = {
-      date: this.today,
-      assessedBy: this.currentUser,
-      approvedBy: c?.approvedBy ?? '',
-      likelihood: c?.likelihood ?? null,
-      consequence: c?.consequence ?? null,
-      criteria,
-      remarks: '',
-    };
-  }
-
-  get formScore(): number {
-    return Math.round((this.assessForm?.criteria.reduce((s, c) => s + weighted(c), 0) ?? 0) * 10) / 10;
-  }
-
-  get formLevel(): CriticalityLevel {
-    return criticalityLevel(this.formScore);
-  }
-
-  saveAssessment(): void {
-    const f = this.assessForm;
-    if (!f || this.saving) return;
-    if (!f.date || !f.assessedBy.trim() || !f.approvedBy.trim()) {
-      this.formError = 'Enter the assessment date, assessed by and approved by.';
-      return;
-    }
-    if (f.criteria.some((c) => c.score == null)) {
-      this.formError = 'Select a score for every criterion.';
-      return;
-    }
-    if (f.criteria.some((c) => !c.justification.trim())) {
-      this.formError = 'Give a justification for every criterion.';
-      return;
-    }
-    const old = this.crit;
-    const months = old?.reviewFrequency === 'Every 3 Months' ? 3 : old?.reviewFrequency === 'Every 12 Months' ? 12 : 6;
-    this.saving = true;
-    this.formError = '';
-    this.api
-      .create(this.assetId, {
-        ...f,
-        likelihood: f.likelihood as number,
-        consequence: f.consequence as number,
-        validUntil: addMonths(f.date, 12),
-        nextReview: addMonths(f.date, months),
-      })
-      .subscribe({
-        next: (saved) => {
-          this.saving = false;
-          // Saved for approval: the asset keeps its current criticality until it is approved.
-          if (saved.approvalStatus === 'PendingApproval') {
-            this.assessForm = null;
-            this.showToast(`Assessment submitted for approval: ${saved.score} / 100 (${saved.level}). The current criticality stays until it is approved.`);
-            return;
-          }
-          // The previous assessment moves into the review history
-          const { impact = null, mitigations = [], history = [], ...previous } = old ?? {};
-          this.crit = {
-            ...saved,
-            impact,
-            mitigations,
-            history: old ? [{ ...(previous as CriticalityAssessment), isCurrent: false }, ...history] : [],
-          };
-          this.setRows([...this.rows.filter((r) => r.assetRegistrationId !== saved.assetRegistrationId), saved].sort((a, b) =>
-            a.assetRegistrationId.localeCompare(b.assetRegistrationId),
-          ));
-          this.assessForm = null;
-          this.showToast(
-            !old ? `Assessment saved: ${saved.score} / 100 (${saved.level}).`
-              : old.level === saved.level ? `Assessment saved: ${saved.score} / 100 (${saved.level}).`
-              : `Criticality changed from ${old.level} to ${saved.level}.`,
-          );
-        },
-        error: (err) => {
-          this.saving = false;
-          this.formError = apiErrorMessage(err, 'The assessment could not be saved.');
-        },
-      });
-  }
-
-  // ===== Additional information =====
-
-  openInfoEdit(): void {
-    this.closeMenus();
-    if (!this.crit) return;
-    this.formError = '';
-    const { method, reviewFrequency, validUntil, nextReview, assessedBy, approvedBy, department, assetGroup, remarks } = this.crit;
-    this.infoForm = { method, reviewFrequency, validUntil, nextReview, assessedBy, approvedBy, department, assetGroup, remarks };
-  }
-
-  saveInfo(): void {
-    const f = this.infoForm;
-    const crit = this.crit;
-    if (!f || !crit || this.saving) return;
-    if (!f.validUntil || !f.assessedBy.trim() || !f.approvedBy.trim()) {
-      this.formError = 'Enter valid until, assessed by and approved by.';
-      return;
-    }
-    this.saving = true;
-    this.formError = '';
-    this.api.updateDetails(crit.id, f).subscribe({
-      next: (saved) => {
-        this.saving = false;
-        Object.assign(crit, saved);
-        this.setRows(this.rows.map((r) => (r.id === saved.id ? saved : r)));
-        this.infoForm = null;
-        this.showToast('Additional information saved.');
-      },
-      error: (err) => {
-        this.saving = false;
-        this.formError = apiErrorMessage(err, 'The additional information could not be saved.');
-      },
-    });
+    this.router.navigate(['/assets/criticality/assess', this.assetId]);
   }
 
   // ===== Asset Criticality List =====

@@ -1,0 +1,178 @@
+<section class="sc-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a><span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <a routerLink="/assets/criticality">Asset Criticality</a><span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">{{ editing ? 'Edit Assessment' : 'New Assessment' }}</span>
+  </nav>
+
+  <p *ngIf="loadError" class="form-error" role="alert">{{ loadError }}</p>
+
+  <!-- No asset yet: pick one -->
+  <section *ngIf="!ctx && !loading && !loadError" class="card panel af-card">
+    <h1>New Assessment</h1>
+    <p class="muted">Search for the asset to assess (tag, name or ID).</p>
+    <label class="field">
+      <span class="field-label">Asset <em>*</em></span>
+      <input class="control" [(ngModel)]="assetQuery" (ngModelChange)="onAssetQuery()" name="assetQuery" placeholder="Type at least 2 characters" autocomplete="off" />
+    </label>
+    <ul class="af-hits" *ngIf="hits.length">
+      <li *ngFor="let h of hits">
+        <button type="button" (click)="pickAsset(h)">
+          <strong>{{ h.assetTag || h.assetRegistrationId }}</strong> {{ h.assetName }}
+          <span class="muted">{{ h.category }}<ng-container *ngIf="h.locationPath"> · {{ h.locationPath }}</ng-container></span>
+        </button>
+      </li>
+    </ul>
+    <p class="muted" *ngIf="searching">Searching…</p>
+  </section>
+
+  <p *ngIf="loading" class="muted">Loading…</p>
+
+  <form *ngIf="ctx" (ngSubmit)="submit()" class="af-form">
+    <header class="af-head">
+      <div class="grow">
+        <h1>{{ ctx.assessmentType === 'Reassessment' ? 'Reassess' : 'Assess' }} {{ ctx.asset.tag || ctx.asset.assetRegistrationId }}</h1>
+        <p class="muted">{{ editing?.assessmentNumber ? editing?.assessmentNumber + ' · ' : '' }}Status: {{ editing?.status === 'Rejected' ? 'Rejected (edit and resubmit)' : 'Draft' }}</p>
+      </div>
+    </header>
+
+    <p *ngIf="editing?.status === 'Rejected' && editing?.rejectedReason" class="af-banner af-banner--bad" role="status">
+      <strong>Rejected:</strong> {{ editing?.rejectedReason }}
+    </p>
+
+    <!-- A. Asset -->
+    <section class="card panel af-card" aria-labelledby="af-a">
+      <h2 id="af-a">A. Asset</h2>
+      <dl class="af-grid">
+        <div><dt>Asset</dt><dd>{{ ctx.asset.name || '-' }} <span class="muted">({{ ctx.asset.tag || ctx.asset.assetRegistrationId }})</span></dd></div>
+        <div><dt>Category / Type</dt><dd>{{ ctx.asset.category || '-' }}<span *ngIf="ctx.asset.assetType"> / {{ ctx.asset.assetType }}</span></dd></div>
+        <div><dt>Site / Location</dt><dd>{{ ctx.asset.site || '-' }}<span class="muted" *ngIf="ctx.asset.location"> · {{ ctx.asset.location }}</span></dd></div>
+        <div><dt>Department / Owner</dt><dd>{{ ctx.asset.department || '-' }}<span class="muted" *ngIf="ctx.asset.owner"> · {{ ctx.asset.owner }}</span></dd></div>
+        <div><dt>Current criticality</dt>
+          <dd>
+            <ng-container *ngIf="ctx.current; else none"><strong>{{ ctx.current.level }}</strong> ({{ ctx.current.score | number: '1.0-1' }}/100)</ng-container>
+            <ng-template #none><span class="muted">Not assessed yet</span></ng-template>
+          </dd></div>
+        <div><dt>Assessment type</dt><dd>{{ ctx.assessmentType }} <span class="muted">(automatic)</span></dd></div>
+        <div><dt>Assessed by</dt><dd>{{ editing?.assessedBy || ctx.assessedBy }}</dd></div>
+        <label class="field af-date"><span class="field-label">Assessment date</span>
+          <input type="date" class="control" [(ngModel)]="assessmentDate" name="assessmentDate" [max]="ctx.assessmentDate.slice(0, 10)" (ngModelChange)="queuePreview()" /></label>
+      </dl>
+    </section>
+
+    <!-- B. Ratings -->
+    <section class="card panel af-card" aria-labelledby="af-b">
+      <div class="af-title">
+        <h2 id="af-b" class="grow">B. Criticality rating</h2>
+        <label class="field af-template"><span class="field-label">Template</span>
+          <select class="control" [(ngModel)]="templateId" (ngModelChange)="onTemplateChange()" name="template">
+            <option *ngFor="let t of ctx.templates" [value]="t.id">{{ t.name }} (v{{ t.version }}){{ t.isDefault ? ' - default' : '' }}</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="af-split">
+        <div class="af-criteria">
+          <fieldset *ngFor="let c of template?.criteria" class="af-criterion" [attr.aria-label]="c.name">
+            <legend><strong>{{ c.name }}</strong> <span class="muted">weight {{ c.weight }}%</span></legend>
+            <p class="muted af-desc" *ngIf="c.description">{{ c.description }}</p>
+            <div class="af-rating" role="radiogroup" [attr.aria-label]="'Rating for ' + c.name">
+              <button *ngFor="let v of ratingValues" type="button" role="radio" [attr.aria-checked]="ratings[c.code] === v"
+                      [class.is-on]="ratings[c.code] === v" (click)="rate(c.code, v)" [attr.title]="ratingHelp[v]">{{ v }}</button>
+            </div>
+            <p class="af-help" [class.af-help--empty]="!ratings[c.code]">{{ ratings[c.code] ? ratingHelp[ratings[c.code]!] : 'Choose 1 (negligible) to 5 (severe)' }}</p>
+            <input class="control af-comment" [(ngModel)]="comments[c.code]" [name]="'cm-' + c.code" maxlength="500" placeholder="Comment (optional)" />
+          </fieldset>
+          <p *ngIf="fieldErrors['ratings']" class="form-error" role="alert">{{ fieldErrors['ratings'] }}</p>
+        </div>
+
+        <aside class="af-score" aria-live="polite">
+          <h3>Score preview</h3>
+          <ng-container *ngIf="preview; else incomplete">
+            <div class="af-score-num">{{ preview.score | number: '1.0-1' }}<small>/100</small></div>
+            <span class="acl-level af-level" [style.--lvl]="levelColor(preview.finalLevel)"><span class="dot"></span>{{ preview.finalLevel?.name }}</span>
+            <p class="muted" *ngIf="preview.isOverride">Calculated: {{ preview.calculatedLevel?.name }} (overridden)</p>
+            <p class="muted" *ngIf="preview.previousLevel">Current: {{ preview.previousLevel }}<span *ngIf="preview.isLowered"> → lowered</span></p>
+            <ul class="af-bars">
+              <li *ngFor="let b of preview.breakdown">
+                <span>{{ b.name }}</span>
+                <span class="af-bar"><i [style.width.%]="b.weight ? (b.weighted / b.weight) * 100 : 0" [style.background]="levelColor(preview.finalLevel)"></i></span>
+                <span class="af-bar-val">{{ b.weighted | number: '1.0-1' }}/{{ b.weight }}</span>
+              </li>
+            </ul>
+            <div class="af-approval" *ngIf="preview.approval">
+              <strong>Approval needed</strong>
+              <span>{{ preview.approval.label || preview.approval.scenario }}</span>
+              <span class="muted" *ngIf="preview.approval.approverRoles.length">{{ preview.approval.approverRoles.join(preview.approval.approvalType === 'All' ? ' + ' : ' or ') }}</span>
+              <span class="muted af-note">Approvers need Approve permission in Assets; you cannot approve your own assessment.</span>
+            </div>
+          </ng-container>
+          <ng-template #incomplete><p class="muted">Rate all {{ template?.criteria?.length || 0 }} criteria to see the score ({{ ratedCount }} done).</p></ng-template>
+          <p *ngIf="previewError" class="form-error">{{ previewError }}</p>
+        </aside>
+      </div>
+
+      <div class="af-override">
+        <label class="af-check"><input type="checkbox" [(ngModel)]="overrideOn" (ngModelChange)="onOverrideToggle()" name="overrideOn" /> Override the proposed level</label>
+        <label class="field" *ngIf="overrideOn"><span class="field-label">Level to apply <em>*</em></span>
+          <select class="control" [(ngModel)]="overrideLevel" (ngModelChange)="queuePreview()" name="overrideLevel">
+            <option value="">Select level</option>
+            <option *ngFor="let l of overrideChoices" [value]="l.name">{{ l.name }} ({{ l.minScore }}-{{ l.maxScore }})</option>
+          </select>
+          <small class="form-error" *ngIf="fieldErrors['override']">{{ fieldErrors['override'] }}</small>
+        </label>
+        <label class="field" *ngIf="justificationRequired"><span class="field-label">Justification <em>*</em>
+            <span class="muted">({{ overrideOn ? 'required for an override' : 'required when lowering criticality' }})</span></span>
+          <textarea class="control" rows="3" maxlength="1000" [(ngModel)]="justification" name="justification"></textarea>
+          <small class="form-error" *ngIf="fieldErrors['justification']">{{ fieldErrors['justification'] }}</small>
+        </label>
+      </div>
+    </section>
+
+    <!-- C. Consequences -->
+    <section class="card panel af-card" aria-labelledby="af-c">
+      <h2 id="af-c">C. Consequences, documents and review</h2>
+      <div class="af-cols">
+        <label class="field"><span class="field-label">Failure consequences</span>
+          <textarea class="control" rows="3" maxlength="2000" [(ngModel)]="failureConsequences" name="failure"></textarea></label>
+        <label class="field"><span class="field-label">Safety / environmental consequences</span>
+          <textarea class="control" rows="3" maxlength="2000" [(ngModel)]="safetyEnvironmental" name="safety"></textarea></label>
+        <label class="field"><span class="field-label">Downtime impact</span>
+          <input class="control" maxlength="1000" [(ngModel)]="downtimeImpact" name="downtime" placeholder="e.g. 8 hours per failure" /></label>
+        <label class="field"><span class="field-label">Financial loss</span>
+          <input class="control" maxlength="1000" [(ngModel)]="financialLoss" name="loss" placeholder="e.g. 50,000 per day" /></label>
+        <div class="field"><span class="field-label">Alternative equipment available?</span>
+          <div class="af-yn">
+            <label><input type="radio" [(ngModel)]="alternativeEquipment" [value]="true" name="alt" /> Yes</label>
+            <label><input type="radio" [(ngModel)]="alternativeEquipment" [value]="false" name="alt" /> No</label>
+          </div></div>
+        <label class="field"><span class="field-label">Next review date</span>
+          <input type="date" class="control" [(ngModel)]="nextReviewDate" (ngModelChange)="nextReviewTouched = true" name="nextReview" />
+          <small class="muted" *ngIf="preview?.reviewIntervalMonths">Default: {{ preview?.reviewIntervalMonths }} months for {{ preview?.finalLevel?.name }}</small></label>
+      </div>
+      <div class="field">
+        <span class="field-label">Supporting documents</span>
+        <label class="btn btn-outline btn-sm af-upload"><lucide-icon [img]="icons.Upload" [size]="14"></lucide-icon>{{ uploading ? 'Uploading…' : 'Add files' }}
+          <input type="file" multiple hidden (change)="onFiles($event)" [disabled]="uploading" /></label>
+        <ul class="af-files" *ngIf="attachments.length">
+          <li *ngFor="let f of attachments; let i = index">
+            <a [href]="f.fileUrl" target="_blank" rel="noopener">{{ f.fileName }}</a> <span class="muted">{{ size(f.fileSize) }}</span>
+            <button type="button" class="icon-btn" (click)="removeAttachment(i)" [attr.aria-label]="'Remove ' + f.fileName"><lucide-icon [img]="icons.X" [size]="13"></lucide-icon></button>
+          </li>
+        </ul>
+      </div>
+      <label class="field"><span class="field-label">Remarks</span>
+        <textarea class="control" rows="2" maxlength="2000" [(ngModel)]="remarks" name="remarks"></textarea></label>
+    </section>
+
+    <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
+    <footer class="af-foot">
+      <button type="button" class="btn btn-outline" (click)="cancel()" [disabled]="saving">Cancel</button>
+      <span class="grow"></span>
+      <button type="button" class="btn btn-outline" (click)="saveDraft()" [disabled]="saving">
+        <lucide-icon [img]="icons.Save" [size]="15"></lucide-icon>Save Draft</button>
+      <button type="submit" class="btn btn-primary" [disabled]="saving">
+        <lucide-icon [img]="icons.Send" [size]="15"></lucide-icon>{{ saving ? 'Saving…' : 'Submit for approval' }}</button>
+    </footer>
+  </form>
+</section>

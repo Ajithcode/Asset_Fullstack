@@ -21,7 +21,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-angular';
-import { ExportColumn, ExportMenu, ExportRequest, ExportService, pushToast } from 'shared-ui';
+import { AccessService, ExportColumn, ExportMenu, ExportRequest, ExportService, pushToast } from 'shared-ui';
 import { Subject, Subscription, debounceTime, forkJoin, map } from 'rxjs';
 import { apiErrorMessage } from '../../services/asset-api';
 import { FilterSelect, FilterSelectOption } from '../../shared/filter-select/filter-select';
@@ -119,6 +119,7 @@ export class CriticalityLanding implements OnInit, OnDestroy {
   private readonly api = inject(CriticalityApiService);
   private readonly exporter = inject(ExportService);
   private readonly router = inject(Router);
+  private readonly access = inject(AccessService);
   private readonly route = inject(ActivatedRoute);
   private readonly search$ = new Subject<void>();
   private subs: Subscription[] = [];
@@ -314,7 +315,12 @@ export class CriticalityLanding implements OnInit, OnDestroy {
 
   openAsset(row: CriticalityAssetRow, assess = false): void {
     const tag = row.assetTag || row.assetRegistrationId;
-    this.router.navigate(['/assets/criticality/asset', tag], assess ? { queryParams: { assess: 1 } } : {});
+    if (assess) {
+      // Assess / Reassess: the assessment form (it opens the asset's draft or rejected assessment when there is one)
+      this.router.navigate(['/assets/criticality/assess', row.assetRegistrationId]);
+      return;
+    }
+    this.router.navigate(['/assets/criticality/asset', tag]);
   }
 
   showHistory(row: CriticalityAssetRow): void {
@@ -331,8 +337,54 @@ export class CriticalityLanding implements OnInit, OnDestroy {
     this.reload();
   }
 
+  // ----- Phase 3: permissions, pending approvals -----
+
+  get canAssess(): boolean { return this.access.can('AssetCriticality', 'assess'); }
+  get canApprove(): boolean { return this.access.can('AssetCriticality', 'approve'); }
+
+  isPending(row: CriticalityAssetRow): boolean {
+    return !!row.openAssessmentId && (row.approvalStatus === 'PendingApproval' || row.approvalStatus === 'Submitted');
+  }
+
+  /** The open (draft, rejected or pending) assessment of the row, else the approved one. */
+  openDetail(row: CriticalityAssetRow): void {
+    const id = row.openAssessmentId || row.currentAssessmentId;
+    if (id) this.router.navigate(['/assets/criticality/assessments', id]);
+  }
+
+  actingId: string | null = null;
+  rejectRow: CriticalityAssetRow | null = null;
+  rejectComment = '';
+  rejectError = '';
+
+  approveRow(row: CriticalityAssetRow): void {
+    if (!row.openAssessmentId || this.actingId) return;
+    this.actingId = row.openAssessmentId;
+    this.api.approve(row.openAssessmentId, null).subscribe({
+      next: () => { this.actingId = null; pushToast(`Approved: ${row.assetTag || row.assetRegistrationId} is now ${row.openLevel ?? 'updated'}.`); this.refresh(); },
+      error: (e) => { this.actingId = null; pushToast(apiErrorMessage(e, 'Could not approve.')); },
+    });
+  }
+
+  startReject(row: CriticalityAssetRow): void {
+    this.rejectRow = row;
+    this.rejectComment = '';
+    this.rejectError = '';
+  }
+
+  confirmReject(): void {
+    const row = this.rejectRow;
+    if (!row?.openAssessmentId || this.actingId) return;
+    if (!this.rejectComment.trim()) { this.rejectError = 'A comment is required to reject.'; return; }
+    this.actingId = row.openAssessmentId;
+    this.api.reject(row.openAssessmentId, this.rejectComment.trim()).subscribe({
+      next: () => { this.actingId = null; this.rejectRow = null; pushToast('Assessment rejected.'); this.refresh(); },
+      error: (e) => { this.actingId = null; this.rejectError = apiErrorMessage(e, 'Could not reject.'); },
+    });
+  }
+
   openAssessment(a: CriticalityAssessmentRow): void {
-    this.router.navigate(['/assets/criticality/asset', a.assetTag || a.assetRegistrationId]);
+    this.router.navigate(['/assets/criticality/assessments', a.id]);
   }
 
   select(row: CriticalityAssetRow): void {

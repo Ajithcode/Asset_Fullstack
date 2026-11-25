@@ -1,0 +1,129 @@
+<section class="sc-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a routerLink="/assets/list">Assets</a><span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <a routerLink="/assets/criticality">Asset Criticality</a><span class="breadcrumb-sep" aria-hidden="true">&rsaquo;</span>
+    <span class="breadcrumb-current">Assessment {{ a?.assessmentNumber || '' }}</span>
+  </nav>
+
+  <p *ngIf="loading" class="muted">Loading…</p>
+  <p *ngIf="loadError" class="form-error" role="alert">{{ loadError }}</p>
+
+  <ng-container *ngIf="a as x">
+    <header class="ad-head card panel">
+      <div class="grow">
+        <h1>{{ x.assessmentNumber || 'Assessment' }} <span class="acl-status" [ngClass]="tone(x.status)">{{ label(x.status) }}</span>
+          <span class="ad-chip" *ngIf="x.isCurrent">Current</span></h1>
+        <p class="muted">
+          <a [routerLink]="['/assets/criticality/asset', x.asset.tag || x.asset.assetRegistrationId]">{{ x.asset.tag || x.asset.assetRegistrationId }}</a>
+          · {{ x.asset.name }} · {{ x.assessmentType }} · {{ x.assessmentDate | date: 'dd MMM yyyy' }} · by {{ x.assessedBy }}
+        </p>
+      </div>
+      <div class="ad-result">
+        <div class="ad-score">{{ x.score | number: '1.0-1' }}<small>/100</small></div>
+        <span class="acl-level" [style.--lvl]="levelColor()"><span class="dot"></span>{{ x.finalLevel }}</span>
+        <span class="muted" *ngIf="x.previousLevel">was {{ x.previousLevel }}</span>
+      </div>
+    </header>
+
+    <p *ngIf="x.status === 'Rejected' && x.rejectedReason" class="ad-banner ad-banner--bad" role="status"><strong>Rejected:</strong> {{ x.rejectedReason }}</p>
+    <p *ngIf="x.status === 'PendingApproval' && x.approval" class="ad-banner" role="status">
+      <strong>Waiting for approval</strong> — {{ x.approval.label || x.approval.scenario }}<ng-container *ngIf="x.approval.approverRoles.length">:
+      {{ x.approval.approverRoles.join(x.approval.approvalType === 'All' ? ' + ' : ' or ') }}</ng-container>.
+      <span *ngIf="x.actions.blocked" class="muted">{{ x.actions.blocked }}</span>
+    </p>
+    <p *ngIf="error" class="form-error" role="alert">{{ error }}</p>
+
+    <div class="ad-actions" *ngIf="x.actions.canEdit || x.actions.canApprove || (x.status === 'Approved' && x.isCurrent && canAssess)">
+      <ng-container *ngIf="x.actions.canEdit">
+        <a class="btn btn-outline" [routerLink]="['/assets/criticality/assessments', x.id, 'edit']"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit</a>
+        <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="busy">{{ x.status === 'Rejected' ? 'Resubmit for approval' : 'Submit for approval' }}</button>
+        <button type="button" class="btn btn-outline" (click)="cancelDraft()" [disabled]="busy">Cancel assessment</button>
+      </ng-container>
+      <ng-container *ngIf="x.actions.canApprove">
+        <input class="control ad-comment" [(ngModel)]="comment" name="comment" placeholder="Approval comment (optional)" maxlength="500" />
+        <button type="button" class="btn btn-primary" (click)="approve()" [disabled]="busy"><lucide-icon [img]="icons.Check" [size]="15"></lucide-icon>Approve</button>
+        <button type="button" class="btn btn-outline btn-danger" (click)="rejecting = !rejecting" [disabled]="busy"><lucide-icon [img]="icons.X" [size]="15"></lucide-icon>Reject</button>
+      </ng-container>
+      <button *ngIf="x.status === 'Approved' && x.isCurrent && canAssess" type="button" class="btn btn-outline" (click)="reassess()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Reassess</button>
+    </div>
+    <section *ngIf="rejecting" class="card panel ad-reject">
+      <label class="field"><span class="field-label">Reason for rejection <em>*</em></span>
+        <textarea class="control" rows="3" maxlength="1000" [(ngModel)]="rejectComment" name="rejectComment"></textarea></label>
+      <div class="ad-actions"><button type="button" class="btn btn-outline" (click)="rejecting = false">Back</button>
+        <button type="button" class="btn btn-primary" (click)="reject()" [disabled]="busy">Confirm reject</button></div>
+    </section>
+
+    <div class="ad-cols">
+      <section class="card panel">
+        <h2>Score breakdown</h2>
+        <p class="muted" *ngIf="x.templateName">Template: {{ x.templateName }}<span *ngIf="x.templateVersion"> v{{ x.templateVersion }}</span></p>
+        <table class="data-table">
+          <thead><tr><th>Criterion</th><th class="num">Rating</th><th class="num">Weight</th><th>Contribution</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let c of x.criteria">
+              <td>{{ c.name }}<span class="muted ad-sub" *ngIf="c.comment">{{ c.comment }}</span></td>
+              <td class="num">{{ c.rating }}/5</td>
+              <td class="num">{{ c.weight }}%</td>
+              <td class="ad-bar-cell"><span class="ad-bar"><i [style.width.%]="c.weight ? (c.weighted / c.weight) * 100 : 0" [style.background]="levelColor()"></i></span>
+                <span class="ad-bar-val">{{ c.weighted | number: '1.0-1' }} / {{ c.weight }}</span></td>
+            </tr>
+          </tbody>
+          <tfoot><tr><td colspan="3"><strong>Total</strong></td><td><strong>{{ x.score | number: '1.0-1' }} / 100</strong></td></tr></tfoot>
+        </table>
+        <ng-container *ngIf="x.isOverride || x.justification">
+          <h3>{{ x.isOverride ? 'Level override' : 'Justification' }}</h3>
+          <p *ngIf="x.isOverride" class="muted">Calculated {{ x.calculatedLevel }} → applied {{ x.finalLevel }}.</p>
+          <p>{{ x.justification }}</p>
+        </ng-container>
+      </section>
+
+      <section class="card panel">
+        <h2>Consequences and review</h2>
+        <dl class="ad-dl">
+          <dt>Failure consequences</dt><dd>{{ x.risk.failureConsequences || '-' }}</dd>
+          <dt>Safety / environmental</dt><dd>{{ x.risk.safetyEnvironmentalConsequences || '-' }}</dd>
+          <dt>Downtime impact</dt><dd>{{ x.risk.downtimeImpact || '-' }}</dd>
+          <dt>Financial loss</dt><dd>{{ x.risk.financialLoss || '-' }}</dd>
+          <dt>Alternative equipment</dt><dd>{{ x.risk.alternativeEquipmentAvailable == null ? '-' : x.risk.alternativeEquipmentAvailable ? 'Yes' : 'No' }}</dd>
+          <dt>Next review</dt><dd>{{ x.nextReviewDate | date: 'dd MMM yyyy' }}</dd>
+          <dt>Remarks</dt><dd>{{ x.remarks || '-' }}</dd>
+        </dl>
+        <h3>Documents</h3>
+        <ul class="ad-files" *ngIf="x.attachments.length; else noDocs">
+          <li *ngFor="let f of x.attachments"><a [href]="f.fileUrl" target="_blank" rel="noopener">{{ f.fileName }}</a></li>
+        </ul>
+        <ng-template #noDocs><p class="muted">No documents attached.</p></ng-template>
+      </section>
+    </div>
+
+    <div class="ad-cols">
+      <section class="card panel">
+        <h2>Approval trail</h2>
+        <ol class="ad-trail">
+          <li *ngFor="let t of x.trail">
+            <strong>{{ t.action }}</strong> <span class="muted">{{ t.by || 'system' }} · {{ t.at | date: 'dd MMM yyyy HH:mm' }}</span>
+            <span *ngIf="t.comments" class="ad-sub">{{ t.comments }}</span>
+          </li>
+          <li *ngIf="!x.trail.length" class="muted">{{ x.isLegacy ? 'Saved before the approval workflow existed.' : 'No history yet.' }}</li>
+        </ol>
+      </section>
+
+      <section class="card panel">
+        <h2>Version history</h2>
+        <table class="data-table">
+          <thead><tr><th>No.</th><th>Date</th><th>Level</th><th class="num">Score</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let v of versions" [class.is-selected]="v.id === x.id">
+              <td class="nowrap">{{ v.assessmentNumber || '-' }}</td>
+              <td class="nowrap">{{ v.assessmentDate | date: 'dd MMM yyyy' }}</td>
+              <td>{{ v.level }}<span class="ad-chip" *ngIf="v.isCurrent">Current</span></td>
+              <td class="num">{{ v.score | number: '1.0-1' }}</td>
+              <td><span class="acl-status" [ngClass]="tone(v.status)">{{ label(v.status) }}</span></td>
+              <td><a *ngIf="v.id !== x.id" [routerLink]="['/assets/criticality/assessments', v.id]">View</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </ng-container>
+</section>

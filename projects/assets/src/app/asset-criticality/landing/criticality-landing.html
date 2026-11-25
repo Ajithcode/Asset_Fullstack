@@ -17,10 +17,9 @@
           <lucide-icon [img]="icons.RefreshCw" [size]="16"></lucide-icon>
         </button>
         <app-export-menu [source]="exportRequest" [disabled]="view !== 'assets'" />
-        <!-- The guided assessment form arrives in the next phase; until then assess from a row. -->
-        <button type="button" class="btn btn-primary" disabled title="Coming soon: the new assessment form. Use Assess on an asset row for now.">
+        <a *ngIf="canAssess" routerLink="/assets/criticality/new" class="btn btn-primary">
           <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>New Assessment
-        </button>
+        </a>
       </header>
 
       <!-- KPI cards: click to filter the list -->
@@ -176,13 +175,23 @@
                 </ng-container>
                 <ng-container *ngSwitchCase="'approvalStatus'">
                   <span class="acl-status" [ngClass]="statusTone(r.approvalStatus)">{{ statusLabel(r.approvalStatus) }}</span>
+                  <span *ngIf="r.openLevel && r.openAssessmentId" class="muted acl-sub">Proposed {{ r.openLevel }} · {{ r.openScore | number: '1.0-1' }}</span>
                 </ng-container>
               </td>
               <td class="col-actions nowrap" (click)="$event.stopPropagation()">
                 <button type="button" class="btn btn-outline btn-xs" (click)="openAsset(r)" [attr.aria-label]="'View ' + (r.assetTag || r.assetRegistrationId)">
                   <lucide-icon [img]="icons.Eye" [size]="13"></lucide-icon>View
                 </button>
-                <button type="button" class="btn btn-outline btn-xs" (click)="openAsset(r, true)">{{ r.level ? 'Reassess' : 'Assess' }}</button>
+                <ng-container *ngIf="isPending(r); else assessBtn">
+                  <button type="button" class="btn btn-outline btn-xs" (click)="openDetail(r)">Open</button>
+                  <ng-container *ngIf="canApprove">
+                    <button type="button" class="btn btn-primary btn-xs" (click)="approveRow(r)" [disabled]="actingId === r.openAssessmentId">Approve</button>
+                    <button type="button" class="btn btn-outline btn-xs" (click)="startReject(r)" [disabled]="actingId === r.openAssessmentId">Reject</button>
+                  </ng-container>
+                </ng-container>
+                <ng-template #assessBtn>
+                  <button *ngIf="canAssess" type="button" class="btn btn-outline btn-xs" (click)="openAsset(r, true)">{{ r.openAssessmentId ? 'Continue' : r.level ? 'Reassess' : 'Assess' }}</button>
+                </ng-template>
                 <button type="button" class="btn btn-outline btn-xs" (click)="showHistory(r)" [attr.aria-label]="'Assessment history of ' + (r.assetTag || r.assetRegistrationId)">
                   <lucide-icon [img]="icons.History" [size]="13"></lucide-icon>History
                 </button>
@@ -261,7 +270,7 @@
       </dl>
       <div class="acl-side-actions">
         <button type="button" class="btn btn-primary btn-sm" (click)="openAsset(s)"><lucide-icon [img]="icons.Eye" [size]="14"></lucide-icon>View details</button>
-        <button type="button" class="btn btn-outline btn-sm" (click)="openAsset(s, true)">{{ s.level ? 'Reassess' : 'Assess' }}</button>
+        <button *ngIf="canAssess && !isPending(s)" type="button" class="btn btn-outline btn-sm" (click)="openAsset(s, true)">{{ s.openAssessmentId ? 'Continue' : s.level ? 'Reassess' : 'Assess' }}</button>
         <button type="button" class="btn btn-outline btn-sm" (click)="showHistory(s)"><lucide-icon [img]="icons.History" [size]="14"></lucide-icon>History</button>
       </div>
     </aside>
@@ -272,3 +281,20 @@
 <ng-template #unassessed><span class="acl-status tone-muted">Unassessed</span></ng-template>
 
 <div *ngIf="toast" class="acl-toast" role="status">{{ toast }}</div>
+
+<!-- Reject from a pending row: a comment is required -->
+<div *ngIf="rejectRow as rr" class="overlay" (click)="rejectRow = null">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="acl-rej-title" (click)="$event.stopPropagation()">
+    <div class="modal-head"><h2 id="acl-rej-title">Reject assessment · {{ rr.assetTag || rr.assetRegistrationId }}</h2></div>
+    <div class="modal-body">
+      <p class="muted">Proposed {{ rr.openLevel }} ({{ rr.openScore | number: '1.0-1' }}/100) by {{ rr.openAssessedBy }}. The assessor can edit and resubmit it.</p>
+      <label class="field"><span class="field-label">Reason <em>*</em></span>
+        <textarea class="control" rows="3" maxlength="1000" [(ngModel)]="rejectComment" name="rejectComment"></textarea></label>
+      <p *ngIf="rejectError" class="form-error" role="alert">{{ rejectError }}</p>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-outline" (click)="rejectRow = null">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="confirmReject()" [disabled]="!!actingId">Reject</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -350,46 +350,6 @@ export class AssetCriticalityService {
     return this.http.get<CriticalityDto[]>(`${this.apiUrl}/history`, { params }).pipe(map((list) => (list ?? []).map(toAssessment)));
   }
 
-  /** POST /api/asset-criticality — saves a new assessment that becomes the asset's current one. */
-  create(assetRegistrationId: string, f: CriticalityAssessmentFields): Observable<CriticalityAssessment> {
-    const body: CreateCriticalityRequest = {
-      assetRegistrationId,
-      assessmentDate: f.date,
-      validUntil: f.validUntil || null,
-      nextReviewDate: f.nextReview || null,
-      assessedBy: f.assessedBy.trim(),
-      approvedBy: f.approvedBy.trim(),
-      likelihood: RISK_SCALE[Number(f.likelihood) - 1] ?? null,
-      consequence: RISK_SCALE[Number(f.consequence) - 1] ?? null,
-      criteria: f.criteria.map((c) => ({ name: c.name, weight: Number(c.weight), score: Number(c.score), justification: c.justification.trim() })),
-      remarks: textOrNull(f.remarks),
-      assessmentMethod: textOrNull(f.method),
-      reviewFrequency: textOrNull(f.reviewFrequency),
-      department: textOrNull(f.department),
-      assetGroup: textOrNull(f.assetGroup),
-      createdBy: this.auth.getUserEmail(),
-      ...TENANT,
-    };
-    return this.http.post<CriticalityDto>(this.apiUrl, body).pipe(map(toAssessment));
-  }
-
-  /** PUT /api/asset-criticality/{id} — Edit Additional Information. */
-  updateDetails(id: string, f: CriticalityDetailsFields): Observable<CriticalityAssessment> {
-    const body: UpdateCriticalityDetailsRequest = {
-      validUntil: f.validUntil,
-      nextReviewDate: f.nextReview || null,
-      assessedBy: f.assessedBy.trim(),
-      approvedBy: f.approvedBy.trim(),
-      assessmentMethod: textOrNull(f.method),
-      reviewFrequency: textOrNull(f.reviewFrequency),
-      department: textOrNull(f.department),
-      assetGroup: textOrNull(f.assetGroup),
-      remarks: textOrNull(f.remarks),
-      updatedBy: this.auth.getUserEmail(),
-    };
-    return this.http.put<CriticalityDto>(`${this.apiUrl}/${encodeURIComponent(id)}`, body).pipe(map(toAssessment));
-  }
-
   /** GET /api/asset-relationships?assetRegistrationId= (read only): the assets linked to this one, either way round. */
   getRelated(assetRegistrationId: string): Observable<RelatedAssetLink[]> {
     const params = new HttpParams().set('assetRegistrationId', assetRegistrationId).set('page', 1).set('pageSize', 100);

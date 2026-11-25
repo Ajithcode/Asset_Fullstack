@@ -1,0 +1,50 @@
+.af-form { display: grid; gap: 16px; }
+.af-head { display: flex; align-items: center; gap: 12px; }
+.af-head h1 { margin: 0; }
+.af-card h2 { margin: 0 0 12px; font-size: 1rem; }
+.af-title { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.af-template { min-width: 260px; margin: 0; }
+.grow { flex: 1; }
+.af-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; margin: 0; }
+.af-grid dt { font-size: 0.75rem; color: var(--sc-text-muted); }
+.af-grid dd { margin: 2px 0 0; }
+.af-date { margin: 0; }
+.af-hits { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--sc-border); border-radius: 8px; }
+.af-hits button { display: block; width: 100%; text-align: left; padding: 8px 12px; background: none; border: 0; cursor: pointer; }
+.af-hits button:hover { background: var(--sc-accent-soft); }
+.af-hits .muted { display: block; font-size: 0.78rem; }
+.af-split { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.af-criteria { display: grid; gap: 10px; }
+.af-criterion { border: 1px solid var(--sc-border); border-radius: 10px; padding: 10px 14px; margin: 0; }
+.af-criterion legend { padding: 0 6px; font-size: 0.9rem; }
+.af-desc { margin: 0 0 6px; font-size: 0.8rem; }
+.af-rating { display: flex; gap: 6px; }
+.af-rating button { width: 40px; height: 36px; border-radius: 8px; border: 1px solid var(--sc-control-border); background: transparent; color: inherit; font-weight: 600; cursor: pointer; }
+.af-rating button.is-on { background: var(--sc-accent); border-color: var(--sc-accent); color: #fff; }
+.af-help { margin: 6px 0; font-size: 0.8rem; }
+.af-help--empty { color: var(--sc-text-muted); }
+.af-comment { font-size: 0.82rem; }
+.af-score { position: sticky; top: 12px; border: 1px solid var(--sc-accent-border); background: var(--sc-accent-soft); border-radius: 12px; padding: 14px; display: grid; gap: 8px; }
+.af-score h3 { margin: 0; font-size: 0.9rem; }
+.af-score-num { font-size: 2.2rem; font-weight: 700; line-height: 1; }
+.af-score-num small { font-size: 0.9rem; font-weight: 400; margin-left: 2px; }
+.af-level { justify-self: start; }
+.af-bars { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; font-size: 0.75rem; }
+.af-bars li { display: grid; grid-template-columns: 1fr 70px 46px; gap: 6px; align-items: center; }
+.af-bar { height: 6px; background: rgba(127, 127, 127, 0.25); border-radius: 3px; overflow: hidden; }
+.af-bar i { display: block; height: 100%; }
+.af-bar-val { text-align: right; }
+.af-approval { display: grid; gap: 2px; font-size: 0.8rem; border-top: 1px solid var(--sc-accent-border); padding-top: 8px; }
+.af-note { font-size: 0.72rem; }
+.af-override { margin-top: 14px; display: grid; gap: 10px; max-width: 640px; }
+.af-check { display: flex; gap: 8px; align-items: center; }
+.af-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 20px; }
+.af-yn { display: flex; gap: 18px; padding-top: 6px; }
+.af-files { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.af-upload { display: inline-flex; gap: 6px; cursor: pointer; }
+.af-banner { padding: 10px 14px; border-radius: 8px; margin: 0; }
+.af-banner--bad { background: #fdecea; color: #b42318; }
+.af-foot { display: flex; gap: 10px; align-items: center; position: sticky; bottom: 0; padding: 10px 0; background: var(--sc-bg, transparent); }
+.acl-level { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 999px; font-weight: 600; font-size: 0.82rem; color: var(--lvl); background: color-mix(in srgb, var(--lvl) 14%, transparent); border: 1px solid color-mix(in srgb, var(--lvl) 40%, transparent); }
+.acl-level .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lvl); }
+@media (max-width: 900px) { .af-split { grid-template-columns: 1fr; } .af-score { position: static; } }

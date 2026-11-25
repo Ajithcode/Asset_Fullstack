@@ -50,7 +50,6 @@
       <div *ngIf="actionsOpen" class="menu" role="menu" (click)="$event.stopPropagation()">
         <ng-container *ngIf="crit">
           <button type="button" role="menuitem" (click)="openAssessment()"><lucide-icon [img]="icons.RefreshCw" [size]="15"></lucide-icon>Re-assess Criticality</button>
-          <button type="button" role="menuitem" (click)="openInfoEdit()"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Additional Information</button>
           <button type="button" role="menuitem" (click)="openMitigation()"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Mitigation Action</button>
         </ng-container>
         <button type="button" role="menuitem" (click)="print()"><lucide-icon [img]="icons.Printer" [size]="15"></lucide-icon>Print</button>
@@ -181,7 +180,6 @@
       <header class="card-head">
         <lucide-icon class="head-icon" [img]="icons.ClipboardList" [size]="20"></lucide-icon>
         <h3 id="cr-info" class="grow">Additional Information</h3>
-        <button type="button" class="link-btn link-btn--u" (click)="openInfoEdit()"><lucide-icon [img]="icons.Pencil" [size]="14"></lucide-icon>Edit</button>
       </header>
       <dl class="details">
         <dt>Criticality Level</dt><dd><span class="pill pill--xs" [ngClass]="'pill--' + levelTone(c.level)"><span class="dot"></span>{{ c.level }}</span></dd>
@@ -434,90 +432,6 @@
   </section>
   </ng-container>
 </section>
-
-<!-- ===== Re-assess dialog ===== -->
-<div *ngIf="assessForm as f" class="overlay" (click)="assessForm = null">
-  <div class="modal modal--xl" role="dialog" aria-modal="true" aria-labelledby="cr-assess-title" (click)="$event.stopPropagation()">
-    <div class="modal-head">
-      <h2 id="cr-assess-title">{{ crit ? 'Re-assess Criticality' : 'Assess Criticality' }} · {{ asset.tag }}</h2>
-      <button type="button" class="icon-btn" (click)="assessForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
-    </div>
-    <form class="modal-body" (ngSubmit)="saveAssessment()">
-      <div class="grid-3">
-        <label class="field"><span class="field-label">Assessment Date <em>*</em></span><input type="date" class="control" [(ngModel)]="f.date" name="date" /></label>
-        <label class="field"><span class="field-label">Assessed By <em>*</em></span><input class="control" [(ngModel)]="f.assessedBy" name="assessedBy" /></label>
-        <label class="field"><span class="field-label">Approved By <em>*</em></span><input class="control" [(ngModel)]="f.approvedBy" name="approvedBy" /></label>
-        <label class="field"><span class="field-label">Likelihood</span>
-          <select class="control" [(ngModel)]="f.likelihood" name="likelihood"><option [ngValue]="null" disabled>Select Likelihood</option><option *ngFor="let s of scale; let i = index" [ngValue]="i + 1">{{ s }}</option></select>
-        </label>
-        <label class="field"><span class="field-label">Consequence</span>
-          <select class="control" [(ngModel)]="f.consequence" name="consequence"><option [ngValue]="null" disabled>Select Consequence</option><option *ngFor="let s of scale; let i = index" [ngValue]="i + 1">{{ s }}</option></select>
-        </label>
-        <div class="field"><span class="field-label">Result</span>
-          <span class="result"><strong>{{ formScore | number: '1.1-1' }}</strong> / 100
-            <span class="pill pill--xs" [ngClass]="'pill--' + levelTone(formLevel)"><span class="dot"></span>{{ formLevel }}</span></span>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr><th>Criteria</th><th class="num">Weight (%)</th><th>Score (1-5)</th><th class="num">Weighted</th><th>Justification <em class="text-danger">*</em></th></tr></thead>
-          <tbody>
-            <tr *ngFor="let x of f.criteria; let i = index">
-              <td class="nowrap">{{ x.name }}</td>
-              <td class="num">{{ x.weight }}</td>
-              <td>
-                <select class="control control--xs" [(ngModel)]="x.score" [name]="'score' + i" [attr.aria-label]="'Score for ' + x.name">
-                  <option [ngValue]="null" disabled>Select Score</option>
-                  <option *ngFor="let s of scoreSteps" [ngValue]="s">{{ s }}</option>
-                </select>
-              </td>
-              <td class="num">{{ weighted(x) | number: '1.1-1' }}</td>
-              <td><input class="control control--xs" [(ngModel)]="x.justification" [name]="'why' + i" [attr.aria-label]="'Justification for ' + x.name" /></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <label class="field"><span class="field-label">Remarks</span><textarea class="control" rows="2" [(ngModel)]="f.remarks" name="remarks" placeholder="Leave empty to keep the current remarks"></textarea></label>
-      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot">
-        <button type="button" class="btn btn-outline" (click)="assessForm = null">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save Assessment' }}</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ===== Additional information dialog ===== -->
-<div *ngIf="infoForm as f" class="overlay" (click)="infoForm = null">
-  <div class="modal modal--lg" role="dialog" aria-modal="true" aria-labelledby="cr-info-title" (click)="$event.stopPropagation()">
-    <div class="modal-head">
-      <h2 id="cr-info-title">Edit Additional Information</h2>
-      <button type="button" class="icon-btn" (click)="infoForm = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
-    </div>
-    <form class="modal-body" (ngSubmit)="saveInfo()">
-      <div class="grid-2">
-        <label class="field"><span class="field-label">Assessment Method</span>
-          <select class="control" [(ngModel)]="f.method" name="method"><option value="" disabled>Select Assessment Method</option><option *ngFor="let m of assessmentMethods" [value]="m">{{ m }}</option></select>
-        </label>
-        <label class="field"><span class="field-label">Review Frequency</span>
-          <select class="control" [(ngModel)]="f.reviewFrequency" name="reviewFrequency"><option value="" disabled>Select Review Frequency</option><option *ngFor="let m of reviewFrequencies" [value]="m">{{ m }}</option></select>
-        </label>
-        <label class="field"><span class="field-label">Valid Until <em>*</em></span><input type="date" class="control" [(ngModel)]="f.validUntil" name="validUntil" /></label>
-        <label class="field"><span class="field-label">Next Review Date</span><input type="date" class="control" [(ngModel)]="f.nextReview" name="nextReview" /></label>
-        <label class="field"><span class="field-label">Assessed By <em>*</em></span><input class="control" [(ngModel)]="f.assessedBy" name="assessedBy" /></label>
-        <label class="field"><span class="field-label">Approved By <em>*</em></span><input class="control" [(ngModel)]="f.approvedBy" name="approvedBy" /></label>
-        <label class="field"><span class="field-label">Department</span><input class="control" [(ngModel)]="f.department" name="department" /></label>
-        <label class="field"><span class="field-label">Asset Group</span><input class="control" [(ngModel)]="f.assetGroup" name="assetGroup" /></label>
-      </div>
-      <label class="field"><span class="field-label">Remarks</span><textarea class="control" rows="3" [(ngModel)]="f.remarks" name="remarks"></textarea></label>
-      <p *ngIf="formError" class="form-error" role="alert">{{ formError }}</p>
-      <div class="modal-foot">
-        <button type="button" class="btn btn-outline" (click)="infoForm = null">Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <!-- ===== Mitigation dialog ===== -->
 <div *ngIf="mitigationForm as f" class="overlay" (click)="mitigationForm = null">
