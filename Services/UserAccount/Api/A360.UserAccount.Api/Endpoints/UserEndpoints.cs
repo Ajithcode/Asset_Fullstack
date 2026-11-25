@@ -1,6 +1,7 @@
 using A360.Domain.Entities;
 using A360.Repository.Activity;
 using A360.Repository.Repositories;
+using A360.Security;
 using A360.UserAccount.Api.Contracts;
 using A360.UserAccount.Api.Security;
 using A360.UserAccount.Api.Validation;
@@ -72,6 +73,7 @@ public static class UserEndpoints
         IUserRepository repository,
         IRoleRepository roleRepository,
         PasswordHashingService passwordHashingService,
+        ICurrentUserAccessor currentUserAccessor,
         IEventLogger eventLogger,
         CancellationToken cancellationToken)
     {
@@ -94,6 +96,8 @@ public static class UserEndpoints
 
         var entity = request.ToEntity(passwordHashingService);
         entity.RoleName = await RoleNameAsync(entity.UserRoleId, roleRepository, cancellationToken) ?? entity.RoleName;
+        // The creator is the signed-in admin (from the token), not whatever the client sent.
+        entity.CreatedBy = currentUserAccessor.GetCurrentUser()?.UserName ?? entity.CreatedBy;
         var user = await repository.CreateAsync(entity, cancellationToken);
         await eventLogger.LogAsync("User", user.Id, user.UserName, EventAction.Created, cancellationToken);
         return Results.Created($"/api/users/{user.Id}", UserResponse.FromEntity(user));
