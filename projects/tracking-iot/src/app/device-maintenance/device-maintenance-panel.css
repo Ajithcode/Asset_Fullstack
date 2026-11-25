@@ -14,8 +14,9 @@
   background: #fff;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
-.panel-close { position: absolute; top: 12px; right: 10px; }
-.p-title { display: flex; align-items: center; gap: 11px; padding-right: 30px; }
+.panel-close { flex: none; align-self: flex-start; margin-left: auto; }
+/* the header (with the close button, top-right) stays in view while the card scrolls */
+.p-title { position: sticky; top: -14px; z-index: 3; display: flex; align-items: center; gap: 11px; margin: -14px -14px 0; padding: 14px 14px 8px; background: #fff; border-radius: 12px 12px 0 0; }
 .p-title h2 { margin: 0; font-size: 1.125rem; font-weight: 800; letter-spacing: -0.2px; }
 .p-title p { margin: 2px 0 0; font-size: 0.781rem; color: var(--dm-text-2); }
 .p-ic { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; }

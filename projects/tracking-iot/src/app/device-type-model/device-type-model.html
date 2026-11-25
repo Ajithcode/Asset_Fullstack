@@ -145,7 +145,6 @@
 
     <!-- ===== Detail panel ===== -->
     <aside *ngIf="selected as m" class="panel" aria-labelledby="dm-sel">
-      <button type="button" class="icon-btn panel-close" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
       <div class="p-head">
         <span class="thumb thumb--lg"><ng-container *ngTemplateOutlet="thumb; context: { $implicit: formOf(m) }"></ng-container></span>
         <div class="p-id">
@@ -153,6 +152,7 @@
           <p>{{ m.manufacturer }}</p>
           <p class="muted">{{ typeName(m.typeId) }}</p>
         </div>
+        <button type="button" class="icon-btn panel-close" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
       </div>
 
       <dl class="spec">

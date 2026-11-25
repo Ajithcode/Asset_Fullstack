@@ -259,10 +259,10 @@
 
     <!-- ================= Side panel ================= -->
     <aside *ngIf="selected as d" class="panel" aria-labelledby="dm-sel">
-      <button type="button" class="icon-btn panel-close" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="20"></lucide-icon></button>
       <div class="p-title">
         <span class="p-ic" [ngClass]="'dk--' + d.kind"><lucide-icon [img]="kindIcon(d.id)" [size]="22"></lucide-icon></span>
         <div class="grow"><h2 id="dm-sel">{{ d.id }}</h2><p>{{ d.name || '—' }} • {{ d.model || '—' }}</p></div>
+        <button type="button" class="icon-btn panel-close" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="20"></lucide-icon></button>
       </div>
       <nav class="p-tabs" role="tablist" aria-label="Device sections">
         <button type="button" role="tab" [class.is-active]="panelTab === 'details'" [attr.aria-selected]="panelTab === 'details'" (click)="panelTab = 'details'">Details</button>

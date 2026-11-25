@@ -179,11 +179,11 @@
 
   <!-- ===== Details panel ===== -->
   <aside *ngIf="selected as s" class="panel" aria-labelledby="sm-sel">
-    <button type="button" class="icon-btn panel-close" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
     <div class="p-head">
       <span class="p-head-ic"><lucide-icon [img]="icons.Radio" [size]="26"></lucide-icon></span>
       <div class="grow"><h2 id="sm-sel">{{ s.id }}</h2><p>{{ s.type }}</p></div>
       <span class="ps" [ngClass]="statusClass(s)"><i></i>{{ s.status }}</span>
+      <button type="button" class="icon-btn panel-close" (click)="selectedId = null" aria-label="Close details"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
     </div>
     <nav class="p-tabs" role="tablist" aria-label="Sensor sections">
       <button type="button" role="tab" [class.is-active]="panelTab === 'overview'" [attr.aria-selected]="panelTab === 'overview'" (click)="panelTab = 'overview'">Overview</button>
