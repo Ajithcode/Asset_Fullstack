@@ -89,8 +89,16 @@
     <button type="button" role="menuitem" class="flyout-row" [class.is-open]="section === 'site'" [attr.aria-expanded]="section === 'site'" (click)="toggleSection('site')">
       <lucide-icon [img]="icons.Users" [size]="17"></lucide-icon><span class="grow">Switch Tenant / Site</span><span class="row-value">{{ site }}</span><lucide-icon class="row-arrow" [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>
     <div *ngIf="section === 'site'" class="flyout-sub">
-      <button *ngFor="let st of sites" type="button" class="sub-row" [class.is-on]="st === site" (click)="setSite(st)"><span class="grow">{{ st }}</span><lucide-icon *ngIf="st === site" [img]="icons.Check" [size]="16"></lucide-icon></button>
+      <p *ngIf="sitesState === 'loading'" class="sub-note">Loading sites…</p>
+      <p *ngIf="sitesState === 'error'" class="sub-note">Sites could not be loaded. <button type="button" class="sub-retry" (click)="retrySites()">Retry</button></p>
+      <ng-container *ngIf="sitesState === 'ready'">
+        <p *ngIf="organizations.length" class="sub-note"><strong>{{ organizations.length === 1 ? 'Organization' : 'Organizations' }}:</strong> {{ organizations.join(', ') }}</p>
+        <button type="button" class="sub-row" [class.is-on]="site === allSites" (click)="setSite(allSites)"><span class="grow">{{ allSites }}</span><lucide-icon *ngIf="site === allSites" [img]="icons.Check" [size]="16"></lucide-icon></button>
+        <button *ngFor="let st of sites" type="button" class="sub-row" [class.is-on]="st === site" (click)="setSite(st)"><span class="grow">{{ st }}</span><lucide-icon *ngIf="st === site" [img]="icons.Check" [size]="16"></lucide-icon></button>
+        <p *ngIf="!sites.length" class="sub-note">No sites in Master Data yet.</p>
+      </ng-container>
     </div>
+
 
     <button type="button" role="menuitem" class="flyout-row" (click)="goTo('/master-data-management/organization/organization')">
       <lucide-icon [img]="icons.Landmark" [size]="17"></lucide-icon><span class="grow">Organization Settings</span><lucide-icon class="row-arrow" [img]="icons.ChevronRight" [size]="16"></lucide-icon></button>

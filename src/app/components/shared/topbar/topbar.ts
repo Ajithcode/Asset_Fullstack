@@ -22,7 +22,8 @@ import {
   X,
 } from 'lucide-angular';
 import { Router, NavigationEnd, RouterModule } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, forkJoin, map } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
 import { AccessService, AlertFeedService, AuthService, DesktopAlertsService, FeedAlert, pushToast } from 'shared-ui';
 import { prefsKey } from '../landing-page';
 import { environment } from '../../../../environments/environment';
@@ -147,7 +148,11 @@ export class Topbar {
   flyoutPosition: { top: number; left: number } | null = null;
 
   readonly icons = { Check, ChevronRight, CircleQuestionMark, ExternalLink, Eye, EyeOff, FileText, Globe, Landmark, Lock, LogOut, Settings, Sparkles, User, Users, X };
-  readonly sites = ['All Sites', 'Head Office', 'Dubai Plant', 'Abu Dhabi', 'Sharjah Warehouse', 'Al Ain Depot', 'Central Store'];
+  /** Switch Tenant / Site: the real lists from Master Data (Organization, Site); loaded when the row is first opened. */
+  readonly allSites = 'All Sites';
+  organizations: string[] = [];
+  sites: string[] = [];
+  sitesState: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   readonly languages = [{ code: 'en', label: 'English', ready: true }, { code: 'ar', label: 'العربية (Arabic)', ready: false }];
   readonly landingPages = [
     { path: '/dashboard', label: 'Dashboard' },
@@ -179,7 +184,9 @@ export class Topbar {
   private readonly prefsStorageKey = prefsKey(inject(AuthService).getUserEmail());
   prefs: Preferences = readJson<Preferences>(this.prefsStorageKey, { landing: '/dashboard', timeFormat: '12h', notifySound: true });
   prefsForm: Preferences = { ...this.prefs };
+  private readonly siteStorageKey = `${SITE_KEY}:${(inject(AuthService).getUserEmail() ?? '').toLowerCase()}`;
   site = this.readSite();
+  private readonly http = inject(HttpClient);
   whatsNewSeen = this.readSeen();
   pw = { current: '', next: '', confirm: '', show: false };
   pwError = '';
@@ -315,6 +322,31 @@ export class Topbar {
 
   toggleSection(s: ProfileSection): void {
     this.section = this.section === s ? '' : s;
+    if (this.section === 'site') this.loadSites();
+  }
+
+  retrySites(): void {
+    this.sitesState = 'idle';
+    this.loadSites();
+  }
+
+  /** Master Data > Organization / Site (active, not deleted). Failures show a message instead of made-up names. */
+  private loadSites(): void {
+    if (this.sitesState === 'loading' || this.sitesState === 'ready') return;
+    this.sitesState = 'loading';
+    type Row = { organizationName?: string; siteName?: string; status?: string | null; isDeleted?: boolean };
+    const base = `${environment.masterDataApiUrl}api/master-data`;
+    const names = (rows: Row[], key: 'organizationName' | 'siteName') =>
+      [...new Set(rows.filter((r) => r.isDeleted !== true && !/^(inactive|disabled|deleted)$/i.test(r.status ?? '')).map((r) => (r[key] ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const list = (resource: string) => this.http.get<Row[] | { items?: Row[] }>(`${base}/${resource}`).pipe(map((res) => (Array.isArray(res) ? res : res?.items ?? [])));
+    forkJoin({ orgs: list('organizations'), sites: list('sites') }).subscribe({
+      next: ({ orgs, sites }) => {
+        this.organizations = names(orgs, 'organizationName');
+        this.sites = names(sites, 'siteName');
+        this.sitesState = 'ready';
+      },
+      error: () => (this.sitesState = 'error'),
+    });
   }
 
   open(d: ProfileDialog): void {
@@ -360,18 +392,19 @@ export class Topbar {
     this.showToast(`Language set to ${lang.label}.`);
   }
 
+  /** The chosen site is kept per user as the current site shown in the menu. No module filters its data by it yet. */
   setSite(site: string): void {
     this.site = site;
-    writeValue(SITE_KEY, site);
+    writeValue(this.siteStorageKey, site);
     this.section = '';
     this.showToast(`Switched to ${site}.`);
   }
 
   private readSite(): string {
     try {
-      return localStorage.getItem(SITE_KEY) || 'All Sites';
+      return localStorage.getItem(this.siteStorageKey) || this.allSites;
     } catch {
-      return 'All Sites';
+      return this.allSites;
     }
   }
 

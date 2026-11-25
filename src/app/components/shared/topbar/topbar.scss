@@ -1057,3 +1057,19 @@
 .notifications-count { font-weight: 500; color: #64748b; font-size: 0.75rem; }
 .notifications-footer { padding: 8px 16px; text-align: center; border-top: 1px solid #ede9fe; }
 .notifications-footer .mark-read-btn { font-size: 0.812rem; }
+
+.sub-note {
+  margin: 4px 12px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.sub-retry {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: #5b21b6;
+  cursor: pointer;
+  text-decoration: underline;
+}
