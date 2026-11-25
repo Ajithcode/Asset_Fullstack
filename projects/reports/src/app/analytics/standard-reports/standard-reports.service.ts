@@ -101,19 +101,24 @@ export interface CalendarMarks {
   review: number;
 }
 
-/** One reading of an Asset Movement report (details data.dates[].records[]). */
+/** One zone visit of an Asset Movement report (details data.dates[].records[]). zoneName is null when the gateway is not plotted. */
 export interface MovementRecord {
-  timestamp: string;
-  localTime: string;
-  tagId: string;
-  assetId: string | null;
-  assetRegistrationId: string | null;
+  assetId: string;
   assetName: string | null;
   category: string | null;
   subCategory: string | null;
-  deviceId: string | null;
+  tagId: string;
   zoneName: string | null;
-  zoneCode: string | null;
+  deviceId: string;
+  zoneIn: string;
+  zoneOut: string;
+  /** Zone in / out in the report's time zone (yyyy-MM-dd HH:mm:ss) */
+  zoneInLocal: string;
+  zoneOutLocal: string;
+  timeSpentSeconds: number;
+  /** HH:mm:ss */
+  timeSpent: string;
+  readingCount: number;
 }
 
 interface MovementData {
@@ -127,7 +132,7 @@ export interface StandardReportDetails {
   report: StandardReport;
   /** False for a report type without data behind it */
   hasData: boolean;
-  /** Readings per date */
+  /** Visits per date */
   rows: PreviewRow[];
   records: MovementRecord[];
   truncated: boolean;
@@ -256,10 +261,10 @@ export class StandardReportsService {
           display: d.recordCount.toLocaleString('en-US'),
           share: total ? `${((d.recordCount / total) * 100).toFixed(1)}%` : '0%'
         }));
-        const records = (data?.dates ?? []).flatMap((d) => d.records ?? []);
+        const records = (data?.dates ?? []).flatMap((d) => d.records ?? []).sort((x, y) => x.zoneIn.localeCompare(y.zoneIn));
         const withPreview: StandardReport = {
           ...fresh,
-          preview: { dimension: 'date', measure: data ? 'Readings' : fresh.preview.measure, unit: 'count', total }
+          preview: { dimension: 'date', measure: data ? 'Visits' : fresh.preview.measure, unit: 'count', total }
         };
         return { report: withPreview, hasData: !!data, rows, records, truncated: !!data?.truncated };
       })

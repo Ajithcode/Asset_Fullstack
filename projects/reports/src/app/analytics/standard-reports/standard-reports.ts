@@ -18,7 +18,7 @@ import {
   ReportFrequency, ReportPeriod, ReportSchedule, ReportStatus, SR_STATUSES, StandardReport
 } from './standard-reports.data';
 import {
-  CalendarMarks, NewStandardReport, SR_SORT_FIELDS, StandardReportQuery, StandardReportSummary, StandardReportsService, toApiDate
+  CalendarMarks, MovementRecord, NewStandardReport, SR_SORT_FIELDS, StandardReportQuery, StandardReportSummary, StandardReportsService, toApiDate
 } from './standard-reports.service';
 import { formatDay, formatPeriod, formatStamp } from './standard-reports.util';
 
@@ -360,7 +360,7 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
 
   private readonly rowExports = new Map<string, () => ExportRequest>();
 
-  /** Per-report Export (CSV / PDF): the report's own rows from GET /api/standard-reports/{id}/details (one line per reading). */
+  /** Per-report Export (CSV / PDF): the report's own rows from GET /api/standard-reports/{id}/details (one line per zone visit, sorted by Zone In). */
   exportFor = (r: StandardReport): (() => ExportRequest) => {
     let fn = this.rowExports.get(r.id);
     if (!fn) {
@@ -368,16 +368,17 @@ export class StandardReportsPage extends AnalyticsPage implements OnInit, OnDest
         title: r.name,
         fileBase: `${r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}_${r.period.start}_${r.period.end}`,
         columns: [
-          { label: 'Timestamp', key: 'timestamp' },
-          { label: 'Local time', key: 'localTime' },
-          { label: 'Tag ID', key: 'tagId' },
           { label: 'Asset ID', key: 'assetId' },
-          { label: 'Asset name', key: 'assetName' },
+          { label: 'Asset Name', key: 'assetName' },
           { label: 'Category', key: 'category' },
-          { label: 'Sub-category', key: 'subCategory' },
-          { label: 'Device ID', key: 'deviceId' },
-          { label: 'Zone', key: 'zoneName' },
-          { label: 'Zone code', key: 'zoneCode' }
+          { label: 'Sub Category', key: 'subCategory' },
+          { label: 'Tag', key: 'tagId' },
+          { label: 'Zone', value: (m: MovementRecord) => m.zoneName ?? '—' },
+          { label: 'Gateway', key: 'deviceId' },
+          { label: 'Zone In', key: 'zoneInLocal' },
+          { label: 'Zone Out', key: 'zoneOutLocal' },
+          { label: 'Time Spent', key: 'timeSpent' },
+          { label: 'Readings', key: 'readingCount' }
         ],
         filters: { Report: r.id, Category: r.module, Period: formatPeriod(r.period) },
         rows: () =>
