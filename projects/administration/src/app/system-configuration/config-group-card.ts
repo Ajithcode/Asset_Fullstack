@@ -38,6 +38,9 @@ const MAX_LOGO_BYTES = 2 * 1024 * 1024;
               @if (isDirty(s)) {
                 <span class="cfg-dirty" title="Unsaved change">Modified</span>
               }
+              @if (s.stored === false) {
+                <span class="cfg-local" title="No server API stores this setting yet: a change only lasts until the page is reloaded">Not saved to server</span>
+              }
             </span>
 
             @switch (s.type) {

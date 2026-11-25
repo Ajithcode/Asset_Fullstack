@@ -160,6 +160,22 @@
   font-weight: 700;
 }
 
+/* Setting no server API stores yet (only lasts for the browser session) */
+.cfg-local {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.656rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cfg-dirty + .cfg-local {
+  margin-left: 4px;
+}
+
 .cfg-switch {
   min-height: 36px;
 }

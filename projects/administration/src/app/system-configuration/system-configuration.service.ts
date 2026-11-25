@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, map, of, throwError } from 'rxjs';
+import { Observable, catchError, concat, forkJoin, last, map, of, switchMap, tap, throwError } from 'rxjs';
 import { AuthService, environment } from 'shared-ui';
 import { CURRENT_USER } from '../shared/admin-common';
 import { ConfigChange, ConfigSection, ConfigSetting, ConfigValue, buildSections } from './system-configuration.data';
@@ -61,6 +61,62 @@ interface SystemConfigurationDto {
   clientId: string | null;
 }
 
+/** Master Data organization (GET /api/master-data/organizations), the fields the PUT needs back. */
+interface OrganizationDto {
+  id: string;
+  organizationName: string;
+  code: string | null;
+  logoUrl: string | null;
+  type: string | null;
+  parentOrganization: unknown;
+  businessUnits: unknown[] | null;
+  sites: unknown[] | null;
+  registrationNumber: string | null;
+  website: string | null;
+  description: string | null;
+  address: { line1: string | null; line2: string | null; city: string | null; state: string | null; country: string | null; postalCode: string | null } | null;
+  contact: { name: string | null; designation: string | null; email: string | null; phoneCountry: string | null; phone: string | null } | null;
+  settings: unknown;
+  status: string | null;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+  createdBy?: string | null;
+  createdAt?: string | null;
+}
+
+/** Administration numbering sequence (GET /api/administration/numbering-sequences). */
+interface NumberingSequenceDto {
+  sequenceId: string;
+  sequenceName: string;
+  sequenceCode: string;
+  module: string;
+  recordType: string;
+  prefix: string;
+  separator: string;
+  numberLength: number;
+  startNumber?: number | null;
+  incrementBy: number;
+  resetFrequency: string;
+  scope: string;
+  status: string | null;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+  createdBy?: string | null;
+  createdAt?: string | null;
+}
+
+/** One entry of GET /api/eventlogs (the audit trail written when these APIs save). */
+interface EventLogDto {
+  id: string;
+  entityType: string;
+  entityId: string;
+  entityName: string;
+  action: string;
+  performedBy: string | null;
+  createdAt: string | null;
+  message: string;
+}
+
 /** UI time-zone labels and the IANA ids the API stores. */
 const TIME_ZONE_IDS: Record<string, string> = {
   '(GMT+04:00) Dubai': 'Asia/Dubai',
@@ -81,13 +137,36 @@ const AUTO_SAVE_SECONDS: Record<string, number> = {
   '5 minutes': 300
 };
 
-/** Setting keys stored by the Administration API; everything else stays client-side. */
+/** Settings stored by the Administration system-configuration API. */
 export const API_SETTING_KEYS = new Set([
   'platformName', 'organizationName', 'logo', 'defaultLandingPage',
   'country', 'timeZone', 'dateFormat', 'currency', 'language',
   'theme', 'compactMode', 'rowsPerPage', 'enableTooltips',
   'defaultStatus', 'autoSaveInterval', 'confirmBeforeDelete'
 ]);
+
+/** Organization Profile settings stored on the tenant's Master Data organization. */
+export const ORG_SETTING_KEYS = new Set(['legalName', 'tradeLicense', 'headquarters', 'contactEmail', 'contactPhone', 'website']);
+
+/** Code Prefixes & Sequences settings stored as Administration numbering sequences. */
+export const SEQUENCE_SETTING_KEYS = new Set(['assetPrefix', 'workOrderPrefix', 'inventoryPrefix', 'sequenceDigits', 'sequenceReset']);
+
+/** Every setting saved on the server; the rest only last for the browser session. */
+export const STORED_SETTING_KEYS = new Set([...API_SETTING_KEYS, ...ORG_SETTING_KEYS, ...SEQUENCE_SETTING_KEYS]);
+
+/** The numbering sequence behind each prefix setting. */
+const SEQUENCES: { key: string; code: string; name: string; module: string; recordType: string }[] = [
+  { key: 'assetPrefix', code: 'SYS-ASSET', name: 'Asset Code', module: 'Assets', recordType: 'Asset' },
+  { key: 'workOrderPrefix', code: 'SYS-WORK-ORDER', name: 'Work Order Number', module: 'Maintenance', recordType: 'Work Order' },
+  { key: 'inventoryPrefix', code: 'SYS-INVENTORY', name: 'Inventory Item Code', module: 'Inventory', recordType: 'Inventory Item' }
+];
+
+/** Audit entity types written by the APIs this page saves to. */
+const HISTORY_ENTITY_TYPES: { type: string; section: string }[] = [
+  { type: 'SystemConfiguration', section: 'General Settings' },
+  { type: 'Organization', section: 'Organization Profile' },
+  { type: 'NumberingSequence', section: 'Numbering & Master Data' }
+];
 
 function text(v: ConfigValue | undefined): string | null {
   const s = v === undefined ? '' : String(v).trim();
@@ -96,6 +175,12 @@ function text(v: ConfigValue | undefined): string | null {
 
 function labelFor(lookup: Record<string, string | number>, stored: string | number): string | undefined {
   return Object.keys(lookup).find((k) => lookup[k] === stored);
+}
+
+/** "AST-" -> { prefix: "AST", separator: "-" }; a prefix without separator gets "-". */
+export function splitPrefix(value: ConfigValue): { prefix: string; separator: string } | null {
+  const m = /^([A-Za-z0-9]+)([^A-Za-z0-9]{0,3})$/.exec(String(value ?? '').trim());
+  return m ? { prefix: m[1], separator: m[2] || '-' } : null;
 }
 
 function toRequest(v: ConfigValues, updatedBy: string | null): SaveSystemConfigurationRequest {
@@ -163,29 +248,62 @@ function toValues(dto: SystemConfigurationDto, settings: ConfigSetting[]): Confi
   return out;
 }
 
+/** Organization Profile values from the Master Data organization. */
+function orgValues(o: OrganizationDto): ConfigValues {
+  return {
+    legalName: o.organizationName ?? '',
+    tradeLicense: o.registrationNumber ?? '',
+    headquarters: o.address?.city ?? '',
+    contactEmail: o.contact?.email ?? '',
+    contactPhone: o.contact?.phone ?? '',
+    website: o.website ?? ''
+  };
+}
+
 function errorMessage(err: HttpErrorResponse): string {
   const errors = err.error?.errors as Record<string, string[]> | undefined;
   const first = errors ? Object.values(errors)[0]?.[0] : null;
-  return first || err.error?.title || 'The configuration service could not be reached.';
+  return first || err.error?.message || err.error?.title || 'The configuration service could not be reached.';
 }
 
-// Settings in API_SETTING_KEYS are loaded from / saved to the Administration API. The other
-// settings, the review queue and the change history stay in memory: the API has no endpoints for them.
+/**
+ * System Configuration data. Saved on the server:
+ *  - General Settings (platform identity, regional defaults, user experience, data & records): Administration
+ *    /api/administration/system-configuration;
+ *  - Organization Profile (legal name, trade licence, headquarters, contact email / phone, website): the tenant's
+ *    Master Data organization (/api/master-data/organizations/{id});
+ *  - Code Prefixes & Sequences (asset / work order / inventory prefix, digits, reset): Administration numbering
+ *    sequences (/api/administration/numbering-sequences);
+ *  - change history: the audit trail those saves write (GET /api/eventlogs, through the gateway).
+ * Every other setting and the review queue only last for the browser session (no API stores them); those settings
+ * are flagged `stored: false` so the page can say so.
+ */
 @Injectable({ providedIn: 'root' })
 export class SystemConfigurationService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly apiUrl = `${environment.administrationApiUrl}api/administration/system-configuration`;
+  private readonly orgUrl = `${environment.masterDataApiUrl}api/master-data/organizations`;
+  private readonly seqUrl = `${environment.administrationApiUrl}api/administration/numbering-sequences`;
+  private readonly eventLogUrl = `${environment.eventLogApiUrl}api/eventlogs`;
+  private readonly tenant = { tenantId: environment.tenantId, clientId: environment.clientId };
 
-  readonly sections = signal<ConfigSection[]>(buildSections());
+  readonly sections = signal<ConfigSection[]>(markStored(buildSections()));
+  /** Changes made in this session (review queue, session-only settings, and saves until history reloads). */
   readonly changes = signal<ConfigChange[]>([]);
+  /** Saved changes from the audit trail. */
+  readonly serverHistory = signal<ConfigChange[]>([]);
   readonly loading = signal(false);
 
   readonly pending = computed(() => this.changes().filter((c) => c.status === 'Pending'));
 
-  /** Changes newest first. */
-  readonly history = computed(() => [...this.changes()].sort((a, b) => b.date.localeCompare(a.date)));
+  /** Changes newest first: this session's changes and the audit trail of saved ones. */
+  readonly history = computed(() => [...this.changes(), ...this.serverHistory()].sort((a, b) => b.date.localeCompare(a.date)));
 
+  /** The tenant's Master Data organization (Organization Profile is saved on it); null when there is none. */
+  private organization: OrganizationDto | null = null;
+  /** Numbering sequence per prefix setting key, once created. */
+  private sequences = new Map<string, NumberingSequenceDto>();
   private nextChange = 1;
 
   allSettings(): ConfigSetting[] {
@@ -215,30 +333,47 @@ export class SystemConfigurationService {
       .filter((s) => isActiveValue(s.value)).length;
   }
 
-  /** GET /api/administration/system-configuration. A tenant with nothing saved yet (404) keeps the defaults. */
+  /**
+   * Loads everything stored on the server: general settings (a tenant with nothing saved yet, 404, keeps the
+   * defaults), the organization profile, the numbering sequences and the change history. Each part loads on its own,
+   * so one failing API doesn't hide the others; the first error is reported.
+   */
   load(): Observable<void> {
     this.loading.set(true);
-    const params = { tenantId: environment.tenantId, clientId: environment.clientId };
-    return this.http.get<SystemConfigurationDto>(this.apiUrl, { params }).pipe(
-      map((dto) => {
-        this.applyDto(dto);
+    const errors: string[] = [];
+    const soft = <T>(o: Observable<T>, fallback: T, what: string) =>
+      o.pipe(catchError((err: HttpErrorResponse) => {
+        if (err.status !== 404) errors.push(`${what}: ${errorMessage(err)}`);
+        return of(fallback);
+      }));
+    return forkJoin({
+      config: soft(this.http.get<SystemConfigurationDto>(this.apiUrl, { params: this.tenant }).pipe(map((d): SystemConfigurationDto | null => d)), null, 'General settings'),
+      orgs: soft(this.http.get<OrganizationDto[] | { items: OrganizationDto[] }>(this.orgUrl).pipe(map(asList)), [] as OrganizationDto[], 'Organization profile'),
+      seqs: soft(this.http.get<NumberingSequenceDto[] | { items: NumberingSequenceDto[] }>(this.seqUrl, { params: this.tenant }).pipe(map(asList)), [] as NumberingSequenceDto[], 'Code prefixes'),
+      history: this.loadHistory()
+    }).pipe(
+      map(({ config, orgs, seqs, history }) => {
+        if (config) this.applyDto(config);
+        this.applyOrganization(pickOrganization(orgs));
+        this.applySequences(seqs);
+        this.serverHistory.set(history);
         this.loading.set(false);
+        if (errors.length) throw new Error(errors[0]);
       }),
-      catchError((err: HttpErrorResponse) => {
+      catchError((err: Error) => {
         this.loading.set(false);
-        return err.status === 404 ? of(undefined) : throwError(() => new Error(errorMessage(err)));
+        return throwError(() => err);
       })
     );
   }
 
   /**
-   * Saves changed settings. Settings in a section that requires approval are queued as "Pending";
-   * everything else is applied straight away. Applied API-backed settings go out in one
-   * POST /api/administration/system-configuration (with the other API-backed values unchanged)
-   * and nothing is recorded if it fails.
+   * Saves changed settings. Settings in a section that requires approval are queued as "Pending"; everything else is
+   * applied straight away. Applied server-stored settings are saved to their API (general settings in one POST, the
+   * organization in one PUT, each changed numbering sequence) and nothing is recorded if a save fails.
    */
   submit(entries: { key: string; value: ConfigValue }[], reason: string): Observable<ConfigChange[]> {
-    const user = CURRENT_USER.name;
+    const user = CURRENT_USER.name || this.auth.getUserEmail() || '';
     const changes: ConfigChange[] = [];
     for (const { key, value } of entries) {
       const s = this.setting(key);
@@ -257,27 +392,51 @@ export class SystemConfigurationService {
         status: section.requiresApproval ? 'Pending' : 'Applied'
       });
     }
-    const record = (): ConfigChange[] => {
-      for (const c of changes) {
-        if (c.status === 'Applied' && !API_SETTING_KEYS.has(c.key)) this.apply(c.key, c.newValue, user);
+    const applied = changes.filter((c) => c.status === 'Applied');
+    const next = this.values();
+    applied.forEach((c) => (next[c.key] = c.newValue));
+
+    const saves: Observable<unknown>[] = [];
+    if (applied.some((c) => API_SETTING_KEYS.has(c.key))) {
+      saves.push(this.http.post<SystemConfigurationDto>(this.apiUrl, toRequest(next, this.auth.getUserEmail())).pipe(tap((dto) => this.applyDto(dto))));
+    }
+    if (applied.some((c) => ORG_SETTING_KEYS.has(c.key))) {
+      const org = this.organization;
+      if (!org) return throwError(() => new Error('No organization exists in Master Data yet. Create it in Master Data > Organization first.'));
+      saves.push(this.http.put<OrganizationDto>(`${this.orgUrl}/${encodeURIComponent(org.id)}`, this.orgRequest(org, next)).pipe(tap((o) => this.applyOrganization(o))));
+    }
+    if (applied.some((c) => SEQUENCE_SETTING_KEYS.has(c.key))) {
+      const shared = ['sequenceDigits', 'sequenceReset'].some((k) => applied.some((c) => c.key === k));
+      for (const s of SEQUENCES) {
+        if (!shared && !applied.some((c) => c.key === s.key)) continue;
+        const parts = splitPrefix(next[s.key]);
+        if (!parts) return throwError(() => new Error(`${this.setting(s.key)?.label ?? s.key}: use letters / digits followed by up to 3 symbols, e.g. AST-`));
+        saves.push(this.saveSequence(s, parts, next));
       }
-      this.changes.update((list) => [...changes, ...list]);
+    }
+
+    const record = (): ConfigChange[] => {
+      // session-only settings take effect here; server-stored ones were applied from the API's replies
+      for (const c of applied) if (!STORED_SETTING_KEYS.has(c.key)) this.apply(c.key, c.newValue, user);
+      for (const c of applied) if (SEQUENCE_SETTING_KEYS.has(c.key)) this.apply(c.key, c.newValue, user);
+      // saved changes show up in the audit trail; keep only the others in this session's list
+      const sessionOnly = changes.filter((c) => c.status !== 'Applied' || !STORED_SETTING_KEYS.has(c.key));
+      this.changes.update((list) => [...sessionOnly, ...list]);
       return changes;
     };
-    const remote = changes.filter((c) => c.status === 'Applied' && API_SETTING_KEYS.has(c.key));
-    if (!remote.length) return of(record());
-    const next = this.values();
-    remote.forEach((c) => (next[c.key] = c.newValue));
-    return this.http.post<SystemConfigurationDto>(this.apiUrl, toRequest(next, this.auth.getUserEmail())).pipe(
-      map((dto) => {
-        this.applyDto(dto);
+    if (!saves.length) return of(record());
+    return concat(...saves).pipe(
+      last(),
+      switchMap(() => this.loadHistory()),
+      map((history) => {
+        this.serverHistory.set(history);
         return record();
       }),
-      catchError((err: HttpErrorResponse) => throwError(() => new Error(errorMessage(err))))
+      catchError((err: unknown) => throwError(() => new Error(err instanceof HttpErrorResponse ? errorMessage(err) : String((err as Error)?.message ?? err))))
     );
   }
 
-  // Only approval sections are queued and none of them are API-backed, so approving stays client-side
+  // Only approval sections are queued and none of them are stored on the server, so approving stays client-side
   approve(id: string): void {
     const change = this.changes().find((c) => c.id === id);
     if (!change || change.status !== 'Pending') return;
@@ -293,20 +452,128 @@ export class SystemConfigurationService {
     this.changes.update((list) => list.map((c) => (c.id === id ? { ...c, status } : c)));
   }
 
+  // ===== Organization profile (Master Data) =====
+
+  /** PUT body: the organization as stored, with the Organization Profile values replaced. */
+  private orgRequest(o: OrganizationDto, v: ConfigValues): Record<string, unknown> {
+    const address = o.address ?? { line1: null, line2: null, city: null, state: null, country: null, postalCode: null };
+    const contact = o.contact ?? { name: null, designation: null, email: null, phoneCountry: null, phone: null };
+    return {
+      organizationName: text(v['legalName']) ?? o.organizationName,
+      code: o.code,
+      logoUrl: o.logoUrl,
+      type: o.type,
+      parentOrganization: o.parentOrganization ?? null,
+      businessUnits: o.businessUnits ?? [],
+      sites: o.sites ?? [],
+      registrationNumber: text(v['tradeLicense']),
+      website: text(v['website']),
+      description: o.description,
+      address: { ...address, city: text(v['headquarters']) },
+      contact: { ...contact, email: text(v['contactEmail']), phone: text(v['contactPhone']) },
+      settings: o.settings ?? null,
+      status: o.status,
+      updatedBy: this.auth.getUserEmail()
+    };
+  }
+
+  private applyOrganization(o: OrganizationDto | null): void {
+    this.organization = o;
+    if (!o) return;
+    this.setValues(orgValues(o), o.updatedBy || o.createdBy || '', o.updatedAt || o.createdAt || '');
+  }
+
+  // ===== Code prefixes (numbering sequences) =====
+
+  private applySequences(list: NumberingSequenceDto[]): void {
+    this.sequences.clear();
+    for (const s of SEQUENCES) {
+      const found = list.find((x) => x.sequenceCode === s.code) ?? list.find((x) => x.recordType?.toLowerCase() === s.recordType.toLowerCase());
+      if (found) this.sequences.set(s.key, found);
+    }
+    const values: ConfigValues = {};
+    let stamp: NumberingSequenceDto | undefined;
+    for (const s of SEQUENCES) {
+      const q = this.sequences.get(s.key);
+      if (!q) continue;
+      values[s.key] = `${q.prefix}${q.separator ?? ''}`;
+      stamp ??= q;
+    }
+    if (stamp) {
+      values['sequenceDigits'] = stamp.numberLength;
+      values['sequenceReset'] = stamp.resetFrequency;
+    }
+    if (Object.keys(values).length) this.setValues(values, stamp?.updatedBy || stamp?.createdBy || '', stamp?.updatedAt || stamp?.createdAt || '');
+  }
+
+  /** Creates the prefix's numbering sequence on first save, then updates it. */
+  private saveSequence(s: (typeof SEQUENCES)[number], parts: { prefix: string; separator: string }, v: ConfigValues): Observable<NumberingSequenceDto> {
+    const existing = this.sequences.get(s.key);
+    const body = {
+      sequenceName: existing?.sequenceName ?? s.name,
+      sequenceCode: existing?.sequenceCode ?? s.code,
+      module: existing?.module ?? s.module,
+      recordType: existing?.recordType ?? s.recordType,
+      prefix: parts.prefix,
+      separator: parts.separator,
+      numberLength: Number(v['sequenceDigits']) || 6,
+      startNumber: existing?.startNumber ?? 1,
+      incrementBy: existing?.incrementBy ?? 1,
+      resetFrequency: String(v['sequenceReset'] ?? 'Never'),
+      scope: existing?.scope ?? 'Organization',
+      status: existing?.status ?? 'Active'
+    };
+    const call = existing
+      ? this.http.put<NumberingSequenceDto>(`${this.seqUrl}/${encodeURIComponent(existing.sequenceId)}`, body)
+      : this.http.post<NumberingSequenceDto>(this.seqUrl, { ...body, createdBy: this.auth.getUserEmail(), ...this.tenant });
+    return call.pipe(tap((saved) => this.sequences.set(s.key, saved)));
+  }
+
+  // ===== Change history (audit trail) =====
+
+  /** Saves recorded by the audit trail for system configuration, organizations and numbering sequences. */
+  private loadHistory(): Observable<ConfigChange[]> {
+    return forkJoin(
+      HISTORY_ENTITY_TYPES.map(({ type, section }) =>
+        this.http.get<{ items: EventLogDto[] }>(this.eventLogUrl, { params: { entityType: type, page: 1, pageSize: 100 } }).pipe(
+          map((res) =>
+            (res.items ?? []).map(
+              (e): ConfigChange => ({
+                id: `LOG-${e.id}`,
+                key: '',
+                setting: e.entityName || type,
+                section,
+                oldValue: '',
+                newValue: e.message || e.action,
+                updatedBy: e.performedBy || '',
+                date: e.createdAt || '',
+                reason: e.action,
+                status: 'Applied'
+              })
+            )
+          ),
+          catchError(() => of([] as ConfigChange[]))
+        )
+      )
+    ).pipe(map((lists) => lists.flat()));
+  }
+
+  // ===== Applying values =====
+
   /** Copies the API values into the settings, stamped with who saved them last. */
   private applyDto(dto: SystemConfigurationDto): void {
-    const values = toValues(dto, this.allSettings());
-    const by = dto.updatedBy || dto.createdBy || '';
-    const at = dto.updatedAt || dto.createdAt || new Date().toISOString();
+    this.setValues(toValues(dto, this.allSettings()), dto.updatedBy || dto.createdBy || '', dto.updatedAt || dto.createdAt || '');
+  }
+
+  private setValues(values: ConfigValues, by: string, at: string): void {
+    const when = at || new Date().toISOString();
     this.sections.update((sections) =>
       sections.map((sec) => ({
         ...sec,
         groups: sec.groups.map((g) => ({
           ...g,
           settings: g.settings.map((s) =>
-            s.key in values
-              ? { ...s, value: values[s.key], updatedBy: by || s.updatedBy, updatedAt: at, effectiveDate: at.slice(0, 10) }
-              : s
+            s.key in values ? { ...s, value: values[s.key], updatedBy: by || s.updatedBy, updatedAt: when, effectiveDate: when.slice(0, 10) } : s
           )
         }))
       }))
@@ -314,19 +581,27 @@ export class SystemConfigurationService {
   }
 
   private apply(key: string, value: ConfigValue, by: string): void {
-    const now = new Date().toISOString();
-    this.sections.update((sections) =>
-      sections.map((sec) => ({
-        ...sec,
-        groups: sec.groups.map((g) => ({
-          ...g,
-          settings: g.settings.map((s) =>
-            s.key === key ? { ...s, value, updatedBy: by, updatedAt: now, effectiveDate: now.slice(0, 10) } : s
-          )
-        }))
-      }))
-    );
+    this.setValues({ [key]: value }, by, new Date().toISOString());
   }
+}
+
+/** A list response as an array (some list endpoints return { items }). */
+function asList<T>(res: T[] | { items: T[] } | null): T[] {
+  return Array.isArray(res) ? res : res?.items ?? [];
+}
+
+/** The organization the profile describes: the head office, else the first active one. */
+function pickOrganization(list: OrganizationDto[]): OrganizationDto | null {
+  const active = list.filter((o) => !o.status || o.status === 'Active');
+  return active.find((o) => /head/i.test(o.type ?? '')) ?? active[0] ?? list[0] ?? null;
+}
+
+/** Flags which settings are saved on the server. */
+function markStored(sections: ConfigSection[]): ConfigSection[] {
+  return sections.map((sec) => ({
+    ...sec,
+    groups: sec.groups.map((g) => ({ ...g, settings: g.settings.map((s) => ({ ...s, stored: STORED_SETTING_KEYS.has(s.key) })) }))
+  }));
 }
 
 export function isActiveValue(v: ConfigValue): boolean {
