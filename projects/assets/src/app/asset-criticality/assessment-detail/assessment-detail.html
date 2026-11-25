@@ -19,8 +19,9 @@
         </p>
       </div>
       <div class="ad-result">
-        <div class="ad-score">{{ x.score | number: '1.0-1' }}<small>/100</small></div>
-        <span class="acl-level" [style.--lvl]="levelColor()"><span class="dot"></span>{{ x.finalLevel }}</span>
+        <div class="ad-score" *ngIf="x.isComplete; else incomplete">{{ x.score | number: '1.0-1' }}<small>/100</small></div>
+        <ng-template #incomplete><div class="ad-score ad-score--none">Incomplete</div></ng-template>
+        <span *ngIf="x.isComplete" class="acl-level" [style.--lvl]="levelColor()"><span class="dot"></span>{{ x.finalLevel }}</span>
         <span class="muted" *ngIf="x.previousLevel">was {{ x.previousLevel }}</span>
       </div>
     </header>
@@ -62,7 +63,7 @@
           <tbody>
             <tr *ngFor="let c of x.criteria">
               <td>{{ c.name }}<span class="muted ad-sub" *ngIf="c.comment">{{ c.comment }}</span></td>
-              <td class="num">{{ c.rating }}/5</td>
+              <td class="num">{{ c.rating != null ? c.rating + '/5' : '-' }}</td>
               <td class="num">{{ c.weight }}%</td>
               <td class="ad-bar-cell"><span class="ad-bar"><i [style.width.%]="c.weight ? (c.weighted / c.weight) * 100 : 0" [style.background]="levelColor()"></i></span>
                 <span class="ad-bar-val">{{ c.weighted | number: '1.0-1' }} / {{ c.weight }}</span></td>
@@ -116,8 +117,8 @@
             <tr *ngFor="let v of versions" [class.is-selected]="v.id === x.id">
               <td class="nowrap">{{ v.assessmentNumber || '-' }}</td>
               <td class="nowrap">{{ v.assessmentDate | date: 'dd MMM yyyy' }}</td>
-              <td>{{ v.level }}<span class="ad-chip" *ngIf="v.isCurrent">Current</span></td>
-              <td class="num">{{ v.score | number: '1.0-1' }}</td>
+              <td>{{ v.level || '-' }}<span class="ad-chip" *ngIf="v.isCurrent">Current</span></td>
+              <td class="num">{{ v.level ? (v.score | number: '1.0-1') : '-' }}</td>
               <td><span class="acl-status" [ngClass]="tone(v.status)">{{ label(v.status) }}</span></td>
               <td><a *ngIf="v.id !== x.id" [routerLink]="['/assets/criticality/assessments', v.id]">View</a></td>
             </tr>

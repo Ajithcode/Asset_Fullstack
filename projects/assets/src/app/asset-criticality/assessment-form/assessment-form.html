@@ -107,7 +107,7 @@
               <span class="muted af-note">Approvers need Approve permission in Assets; you cannot approve your own assessment.</span>
             </div>
           </ng-container>
-          <ng-template #incomplete><p class="muted">Rate all {{ template?.criteria?.length || 0 }} criteria to see the score ({{ ratedCount }} done).</p></ng-template>
+          <ng-template #incomplete><div class="af-score-num af-score-num--none">Incomplete</div><p class="muted">{{ ratedCount }} of {{ template?.criteria?.length || 0 }} criteria rated. Rate them all to see the score and level. You can save the draft now and finish later.</p></ng-template>
           <p *ngIf="previewError" class="form-error">{{ previewError }}</p>
         </aside>
       </div>

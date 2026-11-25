@@ -34,3 +34,4 @@
 .acl-status.tone-muted { background: #f3f4f6; color: #4b5563; }
 .acl-level { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 999px; font-weight: 600; font-size: 0.82rem; color: var(--lvl); background: color-mix(in srgb, var(--lvl) 14%, transparent); border: 1px solid color-mix(in srgb, var(--lvl) 40%, transparent); }
 .acl-level .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lvl); }
+.ad-score--none { font-size: 1.1rem; color: var(--sc-text-muted); }

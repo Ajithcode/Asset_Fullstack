@@ -274,11 +274,13 @@ export class AssessmentForm implements OnInit, OnDestroy {
     };
   }
 
-  private validate(): boolean {
+  /** Save Draft: only the asset and the template are needed; the rest is checked on Submit. */
+  private validate(forSubmit: boolean): boolean {
     this.fieldErrors = {};
     this.formError = '';
     if (!this.ctx || !this.template) { this.formError = 'Choose an asset and a template.'; return false; }
-    if (!this.allRated) { this.fieldErrors['ratings'] = 'Rate every criterion from 1 to 5.'; this.formError = `Rate every criterion (${this.ratedCount} of ${this.template.criteria.length} rated).`; return false; }
+    if (!forSubmit) return true;
+    if (!this.allRated) { this.fieldErrors['ratings'] = 'Rate every criterion from 1 to 5.'; this.formError = `Rate every criterion before submitting (${this.ratedCount} of ${this.template.criteria.length} rated).`; return false; }
     if (this.overrideOn && !this.overrideLevel) { this.fieldErrors['override'] = 'Choose the level to apply.'; this.formError = 'Choose the override level.'; return false; }
     if (this.justificationRequired && !this.justification.trim()) {
       this.fieldErrors['justification'] = this.overrideOn ? 'A justification is required for an override.' : 'A justification is required when the criticality is lowered.';
@@ -292,7 +294,7 @@ export class AssessmentForm implements OnInit, OnDestroy {
   submit(): void { this.persist(true); }
 
   private persist(thenSubmit: boolean): void {
-    if (this.saving || !this.validate()) return;
+    if (this.saving || !this.validate(thenSubmit)) return;
     this.saving = true;
     const body = this.body();
     const save$ = this.editing ? this.api.updateAssessment(this.editing.id, body) : this.api.createAssessment(body);

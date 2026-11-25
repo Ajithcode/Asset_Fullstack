@@ -219,7 +219,7 @@
               <td class="nowrap">{{ a.assessmentType || '-' }}<span *ngIf="a.isCurrent" class="acl-current">Current</span></td>
               <td class="nowrap">{{ formatDate(a.assessmentDate) }}</td>
               <td class="nowrap"><span *ngIf="a.level; else noValue" class="acl-level" [style.--lvl]="levelColor(a.level)"><span class="dot"></span>{{ a.level }}</span></td>
-              <td class="nowrap">{{ a.score != null ? (a.score | number: '1.0-1') + '/100' : '-' }}</td>
+              <td class="nowrap">{{ a.score != null && a.level ? (a.score | number: '1.0-1') + '/100' : '-' }}</td>
               <td>{{ a.assessedBy || '-' }}</td>
               <td>{{ a.approvedBy || '-' }}</td>
               <td class="nowrap"><span class="acl-status" [ngClass]="statusTone(a.approvalStatus)">{{ statusLabel(a.approvalStatus) }}</span></td>

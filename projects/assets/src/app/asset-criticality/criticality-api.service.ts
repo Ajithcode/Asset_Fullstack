@@ -27,7 +27,7 @@ export interface AssessmentDraftContext {
   reviewIntervals: { levelName: string; months: number }[];
 }
 
-export interface AssessmentBreakdownRow { criterionId: string | null; code: string; name: string; weight: number; rating: number; weighted: number; comment: string | null; }
+export interface AssessmentBreakdownRow { criterionId: string | null; code: string; name: string; weight: number; rating: number | null; weighted: number; comment: string | null; }
 
 export interface AssessmentScorePreview {
   score: number;
@@ -86,6 +86,7 @@ export interface AssessmentDetail {
   concurrencyVersion: number;
   isLegacy: boolean;
   actions: AssessmentActions;
+  isComplete: boolean;
 }
 
 export interface AssessmentVersion {
