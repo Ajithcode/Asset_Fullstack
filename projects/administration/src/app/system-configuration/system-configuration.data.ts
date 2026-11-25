@@ -31,6 +31,8 @@ export interface ConfigSetting {
   effectiveDate: string;
   updatedBy: string;
   updatedAt: string;
+  /** Saved on the server (false: only kept for the browser session, no API stores it yet). */
+  stored?: boolean;
 }
 
 export interface ConfigGroup {
