@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, Output, EventEmitter, inject, Input } from '@angular/core';
+import { Component, ElementRef, HostListener, Output, EventEmitter, OnDestroy, inject, Input } from '@angular/core';
 import { NavSearchService } from './nav-search.service';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
@@ -54,7 +54,7 @@ export interface NavItem {
     '[class.collapsed]': 'collapsed'
   }
 })
-export class Sidebar {
+export class Sidebar implements OnDestroy {
   @Output() collapsedChange = new EventEmitter<boolean>();
   /** Set by the layout (topbar menu button); toggleCollapse() still reports changes made here. */
   @Input() collapsed = false;
@@ -362,6 +362,74 @@ export class Sidebar {
 
   private assetUrl(fileName: string): string {
     return `/assets/${encodeURIComponent(fileName)}`;
+  }
+
+
+  // ---- name tooltip: full menu / sub-menu name after ~300 ms (always when collapsed, or when the label is cut off with "…") ----
+  private static readonly TIP_ITEMS = '.nav-item, .nav-dropdown-item, .nav-flyout-item, .nav-flyout-sublist-item, .nav-flyout-subsublist-item';
+  private tipTimer?: ReturnType<typeof setTimeout>;
+  private tipEl: HTMLElement | null = null;
+  private tipFor: Element | null = null;
+
+  @HostListener('mouseover', ['$event'])
+  @HostListener('focusin', ['$event'])
+  onTipEnter(e: Event): void {
+    const item = (e.target as Element | null)?.closest?.(Sidebar.TIP_ITEMS) ?? null;
+    if (item === this.tipFor) return;
+    this.hideTip();
+    if (!item) return;
+    this.tipFor = item;
+    this.tipTimer = setTimeout(() => this.showTip(item), 300);
+  }
+
+  @HostListener('mouseleave')
+  @HostListener('click')
+  @HostListener('document:keydown')
+  @HostListener('window:scroll')
+  hideTip(): void {
+    clearTimeout(this.tipTimer);
+    this.tipEl?.remove();
+    this.tipEl = null;
+    this.tipFor = null;
+  }
+
+  ngOnDestroy(): void {
+    this.hideTip();
+  }
+
+  private showTip(item: Element): void {
+    if (!item.isConnected || this.tipFor !== item) return;
+    const labelEl = (item.querySelector('.nav-label, .nav-dropdown-group__label, .nav-flyout-label') as HTMLElement | null) ?? (item as HTMLElement);
+    const text = (labelEl.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    // top-level labels are not drawn at all in the collapsed rail; anything else only when the text is cut off
+    const hiddenLabel = this.collapsed && item.classList.contains('nav-item');
+    const cut = [labelEl, item as HTMLElement].some((el) => el.scrollWidth > el.clientWidth + 1);
+    if (!hiddenLabel && !cut) return;
+
+    const tip = document.createElement('div');
+    tip.setAttribute('role', 'tooltip');
+    tip.textContent = text;
+    // same look as the app's tooltips (white card, soft border and shadow)
+    Object.assign(tip.style, {
+      position: 'fixed', zIndex: '3000', left: '0px', top: '0px', visibility: 'hidden', pointerEvents: 'none', boxSizing: 'border-box',
+      maxWidth: 'min(320px, calc(100vw - 16px))', padding: '7px 10px', background: '#fff', color: '#111827', border: '1px solid #e6e8ef',
+      borderRadius: '8px', boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)', fontFamily: "'Red Hat Display', sans-serif", fontSize: '13px',
+      fontWeight: '500', lineHeight: '1.3', overflowWrap: 'anywhere',
+    } as Partial<CSSStyleDeclaration>);
+    document.body.appendChild(tip);
+    this.tipEl = tip;
+
+    // right of the item; never outside the screen (flips left / is clamped when there is no room)
+    const r = item.getBoundingClientRect();
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    let left = r.right + 10;
+    if (left + w > window.innerWidth - 8) left = Math.max(8, Math.min(r.left - w - 10, window.innerWidth - w - 8));
+    const top = Math.min(Math.max(8, r.top + (r.height - h) / 2), Math.max(8, window.innerHeight - h - 8));
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(top)}px`;
+    tip.style.visibility = 'visible';
   }
 
   toggleCollapse(): void {

@@ -9,7 +9,6 @@
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: false }"
           class="nav-item"
-          [attr.title]="collapsed ? item.label : null"
         >
           <span class="nav-num" *ngIf="!collapsed" aria-hidden="true">{{ moduleNumber(i) }}</span>
           <span class="nav-icon">
@@ -26,7 +25,6 @@
             (click)="toggleInline(item, $event.currentTarget)"
             [class.open]="isInlineOpen(item.label) || isDropdownOpen(item.label)"
             [class.section-active]="isSectionActive(item)"
-            [attr.title]="collapsed ? item.label : null"
           >
             <span class="nav-num" *ngIf="!collapsed" aria-hidden="true">{{ moduleNumber(i) }}</span>
             <span class="nav-icon">
