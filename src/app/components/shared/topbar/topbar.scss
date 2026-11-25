@@ -65,17 +65,24 @@
   display: flex;
   align-items: center;
   flex: none;
-  // The logo file has wide empty margins, so the image uses the bar's full height (the bar itself stays the same)
-  height: 54px;
   margin-right: 4px;
 
+  // White, margin-free PNG (public/asset360-logo-white*.png, built by scripts/make-topbar-logo.mjs) with a 1x/2x/3x srcset:
+  // the browser picks the size for the screen's pixel density, so it is only ever scaled down. Height is set, width follows
+  // the file's own ratio (never stretched), no filter or blend mode.
   img {
-    height: 100%;
+    display: block;
+    height: 40px;
     width: auto;
     max-width: none;
     object-fit: contain;
-    filter: grayscale(1) invert(1) contrast(1.6) brightness(1.5);
-    mix-blend-mode: screen;
+    image-rendering: auto;
+  }
+}
+
+@media (min-width: 1600px) {
+  .topbar-logo img {
+    height: 44px;
   }
 }
 
@@ -211,8 +218,8 @@
     gap: 8px;
   }
 
-  .topbar-logo {
-    height: 46px;
+  .topbar-logo img {
+    height: 34px;
   }
 
   .chip-text,
@@ -221,20 +228,15 @@
   }
 }
 
-/* Very narrow phones: crop the logo to its round mark (as in the collapsed sidebar), aspect ratio kept */
+/* Very narrow phones: only the round mark (left part of the logo), aspect ratio kept */
 @media (max-width: 359px) {
   .topbar-logo {
-    position: relative;
-    width: 34px;
+    width: 28px;
     height: 34px;
-    border-radius: 50%;
     overflow: hidden;
 
     img {
-      position: absolute;
-      left: -1px;
-      top: -2px;
-      height: 38px;
+      height: 34px;
     }
   }
 }

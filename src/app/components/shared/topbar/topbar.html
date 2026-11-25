@@ -3,7 +3,7 @@
 <div class="topbar-shell">
   <!-- Asset360 logo: always shown in full, whatever the sidebar state -->
   <a class="topbar-logo" routerLink="/" aria-label="Asset360 home">
-    <img src="/purple360-logo.jpeg" alt="Asset360 by Purple IQ" />
+    <img src="/asset360-logo-white.png" srcset="/asset360-logo-white.png 1x, /asset360-logo-white@2x.png 2x, /asset360-logo-white@3x.png 3x" width="142" height="44" alt="Asset360 by Purple IQ" />
   </a>
   <button class="menu-toggle" type="button" (click)="toggleMenu()" [attr.aria-label]="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
     [attr.aria-expanded]="!sidebarCollapsed" [title]="sidebarCollapsed ? 'Expand menu' : 'Collapse menu'">
