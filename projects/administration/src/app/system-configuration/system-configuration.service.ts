@@ -541,7 +541,7 @@ export class SystemConfigurationService {
               (e): ConfigChange => ({
                 id: `LOG-${e.id}`,
                 key: '',
-                setting: e.entityName || type,
+                setting: type === 'SystemConfiguration' ? 'General settings' : type === 'Organization' ? `Organization profile: ${e.entityName}` : `Code prefix: ${e.entityName}`,
                 section,
                 oldValue: '',
                 newValue: e.message || e.action,
