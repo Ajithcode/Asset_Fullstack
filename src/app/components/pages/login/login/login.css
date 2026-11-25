@@ -1,4 +1,4 @@
-﻿:host {
+:host {
   --lg-primary: #4f2bd8;
   --lg-primary-2: #6d4af0;
   --lg-ink: #0f0b3d;
@@ -148,8 +148,8 @@
 .opt-text small { font-size: 0.738rem; color: var(--lg-muted); }
 .opt-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 0.5rem; }
 .opt-pair .opt { gap: 10px; padding: 6px 10px 6px 14px; }
-/* as in the design: the arrow follows the label */
-.opt-pair .opt-text { flex: 0 1 auto; }
+/* the arrow sits at the right edge, as on the other sign-in options */
+.opt-pair .opt-text { flex: 1; }
 .opt-pair .opt-text strong { font-size: 0.82rem; font-weight: 500; }
 .brand-ic { flex: 0 0 auto; width: 28px; height: 28px; }
 
