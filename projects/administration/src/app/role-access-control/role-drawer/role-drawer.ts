@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Info, Lock, LucideAngularModule, X } from 'lucide-angular';
 import { avatarTone, initials } from '../../shared/admin-common';
 import { ChipSelect } from '../chip-select/chip-select';
-import scopeOptions from '../role-scope-options.json';
+import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS } from '../../shared/admin-common';
 import { DATA_SCOPES, DataScope, ROLE_TYPES, RoleRecord, SESSION_TIMEOUTS } from '../role-access.data';
 import { RoleAccessService } from '../role-access.service';
 
@@ -50,8 +50,9 @@ export class RoleDrawer implements OnChanges {
   readonly types = ROLE_TYPES;
   readonly scopes = DATA_SCOPES;
   readonly timeouts = SESSION_TIMEOUTS;
-  readonly locations: string[] = scopeOptions.locations;
-  readonly departments: string[] = scopeOptions.departments;
+  /** Master Data locations / departments (filled by AdminLookupService). */
+  readonly locations: string[] = ADMIN_LOCATIONS;
+  readonly departments: string[] = ADMIN_DEPARTMENTS;
 
   avatars: string[] = [];
 

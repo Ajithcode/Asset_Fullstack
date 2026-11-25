@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Building2, Info, LucideAngularModule, MapPin, Tags } from 'lucide-angular';
 import { ASSET_CATEGORIES, DATA_SCOPES, DataScope, RoleRecord } from '../role-access.data';
-import scopeOptions from '../role-scope-options.json';
+import { ADMIN_DEPARTMENTS, ADMIN_LOCATIONS } from '../../shared/admin-common';
 
 type ListKey = 'locations' | 'departments' | 'categories';
 
@@ -33,6 +33,9 @@ type ListKey = 'locations' | 'departments' | 'categories';
             <label><input type="checkbox" [disabled]="locationsLocked()" [checked]="has('locations', l)" (change)="toggle('locations', l)" /> {{ l }}</label>
           }
         </div>
+        @if (!locations.length) {
+          <p class="muted rs-note">No locations found in Master Data (Organization &gt; Location).</p>
+        }
         @if (role.dataScope === 'All Locations') {
           <p class="note rs-note"><lucide-icon [img]="icons.Info" [size]="15"></lucide-icon> All locations are included for this scope.</p>
         } @else if (role.dataScope === 'Assigned Locations' && !role.locations.length) {
@@ -52,6 +55,9 @@ type ListKey = 'locations' | 'departments' | 'categories';
             <label><input type="checkbox" [checked]="has('departments', d)" (change)="toggle('departments', d)" /> {{ d }}</label>
           }
         </div>
+        @if (!departments.length) {
+          <p class="muted rs-note">No departments found in Master Data (Organization &gt; Department).</p>
+        }
       </section>
 
       <section class="sub-panel">
@@ -79,8 +85,9 @@ export class RoleScope {
 
   readonly icons = { MapPin, Building2, Tags, Info };
   readonly scopes = DATA_SCOPES;
-  readonly locations: string[] = scopeOptions.locations;
-  readonly departments: string[] = scopeOptions.departments;
+  /** Master Data > Organization > Location / Department (filled by AdminLookupService, the same arrays User Management uses). */
+  readonly locations: string[] = ADMIN_LOCATIONS;
+  readonly departments: string[] = ADMIN_DEPARTMENTS;
   readonly categories = ASSET_CATEGORIES;
 
   setScope(scope: DataScope): void {
