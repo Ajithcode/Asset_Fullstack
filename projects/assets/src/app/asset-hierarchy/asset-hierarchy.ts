@@ -48,8 +48,9 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, forkJoin } from 'rxjs';
+import { Observable, forkJoin, map, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
+import { AssetRegistrationListItem, AssetRegistrationService } from '../services/asset-registration/asset-registration';
 import {
   AssetHierarchyItemDto,
   AssetHierarchyService,
@@ -94,6 +95,8 @@ interface NodeForm {
 
 /** Id of the on-screen "All Assets" root; top-level items are saved with no parent. */
 const ROOT_ID = '__root__';
+/** Move destination for a registered asset that is not in the hierarchy yet: "reg:" + its Asset ID. */
+const REG_PREFIX = 'reg:';
 const NODE_KINDS: NodeKind[] = ['site', 'building', 'area', 'floor', 'system', 'asset'];
 
 type GroupKind = Exclude<NodeKind, 'root' | 'asset'>;
@@ -221,11 +224,23 @@ export class AssetHierarchy implements OnInit {
 
   private readonly router = inject(Router);
   private readonly api = inject(AssetHierarchyService);
+  private readonly registrations = inject(AssetRegistrationService);
+
+  /** Registered assets (GET /api/asset-registrations), offered as destinations in the Move popup. */
+  registeredAssets: AssetRegistrationListItem[] = [];
 
   ngOnInit(): void {
     this.reload(true);
     this.api.getAssetTypes().subscribe({ next: (types) => (this.assetTypes = types), error: () => (this.assetTypes = []) });
     this.api.getModels().subscribe({ next: (models) => (this.models = models), error: () => (this.models = []) });
+    this.loadRegisteredAssets();
+  }
+
+  private loadRegisteredAssets(): void {
+    this.registrations.getAllMatching().subscribe({
+      next: (items) => (this.registeredAssets = items),
+      error: () => (this.registeredAssets = []),
+    });
   }
 
   // ===== Loading =====
@@ -801,7 +816,31 @@ export class AssetHierarchy implements OnInit {
     return checked.some((c) => c.id === t.id) ? checked : [t];
   }
 
+  /** Registered assets not in the hierarchy yet, as Move destinations: "laptop (lp002) · main asset · hardware". */
+  get registeredMoveOptions(): { id: string; label: string }[] {
+    return this.registeredAssets
+      .filter((a) => !this.hierarchyNodeForAsset(a))
+      .map((a) => ({
+        id: REG_PREFIX + a.assetRegistrationId,
+        label: [`${a.assetName || a.assetRegistrationId}${a.assetTag ? ' (' + a.assetTag + ')' : ''}`, a.category, a.assetType].filter(Boolean).join(' · '),
+      }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+  }
+
+  /** The hierarchy asset with the registered asset's tag, if it is already in the hierarchy. */
+  private hierarchyNodeForAsset(a: AssetRegistrationListItem): HierarchyNode | null {
+    const tag = (a.assetTag ?? '').trim().toUpperCase();
+    return tag ? this.findBy((n) => n.kind === 'asset' && n.tag.toUpperCase() === tag) : null;
+  }
+
   confirmMove(): void {
+    const reg = this.moveParentId?.startsWith(REG_PREFIX)
+      ? this.registeredAssets.find((a) => REG_PREFIX + a.assetRegistrationId === this.moveParentId)
+      : undefined;
+    if (reg) {
+      this.moveUnderRegistered(reg);
+      return;
+    }
     const dest = this.find(this.moveParentId);
     if (!dest || this.saving) return;
     const nodes = this.movingNodes.filter((n) => this.canReparent(n, dest));
@@ -813,6 +852,35 @@ export class AssetHierarchy implements OnInit {
       forkJoin(nodes.map((n) => this.api.update(n.id, this.movedInput(n, dest)))),
       nodes.length === 1 ? `${nodes[0].name} moved to ${dest.name}.` : `${nodes.length} items moved to ${dest.name}.`,
     );
+  }
+
+  /** Adds the registered asset to the hierarchy (top level, as an asset), then moves the items under it. */
+  private moveUnderRegistered(reg: AssetRegistrationListItem): void {
+    const nodes = this.movingNodes.filter((n) => !!n.dto);
+    this.moveTarget = null;
+    this.checkedChildren.clear();
+    if (!nodes.length || this.saving) return;
+    const name = reg.assetName || reg.assetRegistrationId;
+    const request = this.api
+      .create({
+        itemKind: 'asset',
+        parentId: null,
+        name,
+        assetTag: (reg.assetTag || reg.assetRegistrationId).trim().toUpperCase(),
+        assetTypeId: null,
+        modelId: null,
+        manufacturerId: null,
+        manufacturerName: reg.manufacturer || null,
+        status: reg.status === 'Inactive' ? 'Inactive' : 'Active',
+      })
+      .pipe(
+        switchMap((created) => {
+          this.expanded.add(created.id);
+          return forkJoin(nodes.map((n) => this.api.update(n.id, { ...toInput(n.dto!), parentId: created.id })));
+        }),
+        map(() => undefined),
+      );
+    this.run(request, nodes.length === 1 ? `${nodes[0].name} moved to ${name}.` : `${nodes.length} items moved to ${name}.`);
   }
 
   /** False when the node is already there or the move would put it under itself. */
