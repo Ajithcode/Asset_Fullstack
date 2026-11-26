@@ -357,7 +357,7 @@
             <span class="sub-item__icon"><lucide-icon [img]="icons.Box" [size]="16"></lucide-icon></span>
             <span class="sub-item__main"><b>{{ s.name || s.tag }}</b><small class="mono">{{ s.tag || s.assetRegistrationId || 'Component' }}</small></span>
             <span class="sub-item__meta">{{ s.category || '–' }}</span>
-            <span class="sub-item__meta sub-item__loc">{{ s.location || '–' }}</span>
+            <span class="sub-item__meta sub-item__loc" [title]="s.location || ''">{{ s.location || '–' }}</span>
             <span class="sub-type">{{ s.relationshipType }}</span>
           </button>
         </li>
