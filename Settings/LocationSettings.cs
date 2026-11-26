@@ -9,7 +9,7 @@ public class LocationSettings
     public bool ResolverEnabled { get; set; } = true;
 
     /// <summary>Median over the last N windows.</summary>
-    public int RssiWindowCount { get; set; } = 3;
+    public int RssiWindowCount { get; set; } = 5;
 
     /// <summary>A device needs samples in at least this many of those windows to compete.</summary>
     public int RssiMinWindows { get; set; } = 2;
@@ -21,7 +21,7 @@ public class LocationSettings
     public int SwitchConsecutiveWindows { get; set; } = 1;
 
     /// <summary>The current device has had no sample for this long and a challenger qualifies: switch at once.</summary>
-    public int CurrentDeviceSilenceSeconds { get; set; } = 30;
+    public int CurrentDeviceSilenceSeconds { get; set; } = 60;
 
     /// <summary>A device heard in the latest window this many dB stronger than the current device's latest sample: switch after one window.</summary>
     public double FastSwitchMarginDb { get; set; } = 15;
