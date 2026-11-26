@@ -122,7 +122,7 @@
 
 <!-- ===== Review: what is related to the selected assets ===== -->
 <div *ngIf="previews as list" class="overlay" (click)="closePreview()">
-  <div class="modal modal--picker" role="dialog" aria-modal="true" aria-labelledby="ar-prev-title" (click)="$event.stopPropagation()">
+  <div class="modal modal--picker modal--related" role="dialog" aria-modal="true" aria-labelledby="ar-prev-title" (click)="$event.stopPropagation()">
     <div class="modal-head">
       <h2 id="ar-prev-title">Related Assets</h2>
       <button type="button" class="icon-btn" (click)="closePreview()" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
@@ -152,13 +152,67 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Every other asset (Asset List columns): tick to link it to this asset as a sub asset -->
+        <div *ngIf="!p.loading" class="add-subs">
+          <div class="add-subs__head">
+            <h4>Add sub assets to {{ p.asset.name }} <span class="muted" *ngIf="p.picks.size">· {{ p.picks.size }} selected</span></h4>
+            <label class="search">
+              <lucide-icon [img]="icons.Search" [size]="16"></lucide-icon>
+              <input type="search" [(ngModel)]="p.search" [name]="'pick-search-' + p.asset.tag" placeholder="Search assets" [attr.aria-label]="'Search assets to link to ' + p.asset.name" autocomplete="off" />
+            </label>
+          </div>
+          <div class="table-wrap add-subs__wrap">
+            <table class="sub-table add-subs__table">
+              <thead>
+                <tr>
+                  <th class="col-check"><input type="checkbox" [checked]="allPicked(p)" (change)="togglePickAll(p, $any($event.target).checked)" [attr.aria-label]="'Select all assets to link to ' + p.asset.name" /></th>
+                  <th>Image</th><th>Asset Name</th><th>Asset Tag / ID</th><th>Category / Type</th><th>Location</th><th>Custodian</th>
+                  <th>Status</th><th>Criticality</th><th>Next Maintenance</th><th>Relationship</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of candidates(p)" [class.is-picked]="p.picks.has(a.tag)" (click)="togglePick(p, a)">
+                  <td class="col-check" (click)="$event.stopPropagation()"><input type="checkbox" [checked]="p.picks.has(a.tag)" (change)="togglePick(p, a)" [attr.aria-label]="'Link ' + a.name" /></td>
+                  <td>
+                    <span class="thumb">
+                      <img *ngIf="a.imageUrl; else noImg" [src]="a.imageUrl" [alt]="a.name" />
+                      <ng-template #noImg><lucide-icon [img]="icons.Box" [size]="18"></lucide-icon></ng-template>
+                    </span>
+                  </td>
+                  <td class="strong">{{ a.name }}</td>
+                  <td class="two"><span>{{ a.assetTag || '–' }}</span><small>{{ a.tag }}</small></td>
+                  <td class="two"><span>{{ a.category || '–' }}</span><small>{{ a.type }}</small></td>
+                  <td class="loc">{{ a.location || '–' }}</td>
+                  <td>{{ a.custodian || '–' }}</td>
+                  <td><span *ngIf="a.status" class="tag-pill" [ngClass]="statusClass(a.status)"><span class="dot"></span>{{ a.status }}</span></td>
+                  <td><span *ngIf="a.criticality" class="tag-pill" [ngClass]="criticalityClass(a.criticality)"><span class="dot"></span>{{ a.criticality }}</span></td>
+                  <td class="nowrap">{{ a.nextMaintenance ? (a.nextMaintenance | date: 'dd MMM yyyy') : '–' }}</td>
+                  <td (click)="$event.stopPropagation()">
+                    <select class="rel-select" [disabled]="!p.picks.has(a.tag)" [ngModel]="p.picks.get(a.tag) ?? 'Sub Asset'" (ngModelChange)="setPickType(p, a, $event)"
+                      [name]="'rel-' + p.asset.tag + '-' + a.tag" [attr.aria-label]="'Relationship of ' + a.name">
+                      <option *ngFor="let t of relationshipTypes" [value]="t">{{ t }}</option>
+                    </select>
+                  </td>
+                </tr>
+                <tr *ngIf="!candidates(p).length">
+                  <td colspan="11" class="empty-line">{{ p.search.trim() ? 'No assets match "' + p.search + '".' : 'No other assets to link.' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </div>
     <p *ngIf="popupError" class="form-error" role="alert">{{ popupError }}</p>
     <div class="modal-foot">
-      <span class="muted grow">Submit opens {{ list[list.length - 1].asset.name }} ({{ list[list.length - 1].asset.tag }}).</span>
+      <span class="muted grow">
+        <ng-container *ngIf="pickCount">Submit links {{ pickCount }} sub asset{{ pickCount === 1 ? '' : 's' }} and opens</ng-container>
+        <ng-container *ngIf="!pickCount">Submit opens</ng-container>
+        {{ list[list.length - 1].asset.name }} ({{ list[list.length - 1].asset.tag }}).
+      </span>
       <button type="button" class="btn btn-outline" (click)="closePreview()">Cancel</button>
-      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="submitPreview()">{{ saving ? 'Saving…' : 'Submit' }}</button>
+      <button type="button" class="btn btn-primary" [disabled]="saving" (click)="submitPreview()">{{ saving ? 'Saving…' : pickCount ? 'Link & Submit' : 'Submit' }}</button>
     </div>
   </div>
 </div>
