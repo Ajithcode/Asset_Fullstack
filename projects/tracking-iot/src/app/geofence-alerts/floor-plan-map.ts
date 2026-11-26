@@ -666,7 +666,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
 
     for (const [id, e] of this.assetMk) {
       if (pos.has(id)) continue;
-      e.m.remove();
+      this.assetLayer.removeLayer(e.m);
       this.assetMk.delete(id);
     }
     for (const a of want) {
@@ -694,7 +694,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
         // changed zone: a flier glides from the old spot to the new one; both clusters' counts update when it lands
         this.startMove(a, e, from, at);
       } else if (moved) {
-        if (this.assetLayer.hasLayer(e.m)) this.glide(e.m);
+        if (map.hasLayer(e.m)) this.glide(e.m);
         e.m.setLatLng(at);
       }
       e.zoneId = a.zoneId;
@@ -760,11 +760,18 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   private startMove(a: PlanAsset, e: { m: Leaflet.Marker; zoneId: string }, from: Leaflet.LatLng, to: [number, number]): void {
     const L = this.L!;
     const prev = this.zoneHold.get(a.id);
-    const startAt = prev?.flier ? prev.flier.getLatLng() : from; // an update during a glide continues from where the icon is now
+    // an update during a glide continues from where the icon is on screen now (not from its target)
+    let startAt: Leaflet.LatLng = from;
+    const fe = prev?.flier?.getElement()?.firstElementChild as HTMLElement | null | undefined;
+    if (fe && this.map) {
+      const r = fe.getBoundingClientRect();
+      const c = this.map.getContainer().getBoundingClientRect();
+      startAt = this.map.containerPointToLatLng(L.point(r.left + r.width / 2 - c.left, r.top + r.height / 2 - c.top));
+    }
     const oldZone = prev?.zone ?? e.zoneId;
     if (prev) {
       clearTimeout(prev.timer);
-      prev.flier?.remove();
+      if (prev.flier) this.assetLayer?.removeLayer(prev.flier);
     }
     const flier = L.marker(startAt, { interactive: false, keyboard: false, zIndexOffset: 700, icon: this.assetIcon(a) }).addTo(this.assetLayer!);
     e.m.setLatLng(to);
@@ -781,7 +788,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     const h = this.zoneHold.get(id);
     if (!h) return;
     clearTimeout(h.timer);
-    h.flier?.remove();
+    if (h.flier) this.assetLayer?.removeLayer(h.flier);
     this.zoneHold.delete(id);
     this.recluster();
   }
@@ -790,9 +797,11 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.zoneHold.size) return;
     for (const h of this.zoneHold.values()) {
       clearTimeout(h.timer);
-      h.flier?.remove();
+      if (h.flier) this.assetLayer?.removeLayer(h.flier);
     }
     this.zoneHold.clear();
+    // every asset is shown / counted again from its final spot and zone (no half-way state survives an interrupt)
+    if (!this.destroyed) this.scheduleRecluster();
   }
 
   private scheduleRecluster(): void {
@@ -809,8 +818,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     const L = this.L;
     const map = this.map;
     const layer = this.assetLayer;
-    if (!L || !map || !layer || !this.planReady) return;
-    for (const c of this.clusterMk) c.remove();
+    if (!L || !map || !layer || !this.planReady || this.destroyed) return;
+    for (const c of this.clusterMk) layer.removeLayer(c);
     this.clusterMk = [];
 
     const zoom = map.getZoom();
@@ -891,9 +900,10 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     for (const id of pinned) if (this.assetMk.has(id) && !this.zoneHold.has(id)) single.add(id);
     for (const [id, e] of this.assetMk) {
       const show = single.has(id) && this.showAssets;
-      const on = layer.hasLayer(e.m);
-      if (show && !on) e.m.addTo(layer);
-      else if (!show && on) e.m.remove();
+      // the map is the truth: marker.remove() would leave it in the LayerGroup, and hasLayer(group) would then lie forever
+      const on = map.hasLayer(e.m);
+      if (show && !on) layer.addLayer(e.m);
+      else if (!show && on) layer.removeLayer(e.m);
     }
     const ids = new Set(this.assetFocus?.ids ?? []);
     for (const [id, e] of this.assetMk) e.m.getElement()?.firstElementChild?.classList.toggle('fp-am--hl', ids.has(id));
