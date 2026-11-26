@@ -352,11 +352,11 @@
       </div>
       <ul class="sub-list" *ngIf="filteredSubAssets(a) as subs">
         <li *ngFor="let s of subs; trackBy: trackSub">
-          <button type="button" class="sub-item" (click)="openSubAsset(s, a)" [title]="(s.name || s.tag) + (s.category ? ' · ' + s.category : '') + (s.location ? ' · ' + s.location : '')">
+          <button type="button" class="sub-item" (click)="openSubAsset()" [title]="s.name + (s.type ? ' · ' + s.type : '') + (s.status ? ' · ' + s.status : '') + (s.childCount ? ' · ' + s.childCount + ' under it' : '') + ' – open in Asset Hierarchy'">
             <span class="sub-item__icon"><lucide-icon [img]="icons.Box" [size]="14"></lucide-icon></span>
             <span class="sub-item__main">
               <b>{{ s.name || s.tag }}</b>
-              <small class="mono">{{ s.tag || s.assetRegistrationId || 'Component' }} · {{ s.relationshipType }}</small>
+              <small class="mono">{{ s.tag || '–' }} · {{ s.kind }}</small>
             </span>
           </button>
         </li>

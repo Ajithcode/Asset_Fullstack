@@ -47,7 +47,7 @@ import { apiErrorMessage } from '../services/asset-api';
 import {
   AssetRegistrationFilters, AssetRegistrationListItem, AssetRegistrationResult, AssetRegistrationListQuery, AssetRegistrationListResult, AssetRegistrationService,
 } from '../services/asset-registration/asset-registration';
-import { AssetRelationshipService, SubAssetDto } from '../asset-relationship-list/asset-relationship.service';
+import { AssetHierarchyItemDto, AssetHierarchyService } from '../asset-hierarchy/asset-hierarchy.service';
 
 type SortKey = 'name' | 'tag' | 'category' | 'location' | 'custodian' | 'status' | 'criticality' | 'nextMaintenance';
 type MaintenanceDue = '' | 'overdue' | '30' | '90' | 'none';
@@ -75,6 +75,19 @@ interface AssetRow {
   /** yyyy-mm-dd, or null when not scheduled. */
   nextMaintenance: string | null;
   icon: AssetIconKey;
+}
+
+/** A child of an asset in Asset Hierarchy, shown under that asset's name. */
+interface SubItem {
+  id: string;
+  name: string;
+  tag: string;
+  /** "Asset", "System", "Floor" … (the hierarchy item kind). */
+  kind: string;
+  type: string;
+  status: string;
+  /** Items under this child in the hierarchy. */
+  childCount: number;
 }
 
 interface SelectOption {
@@ -197,7 +210,7 @@ export class AssetList {
   };
 
   private readonly api = inject(AssetRegistrationService);
-  private readonly relationshipsApi = inject(AssetRelationshipService);
+  private readonly hierarchyApi = inject(AssetHierarchyService);
   private readonly destroyRef = inject(DestroyRef);
 
   // ===== Filter options (GET /api/asset-registrations/filters) =====
@@ -639,47 +652,63 @@ export class AssetList {
     this.router.navigate(['/assets/overview'], { queryParams: { id: asset.registrationId, tag: asset.tag } });
   }
 
-  // ===== Sub assets (GET /api/asset-relationships: each main asset with the sub assets linked to it) =====
+  // ===== Sub assets (GET /api/asset-hierarchy: the items created under an asset in Asset Hierarchy) =====
 
-  /** Sub assets per main asset, by the main asset's registration id. */
-  private subAssetsByMain = new Map<string, SubAssetDto[]>();
-  /** Main asset names per sub asset registration id, for the "Sub asset of" note. */
-  private mainsBySub = new Map<string, string[]>();
+  /** Children per asset tag (upper case): the hierarchy items directly under the hierarchy asset with that tag. */
+  private subAssetsByTag = new Map<string, SubItem[]>();
+  /** Parent asset name per child asset tag (upper case), for the "Sub asset of" note. */
+  private parentByTag = new Map<string, string>();
   /** Rows whose sub assets are shown (closed by default). */
   readonly expanded = new Set<string>();
   /** Search text per expanded row. */
   subSearch: Record<string, string> = {};
 
   private loadSubAssets(): void {
-    this.relationshipsApi.getRelationships().subscribe({
-      next: (relationships) => {
-        const byMain = new Map<string, SubAssetDto[]>();
-        const bySub = new Map<string, string[]>();
-        for (const r of relationships) {
-          const subs = r.subAssets ?? [];
-          if (!subs.length) continue;
-          byMain.set(r.mainAssetRegistrationId, subs);
-          const mainName = r.mainAssetName || r.mainAssetTag || r.mainAssetRegistrationId;
-          for (const s of subs) if (s.assetRegistrationId) bySub.set(s.assetRegistrationId, [...(bySub.get(s.assetRegistrationId) ?? []), mainName]);
+    this.hierarchyApi.getItems().subscribe({
+      next: (items) => {
+        const byId = new Map(items.map((i) => [i.id, i]));
+        const byTag = new Map<string, SubItem[]>();
+        const parents = new Map<string, string>();
+        const kindLabel = (k: string | null) => (k ? k.charAt(0).toUpperCase() + k.slice(1).toLowerCase() : 'Item');
+        const isAsset = (i: AssetHierarchyItemDto) => (i.itemKind ?? '').toLowerCase() === 'asset';
+        for (const child of items) {
+          const parent = child.parentId ? byId.get(child.parentId) : undefined;
+          const parentTag = parent && isAsset(parent) ? (parent.assetTag ?? '').trim().toUpperCase() : '';
+          if (!parent || !parentTag) continue;
+          byTag.set(parentTag, [
+            ...(byTag.get(parentTag) ?? []),
+            {
+              id: child.id,
+              name: child.name,
+              tag: child.assetTag ?? '',
+              kind: kindLabel(child.itemKind),
+              type: child.assetTypeName ?? '',
+              status: child.status ?? '',
+              childCount: child.childCount ?? 0,
+            },
+          ]);
+          const childTag = (child.assetTag ?? '').trim().toUpperCase();
+          if (childTag && isAsset(child)) parents.set(childTag, parent.name);
         }
-        this.subAssetsByMain = byMain;
-        this.mainsBySub = bySub;
+        byTag.forEach((list) => list.sort((x, y) => x.name.localeCompare(y.name)));
+        this.subAssetsByTag = byTag;
+        this.parentByTag = parents;
       },
       // the list still works without them; the dropdowns just don't appear
       error: () => {
-        this.subAssetsByMain = new Map();
-        this.mainsBySub = new Map();
+        this.subAssetsByTag = new Map();
+        this.parentByTag = new Map();
       },
     });
   }
 
-  subAssetsOf(row: AssetRow): SubAssetDto[] {
-    return this.subAssetsByMain.get(row.registrationId) ?? [];
+  subAssetsOf(row: AssetRow): SubItem[] {
+    return this.subAssetsByTag.get(row.tag.trim().toUpperCase()) ?? [];
   }
 
-  /** Main assets this row is linked under, e.g. "Generator 01". */
+  /** The asset this row sits under in Asset Hierarchy, e.g. "laptop". */
   mainAssetsOf(row: AssetRow): string {
-    return (this.mainsBySub.get(row.registrationId) ?? []).join(', ');
+    return this.parentByTag.get(row.tag.trim().toUpperCase()) ?? '';
   }
 
   toggleSubAssets(row: AssetRow): void {
@@ -687,25 +716,21 @@ export class AssetList {
     else this.expanded.add(row.id);
   }
 
-  /** The row's sub assets matching its search (name, tag, category, relationship or location). */
-  filteredSubAssets(row: AssetRow): SubAssetDto[] {
+  /** The row's sub assets matching its search (name, tag, kind, type or status). */
+  filteredSubAssets(row: AssetRow): SubItem[] {
     const subs = this.subAssetsOf(row);
     const q = (this.subSearch[row.id] ?? '').trim().toLowerCase();
     if (!q) return subs;
-    return subs.filter((s) => [s.name, s.tag, s.category, s.relationshipType, s.location].some((v) => v?.toLowerCase().includes(q)));
+    return subs.filter((s) => [s.name, s.tag, s.kind, s.type, s.status].some((v) => v.toLowerCase().includes(q)));
   }
 
-  /** A registered sub asset opens its own overview; a component opens the main asset's components tab. */
-  openSubAsset(sub: SubAssetDto, main: AssetRow): void {
-    if (sub.assetRegistrationId) {
-      this.router.navigate(['/assets/overview'], { queryParams: { id: sub.assetRegistrationId, tag: sub.tag || undefined } });
-    } else {
-      this.router.navigate(['/assets/component-details'], { queryParams: { tag: main.tag } });
-    }
+  /** Sub assets live in Asset Hierarchy: open it there. */
+  openSubAsset(): void {
+    this.router.navigateByUrl('/assets/hierarchy');
   }
 
-  trackSub(_: number, sub: SubAssetDto): string {
-    return sub.componentId ? 'c:' + sub.componentId : 'a:' + (sub.assetRegistrationId ?? sub.name);
+  trackSub(_: number, sub: SubItem): string {
+    return sub.id;
   }
 
   // ===== Export / print =====
