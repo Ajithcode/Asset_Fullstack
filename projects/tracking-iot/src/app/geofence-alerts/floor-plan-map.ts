@@ -1048,9 +1048,11 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       if (!plot) return;
       const feed = this.gatewayOf(plot);
       const seen = feed?.lastSeenAt ?? null;
-      const online = !!seen && Date.now() - new Date(seen).getTime() <= 120_000;
-      this.view = { ...base, title: plot.name || plot.code, subtitle: `Gateway ID: ${plot.code || plot.itemId}`, badge: online ? 'Online' : 'Offline', tone: online ? 'ok' : 'bad',
-        rows: [['Zone', zoneName(plot.zoneId)], ['Status', online ? 'Online' : 'Offline'], ['Assets in range', String(online ? (feed?.assetCount ?? 0) : 0)], ['Last seen', this.ago(seen)]] };
+      // Same rule as the backend (Online <= 2 min, Idle <= 10 min, Offline after); the feed's own status wins when sent.
+      const age = seen ? Date.now() - new Date(seen).getTime() : Infinity;
+      const status = feed?.status ?? (age <= 120_000 ? 'Online' : age <= 600_000 ? 'Idle' : 'Offline');
+      this.view = { ...base, title: plot.name || plot.code, subtitle: `Gateway ID: ${plot.code || plot.itemId}`, badge: status, tone: status === 'Online' ? 'ok' : status === 'Idle' ? 'mute' : 'bad',
+        rows: [['Zone', zoneName(plot.zoneId)], ['Status', status], ['Assets in range', String(feed?.assetCount ?? 0)], ['Last seen', this.ago(seen)]] };
     } else if (p.kind === 'zone') {
       const z = this.zones.find((x) => x.id === p.id);
       if (!z) return;

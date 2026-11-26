@@ -80,6 +80,8 @@ export interface GatewayFeed {
   assetCount: number;
   /** Newest reading that came through this gateway (UTC ISO); the endpoint sends it, null when it never heard anything. */
   lastSeenAt?: string | null;
+  /** Online (heard within 2 min), Idle (within 10 min) or Offline: the one shared device-status rule (backend DeviceStatusReader). */
+  status?: 'Online' | 'Idle' | 'Offline';
   assets: { assetId: string; assetName: string | null; tagIds?: string[]; lastSeenAt?: string | null }[];
 }
 
