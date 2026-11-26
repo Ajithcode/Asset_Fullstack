@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-angular';
 import { Router, NavigationEnd, RouterModule } from '@angular/router';
-import { filter, forkJoin, map } from 'rxjs';
+import { filter, map } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { AccessService, AlertFeedService, AuthService, DesktopAlertsService, FeedAlert, pushToast } from 'shared-ui';
 import { prefsKey } from '../landing-page';
@@ -148,9 +148,7 @@ export class Topbar {
   flyoutPosition: { top: number; left: number } | null = null;
 
   readonly icons = { Check, ChevronRight, CircleQuestionMark, ExternalLink, Eye, EyeOff, FileText, Globe, Landmark, Lock, LogOut, Settings, Sparkles, User, Users, X };
-  /** Switch Tenant / Site: the real lists from Master Data (Organization, Site); loaded when the row is first opened. */
-  readonly allSites = 'All Sites';
-  organizations: string[] = [];
+  /** Switch Tenant / Site: the real site list from Master Data (active sites only); the current site is always one of them. */
   sites: string[] = [];
   sitesState: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   readonly languages = [{ code: 'en', label: 'English', ready: true }, { code: 'ar', label: 'العربية (Arabic)', ready: false }];
@@ -209,6 +207,8 @@ export class Topbar {
     // Desktop notifications for IoT alerts: service worker + this browser's push subscription; live alerts go to the bell
     this.desktopAlerts.soundEnabled = this.prefs.notifySound;
     void this.desktopAlerts.init();
+    // Current site: load the list once so a missing / stale choice falls back to the first site
+    this.loadSites();
     // The bell: unacknowledged alerts from the Tracking alert feed (polled every 10 s)
     this.alertFeed.start();
   }
@@ -296,6 +296,8 @@ export class Topbar {
     this.isDropdownOpen = !this.isDropdownOpen;
     this.section = '';
     if (this.isDropdownOpen) this.closeNotifications();
+    // a site added in Master Data shows up without a page reload
+    if (this.isDropdownOpen) this.loadSites();
     if (this.isDropdownOpen && triggerEl instanceof HTMLElement) {
       const rect = triggerEl.getBoundingClientRect();
       // right edge lines up with the profile chip
@@ -330,22 +332,28 @@ export class Topbar {
     this.loadSites();
   }
 
-  /** Master Data > Organization / Site (active, not deleted). Failures show a message instead of made-up names. */
+  /** Master Data > Site (active, not deleted). Failures show a message instead of made-up names. */
   private loadSites(): void {
-    if (this.sitesState === 'loading' || this.sitesState === 'ready') return;
-    this.sitesState = 'loading';
-    type Row = { organizationName?: string; siteName?: string; status?: string | null; isDeleted?: boolean };
+    if (this.sitesState === 'loading') return;
+    // refresh in the background when a list is already shown (no flicker); first load shows "Loading"
+    const refreshing = this.sitesState === 'ready';
+    if (!refreshing) this.sitesState = 'loading';
+    type Row = { siteName?: string; status?: string | null; isDeleted?: boolean };
     const base = `${environment.masterDataApiUrl}api/master-data`;
-    const names = (rows: Row[], key: 'organizationName' | 'siteName') =>
-      [...new Set(rows.filter((r) => r.isDeleted !== true && !/^(inactive|disabled|deleted)$/i.test(r.status ?? '')).map((r) => (r[key] ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const names = (rows: Row[]) =>
+      [...new Set(rows.filter((r) => r.isDeleted !== true && !/^(inactive|disabled|deleted)$/i.test(r.status ?? '')).map((r) => (r.siteName ?? '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     const list = (resource: string) => this.http.get<Row[] | { items?: Row[] }>(`${base}/${resource}`).pipe(map((res) => (Array.isArray(res) ? res : res?.items ?? [])));
-    forkJoin({ orgs: list('organizations'), sites: list('sites') }).subscribe({
-      next: ({ orgs, sites }) => {
-        this.organizations = names(orgs, 'organizationName');
-        this.sites = names(sites, 'siteName');
+    list('sites').subscribe({
+      next: (sites) => {
+        this.sites = names(sites);
         this.sitesState = 'ready';
+        // none chosen yet, or the chosen site no longer exists (also the old "All Sites" value): use the first site
+        if (!this.sites.includes(this.site)) {
+          this.site = this.sites[0] ?? '';
+          if (this.site) writeValue(this.siteStorageKey, this.site);
+        }
       },
-      error: () => (this.sitesState = 'error'),
+      error: () => (this.sitesState = refreshing ? 'ready' : 'error'),
     });
   }
 
@@ -392,7 +400,7 @@ export class Topbar {
     this.showToast(`Language set to ${lang.label}.`);
   }
 
-  /** The chosen site is kept per user as the current site shown in the menu. No module filters its data by it yet. */
+  /** The chosen site is kept per user as the current site shown in the menu. No module reads it yet (page filters are their own). */
   setSite(site: string): void {
     this.site = site;
     writeValue(this.siteStorageKey, site);
@@ -402,9 +410,9 @@ export class Topbar {
 
   private readSite(): string {
     try {
-      return localStorage.getItem(this.siteStorageKey) || this.allSites;
+      return localStorage.getItem(this.siteStorageKey) || '';
     } catch {
-      return this.allSites;
+      return '';
     }
   }
 

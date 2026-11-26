@@ -9,6 +9,7 @@
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: false }"
           class="nav-item"
+          [attr.data-tip]="item.label"
         >
           <span class="nav-num" *ngIf="!collapsed" aria-hidden="true">{{ moduleNumber(i) }}</span>
           <span class="nav-icon">
@@ -23,6 +24,7 @@
           <div
             class="nav-item nav-item-dropdown nav-item-dropdown--inline"
             (click)="toggleInline(item, $event.currentTarget)"
+            [attr.data-tip]="item.label"
             [class.open]="isInlineOpen(item.label) || isDropdownOpen(item.label)"
             [class.section-active]="isSectionActive(item)"
           >
@@ -96,6 +98,7 @@
           *ngIf="item.children && !isInline(item)"
           class="nav-item nav-item-dropdown"
           (click)="toggleDropdown(item.label, $event.currentTarget)"
+          [attr.data-tip]="item.label"
           [class.open]="isDropdownOpen(item.label)"
         >
           <span class="nav-num" *ngIf="!collapsed" aria-hidden="true">{{ moduleNumber(i) }}</span>

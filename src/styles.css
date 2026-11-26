@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 :root {
-  --piq-sidebar-width: 230px;
+  --piq-sidebar-width: 248px;
   --piq-sidebar-collapsed-width: 72px;
   --piq-font: 'Red Hat Display', sans-serif;
   --piq-card-border: 1px solid #d4d6da;

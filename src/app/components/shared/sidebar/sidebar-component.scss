@@ -1121,3 +1121,100 @@
   font-weight: 500;
   opacity: 1;
 }
+
+
+/* =====================================================================
+   Rows grow with their text (2026-11): no row is taller than its content allows, so a label
+   that wraps to 2 lines pushes the next item down instead of overlapping it. Wrap only between
+   words. Kept last so it wins over the layers above.
+   ===================================================================== */
+.sidebar .nav {
+  gap: 4px;
+  grid-auto-rows: auto;
+}
+
+.sidebar .nav-item,
+.sidebar .nav-dropdown-item,
+.sidebar .nav-dropdown {
+  flex: none;
+  box-sizing: border-box;
+  height: auto;
+}
+
+/* main modules: number + icon tile (30 px) are centred on the first text line; text wraps below it */
+.sidebar .nav-item {
+  min-height: 42px;
+  align-items: flex-start;
+  padding: 6px 10px;
+  line-height: 1.25;
+}
+
+.sidebar .nav-num,
+.sidebar .nav-caret {
+  align-self: flex-start;
+  height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar .nav-label {
+  flex: 1 1 0;
+  min-width: 0;
+  /* first line sits in the middle of the 30 px icon tile */
+  padding: calc((30px - 1.25em) / 2) 0;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+
+/* sub-menus and sub-sub-menus */
+.sidebar .nav-dropdown {
+  gap: 2px;
+}
+
+.sidebar .nav-dropdown-item {
+  min-height: 32px;
+  padding: 7px 12px;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+
+.sidebar .nav-dropdown-item--nested {
+  min-height: 30px;
+  padding-block: 6px;
+}
+
+.sidebar .nav-dropdown-group__label {
+  flex: 1 1 0;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+
+/* flyout (Administration, …): same wrapping rules, rows grow with their text */
+.nav-flyout-item,
+.nav-flyout-sublist-item,
+.nav-flyout-subsublist-item {
+  line-height: 1.25;
+  padding-block: 8px;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+
+/* licence lock: small badge at the icon tile's top-right corner, clear of the icon glyph and the number,
+   the same place on every locked module */
+.sidebar .nav-lock {
+  top: -5px;
+  right: -7px;
+  bottom: auto;
+  left: auto;
+  width: 13px;
+  height: 13px;
+}

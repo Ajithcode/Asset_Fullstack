@@ -365,7 +365,7 @@ export class Sidebar implements OnDestroy {
   }
 
 
-  // ---- name tooltip: full menu / sub-menu name after ~300 ms (always when collapsed, or when the label is cut off with "…") ----
+  // ---- name tooltip: full menu / sub-menu name after ~300 ms, always (expanded and collapsed) ----
   private static readonly TIP_ITEMS = '.nav-item, .nav-dropdown-item, .nav-flyout-item, .nav-flyout-sublist-item, .nav-flyout-subsublist-item';
   private tipTimer?: ReturnType<typeof setTimeout>;
   private tipEl: HTMLElement | null = null;
@@ -400,12 +400,8 @@ export class Sidebar implements OnDestroy {
   private showTip(item: Element): void {
     if (!item.isConnected || this.tipFor !== item) return;
     const labelEl = (item.querySelector('.nav-label, .nav-dropdown-group__label, .nav-flyout-label') as HTMLElement | null) ?? (item as HTMLElement);
-    const text = (labelEl.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const text = (item.getAttribute('data-tip') ?? labelEl.textContent ?? '').replace(/\s+/g, ' ').trim();
     if (!text) return;
-    // top-level labels are not drawn at all in the collapsed rail; anything else only when the text is cut off
-    const hiddenLabel = this.collapsed && item.classList.contains('nav-item');
-    const cut = [labelEl, item as HTMLElement].some((el) => el.scrollWidth > el.clientWidth + 1);
-    if (!hiddenLabel && !cut) return;
 
     const tip = document.createElement('div');
     tip.setAttribute('role', 'tooltip');
