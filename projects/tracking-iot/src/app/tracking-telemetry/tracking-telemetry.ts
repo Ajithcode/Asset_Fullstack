@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -41,6 +41,15 @@ const CHART = { l: 56, r: 18, band: 118, gap: 26, axis: 24 };
   styleUrls: ['./tracking-telemetry.css', './tracking-telemetry-panels.css', './tracking-telemetry-v2.css', '../shared/iot-purple-theme.css'],
 })
 export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
+  /** Map legend: a strip under the map; in full screen a collapsed "Legend" button so it does not cover the plan. */
+  fullscreen = false;
+  legendOpen = false;
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    this.fullscreen = !!document.fullscreenElement;
+    if (!this.fullscreen) this.legendOpen = false;
+  }
+
   readonly icons = { Activity, Battery, BatteryLow, Bell, Box, Building2, Calendar, Clock, Cpu, Download, Filter, Heart, History, Layers, Link, MapPin, RadioTower, Search, Signal, TriangleAlert, Wifi, WifiOff, X };
   readonly ranges = RANGES;
 

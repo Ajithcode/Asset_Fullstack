@@ -36,11 +36,19 @@
 .al-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #fee2e2; color: #b91c1c; font-size: 0.688rem; font-weight: 700; }
 
 /* floor plan map */
-.map-card > app-floor-plan-map { position: absolute; inset: 0; z-index: 0; }
-.map-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 20px; text-align: center; }
+.map-card { display: flex; flex-direction: column; }
+.map-card > app-floor-plan-map { position: relative; inset: auto; flex: 1 1 auto; min-height: 0; z-index: 0; }
+.map-empty { position: relative; flex: 1 1 auto; display: grid; place-items: center; margin: 0; padding: 20px; text-align: center; }
 .map-card .mo-top { left: auto; right: 10px; }
-.map-card .mo-layers { top: auto; bottom: 12px; right: auto; left: 10px; }
-.map-card .mo-legend { top: 56px; }
+.map-card .mo-layers { top: auto; bottom: 42px; right: auto; left: 10px; } /* above the legend strip */
+.map-card.mc-fs .mo-layers { bottom: 12px; }
+@media (max-width: 900px) { .map-card .mo-layers { bottom: 62px; } .map-card.mc-fs .mo-layers { bottom: 12px; } }
+.map-card .mo-legend { position: static; flex: 0 0 auto; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 6px 12px; border-top: 1px solid #e5e7eb; border-radius: 0; background: #fff; box-shadow: none; font-size: 0.688rem; z-index: auto; }
+.map-card .mo-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.map-card .mo-legend .lg-toggle { padding: 3px 10px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+/* full screen: collapsed "Legend" button bottom-left (above the layer toggles), items open as a small panel */
+.map-card.mc-fs .mo-legend { position: absolute; left: 10px; bottom: 52px; z-index: 500; flex-direction: column; align-items: flex-start; gap: 6px; padding: 4px 6px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.95); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18); }
+.map-card.mc-fs .mo-legend span, .map-card.mc-fs .mo-legend small { padding: 0 6px; }
 .lg { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 .lg--gw { background: #059669; }
 .lg--sel { background: #059669; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.4); }

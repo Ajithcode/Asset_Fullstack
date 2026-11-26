@@ -41,6 +41,15 @@ const MOVING_MS = 60000;
   ],
 })
 export class RealTimeLocation implements OnInit, OnDestroy {
+  /** Map legend: a strip under the map; in full screen a collapsed "Legend" button so it does not cover the plan. */
+  fullscreen = false;
+  legendOpen = false;
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    this.fullscreen = !!document.fullscreenElement;
+    if (!this.fullscreen) this.legendOpen = false;
+  }
+
   readonly icons = { ArrowLeft, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, Lightbulb, LocateFixed, MapPin, Pause, Play, Power, Radio, Route, Search, Send, Settings, ShieldAlert, Square, TriangleAlert, Volume2, Wifi, X, HelpCircle };
   /** LED colours the tags support (MBT02 has a red LED only: colour 3). */
   readonly ledColours = [{ value: 3, label: 'Red' }];

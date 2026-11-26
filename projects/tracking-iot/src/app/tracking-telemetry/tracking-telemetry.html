@@ -73,10 +73,13 @@
         <label><input type="checkbox" [(ngModel)]="showAssetsLayer" />Plotted assets</label>
         <label><input type="checkbox" [(ngModel)]="showLabels" />Labels</label>
       </div>
-      <div class="mo mo-legend" aria-label="Legend">
-        <span><i class="lg lg--gw"></i>Gateway</span>
-        <span><i class="lg lg--sel"></i>Hearing selected asset</span>
-        <span><i class="lg lg--count">N</i>Assets heard (live)</span>
+      <div class="mo mo-legend" [class.mo-legend--fs]="fullscreen" aria-label="Legend">
+        <button *ngIf="fullscreen" type="button" class="lg-toggle" (click)="legendOpen = !legendOpen" [attr.aria-expanded]="legendOpen">Legend</button>
+        <ng-container *ngIf="!fullscreen || legendOpen">
+          <span><i class="lg lg--gw"></i>Gateway</span>
+          <span><i class="lg lg--sel"></i>Hearing selected asset</span>
+          <span><i class="lg lg--count">N</i>Assets heard (live)</span>
+        </ng-container>
       </div>
     </section>
 
