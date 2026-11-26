@@ -71,6 +71,12 @@ public static class MapValidationExtensions
         AllowOnly(errors, nameof(request.Shape), request.Shape, MapOptions.ZoneShapes);
         AllowOnly(errors, nameof(request.AccessRule), request.AccessRule, MapOptions.AccessRules);
 
+        // Any #RRGGBB colour (palette or custom); empty falls back to the default colour
+        if (!string.IsNullOrWhiteSpace(request.Color) && !System.Text.RegularExpressions.Regex.IsMatch(request.Color.Trim(), "^#[0-9a-fA-F]{6}$"))
+        {
+            errors[nameof(request.Color)] = ["Colour must be a hex value like #5B2AA8"];
+        }
+
         // Bounding box is always sent, as percent of the plan
         Percent(errors, nameof(request.X), request.X, required: true);
         Percent(errors, nameof(request.Y), request.Y, required: true);

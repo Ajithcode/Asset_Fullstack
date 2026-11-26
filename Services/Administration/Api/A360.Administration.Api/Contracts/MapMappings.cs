@@ -237,7 +237,7 @@ internal static class MapMappings
         zone.Code = request.Code!.Trim();
         zone.Name = request.Name!.Trim();
         zone.ZoneType = Canonical(request.Type, MapOptions.ZoneTypes)!;
-        zone.Color = Optional(request.Color) ?? MapOptions.ZoneColors[0];
+        zone.Color = Optional(request.Color)?.ToUpperInvariant() ?? MapOptions.ZoneColors[0];
         zone.Shape = Canonical(request.Shape, MapOptions.ZoneShapes)!;
         zone.X = request.X!.Value;
         zone.Y = request.Y!.Value;

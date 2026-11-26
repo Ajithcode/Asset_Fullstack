@@ -16,7 +16,7 @@ public static class MapOptions
     public static readonly string[] AccessRules = ["Authorized Personnel Only", "All Staff", "Contractors with Escort", "Restricted - Badge Required"];
     public static readonly string[] PlotKinds = ["asset", "device"];
     public static readonly string[] VersionBumps = ["minor", "major"];
-    public static readonly string[] ZoneColors = ["#7C3AED", "#2563EB", "#10B981", "#F59E0B", "#F97316", "#EC4899"];
+    public static readonly string[] ZoneColors = ["#5B2AA8", "#7C3AED", "#2563EB", "#0EA5E9", "#10B981", "#84CC16", "#F59E0B", "#F97316", "#EF4444", "#EC4899"];
 
     public const string Draft = "Draft";
     public const string Published = "Published";
