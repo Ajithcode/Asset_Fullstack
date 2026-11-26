@@ -3,12 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { Info, LucideAngularModule, Trash2 } from 'lucide-angular';
 import { MapZone, zoneIcon } from '../maps.data';
 import { MapsStore } from '../maps.store';
+import { ZoneColorPicker, ZONE_PALETTE } from '../zone-color/zone-color-picker';
 
 /** Right panel form for the selected zone: identity, access rule and geofence alerts. */
 @Component({
   standalone: true,
   selector: 'app-zone-form',
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, ZoneColorPicker],
   template: `
     @if (draft) {
       <div class="rhead">
@@ -34,6 +35,10 @@ import { MapsStore } from '../maps.store';
             <option [ngValue]="null" disabled>Select Zone Type</option>
             @for (t of types; track t.type) { <option [ngValue]="t.type">{{ t.type }}</option> }
           </select>
+        </div>
+        <div class="field">
+          <label>Zone Colour</label>
+          <app-zone-color-picker [palette]="palette" [(value)]="draft.color" [disabled]="!store.editing"></app-zone-color-picker>
         </div>
         <div class="field">
           <label for="zf-parent">Parent Location</label>
@@ -117,6 +122,10 @@ export class ZoneForm implements OnChanges {
     return !!code && !this.store.zones.some((z) => z.id !== this.draft!.id && z.code.toUpperCase() === code);
   }
 
+  get palette(): string[] {
+    return this.store.zoneOptions.colors?.length ? this.store.zoneOptions.colors : ZONE_PALETTE;
+  }
+
   get types() {
     return this.store.zoneTypes;
   }
@@ -135,7 +144,7 @@ export class ZoneForm implements OnChanges {
   save(): void {
     if (!this.draft || this.store.working) return;
     this.tried = true;
-    if (!this.draft.name.trim() || !this.codeOk) return;
+    if (!this.draft.name.trim() || !this.codeOk || !/^#[0-9a-fA-F]{6}$/.test(this.draft.color ?? '')) return;
     const zone: MapZone = { ...this.draft, name: this.draft.name.trim(), code: this.draft.code.trim().toUpperCase() };
     // Area follows the box and the plan's dimensions when those are known
     zone.areaM2 = this.store.areaOf(zone) || zone.areaM2;

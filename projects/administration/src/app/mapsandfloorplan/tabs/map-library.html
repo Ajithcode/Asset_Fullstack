@@ -67,6 +67,7 @@
         [selectedItemId]="store.selectedItemId"
         [placing]="!!placing"
         [drawShape]="drawing"
+        [drawColor]="drawColor"
         [gatewayCounts]="live.gatewayCounts"
         [anchorItemId]="live.popupItem?.id ?? null"
         [anchorZoneId]="live.zonePopup?.zone?.id ?? null"
@@ -139,4 +140,19 @@
 
 @if (uploadOpen) {
   <app-upload-dialog (done)="uploaded()" (cancel)="uploadOpen = false"></app-upload-dialog>
+}
+
+@if (colorFor) {
+  <div class="zc-backdrop" (click)="colorFor = null">
+    <div class="panel zc-dialog" role="dialog" aria-modal="true" aria-label="Zone colour" (click)="$event.stopPropagation()">
+      <h3>Choose the zone colour</h3>
+      <p class="muted">The {{ colorFor }} zone is drawn with this colour (transparent fill, solid border) on every map.</p>
+      <app-zone-color-picker [palette]="palette" [(value)]="drawColor"></app-zone-color-picker>
+      <div class="rfoot">
+        <span class="map-tools__spacer"></span>
+        <button type="button" class="btn" (click)="colorFor = null">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="confirmColor()">Start drawing</button>
+      </div>
+    </div>
+  </div>
 }

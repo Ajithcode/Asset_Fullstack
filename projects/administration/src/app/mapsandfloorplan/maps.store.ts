@@ -899,7 +899,7 @@ export class MapsStore implements OnDestroy {
   }
 
   /** POST a new zone with defaults (at the outline drawn on the map, when given); the user fills in its details in the zone form. */
-  addZone(shape: ZoneShape, done?: (z: MapZone) => void, drawn?: ZoneGeometry): void {
+  addZone(shape: ZoneShape, done?: (z: MapZone) => void, drawn?: ZoneGeometry, color?: string): void {
     const planId = this.selectedPlanId;
     if (!planId) {
       this.notify('Upload a floor plan for this location before drawing zones', 'error');
@@ -920,7 +920,7 @@ export class MapsStore implements OnDestroy {
       name: mdm ? mdm.label.replace(/\s*\(.*\)$/, '') : `New ${shape} Zone`,
       type,
       tone: zoneTone(type),
-      color: TONE_HEX[zoneTone(type)],
+      color: color || TONE_HEX[zoneTone(type)],
       shape,
       x: 40,
       y: 40,
@@ -954,7 +954,7 @@ export class MapsStore implements OnDestroy {
     const zone: MapZone = { ...draft, tone: zoneTone(draft.type) };
     const prev = this.zones.find((z) => z.id === draft.id);
     // A new type takes its colour unless the zone had a custom one
-    if (prev && prev.type !== zone.type && (!prev.color || prev.color.toLowerCase() === TONE_HEX[prev.tone])) zone.color = TONE_HEX[zone.tone];
+    if (prev && prev.type !== zone.type && zone.color === prev.color && (!prev.color || prev.color.toLowerCase() === TONE_HEX[prev.tone])) zone.color = TONE_HEX[zone.tone];
     this.run(this.api.updateZone(zone), { pending: 'Saving zone…', success: (z) => `Zone ${z.code} saved`, error: 'Could not save the zone' }, (saved) => {
       this.undoStack.push(before);
       this.redoStack = [];

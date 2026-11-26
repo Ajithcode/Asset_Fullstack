@@ -240,6 +240,8 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
 
   /** While set, clicks on the map draw a zone of this shape (outline reported through `zoneDrawn`). */
   @Input() drawShape: ZoneShape | null = null;
+  /** Colour of the zone being drawn (outline preview). */
+  @Input() drawColor = '#5B2AA8';
 
   @Output() zoneSelect = new EventEmitter<MapZone>();
   @Output() itemSelect = new EventEmitter<PlotItem>();
@@ -716,10 +718,9 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
     const active = z.id === this.selectedZoneId;
     const style = {
       color: hex,
-      weight: active ? 3 : 1.5,
-      dashArray: active ? undefined : '5 4',
+      weight: active ? 3 : 2,
       fillColor: hex,
-      fillOpacity: active ? 0.32 : 0.22,
+      fillOpacity: active ? 0.2 : 0.12,
       interactive: !this.preview
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -973,7 +974,7 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
     this.drawLayer.clearLayers();
     const pts = this.drawPoints;
     if (!pts.length) return;
-    const style = { color: '#6d28d9', weight: 2, dashArray: '6 4', fillColor: '#7c3aed', fillOpacity: 0.15, interactive: false };
+    const style = { color: this.drawColor, weight: 2, dashArray: '6 4', fillColor: this.drawColor, fillOpacity: 0.12, interactive: false };
     const hover = this.hover ?? pts[pts.length - 1];
     if (this.drawShape === 'Rectangle') {
       L.rectangle([pts[0], hover], style).addTo(this.drawLayer);
@@ -984,7 +985,7 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
       if (pts.length >= 3) L.polygon(pts, { ...style, dashArray: undefined, weight: 0 }).addTo(this.drawLayer);
     }
     pts.forEach((p, i) =>
-      L.circleMarker(p, { radius: i === 0 ? 6 : 4, color: '#fff', weight: 2, fillColor: '#6d28d9', fillOpacity: 1, interactive: false }).addTo(this.drawLayer)
+      L.circleMarker(p, { radius: i === 0 ? 6 : 4, color: '#fff', weight: 2, fillColor: this.drawColor, fillOpacity: 1, interactive: false }).addTo(this.drawLayer)
     );
   }
 

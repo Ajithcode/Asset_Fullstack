@@ -168,7 +168,7 @@ export const ZONE_TYPES: { type: ZoneType; tone: Tone; icon: LucideIconData }[] 
 
 export const ACCESS_RULES = ['Authorized Personnel Only', 'All Staff', 'Contractors with Escort', 'Restricted - Badge Required'];
 
-export const ZONE_COLORS = ['#7C3AED', '#2563EB', '#10B981', '#F59E0B', '#F97316', '#EC4899'];
+export const ZONE_COLORS = ['#5B2AA8', '#7C3AED', '#2563EB', '#0EA5E9', '#10B981', '#84CC16', '#F59E0B', '#F97316', '#EF4444', '#EC4899'];
 
 /** GET zones/options; these are the fallbacks while it loads (or when it fails). */
 export interface ZoneOptions {

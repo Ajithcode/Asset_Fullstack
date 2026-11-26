@@ -403,7 +403,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     let focus: Leaflet.LatLngBounds | null = null;
 
     for (const z of zones) {
-      const style: Leaflet.PathOptions = { color: z.color || '#7c3aed', weight: 2.2, fillColor: z.color || '#7c3aed', fillOpacity: 0.22, dashArray: z.active ? undefined : '6 6', className: 'fp-zone-shape' };
+      const style: Leaflet.PathOptions = { color: z.color || '#7c3aed', weight: 2.2, fillColor: z.color || '#7c3aed', fillOpacity: 0.12, dashArray: z.active ? undefined : '6 6', className: 'fp-zone-shape' };
       let shape: Leaflet.Path & { getBounds(): Leaflet.LatLngBounds };
       if (z.shape === 'Circle') {
         shape = L.circle(this.at(z.x + z.w / 2, z.y + z.h / 2), { ...style, radius: ((z.radius ?? z.w / 2) / 100) * W });

@@ -682,3 +682,9 @@ app-map-viewer {
 .modal.preview-modal {
   width: min(1000px, calc(100vw - 32px));
 }
+
+/* zone colour dialog (Map Library) */
+.zc-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: rgba(15, 23, 42, 0.4); padding: 16px; }
+.zc-dialog { width: min(380px, 100%); padding: 18px; }
+.zc-dialog h3 { margin: 0 0 6px; }
+.zc-dialog .rfoot { margin-top: 16px; }

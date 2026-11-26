@@ -21,12 +21,13 @@ import { MapsStore } from '../maps.store';
 import { SiteTree } from '../site-tree/site-tree';
 import { UploadDialog } from '../upload-dialog/upload-dialog';
 import { ZoneForm } from '../zone-form/zone-form';
+import { ZoneColorPicker, ZONE_PALETTE } from '../zone-color/zone-color-picker';
 
 /** Map Library: browse sites / floors, view the map, draw zones and plot items; zone details on the right. */
 @Component({
   standalone: true,
   selector: 'app-maps-library',
-  imports: [FormsModule, LucideAngularModule, SiteTree, MapViewer, MapCanvas, ZoneForm, UploadDialog, AssetLivePopup],
+  imports: [FormsModule, LucideAngularModule, SiteTree, MapViewer, MapCanvas, ZoneForm, ZoneColorPicker, UploadDialog, AssetLivePopup],
   templateUrl: './map-library.html',
   styleUrls: ['../../shared/admin-workspace.css', '../maps.css'],
   styles: `.map-stage { position: relative; flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }`
@@ -73,7 +74,28 @@ export class MapLibraryTab {
     this.drawing = null;
   }
 
+  /** Shape picked in the Draw menu, waiting for the user to choose its colour. */
+  colorFor: MapZone['shape'] | null = null;
+  drawColor = ZONE_PALETTE[0];
+
+  get palette(): string[] {
+    return this.store.zoneOptions.colors?.length ? this.store.zoneOptions.colors : ZONE_PALETTE;
+  }
+
+  /** Draw menu: ask for the colour first, then start drawing. */
   draw(shape: MapZone['shape']): void {
+    this.drawOpen = false;
+    if (!this.store.canDrawMdmZone()) return;
+    this.colorFor = shape;
+  }
+
+  confirmColor(): void {
+    const shape = this.colorFor;
+    this.colorFor = null;
+    if (shape && /^#[0-9a-fA-F]{6}$/.test(this.drawColor)) this.startDrawing(shape);
+  }
+
+  private startDrawing(shape: MapZone['shape']): void {
     this.drawOpen = false;
     // Zones are drawn per Master Data zone (picked in the tree)
     if (!this.store.canDrawMdmZone()) return;
@@ -88,7 +110,7 @@ export class MapLibraryTab {
   zoneDrawn(geometry: ZoneGeometry): void {
     const shape = this.drawing;
     this.drawing = null;
-    if (shape) this.store.addZone(shape, () => (this.rightTab = 'zone'), geometry);
+    if (shape) this.store.addZone(shape, () => (this.rightTab = 'zone'), geometry, this.drawColor);
   }
 
   startPlacing(kind: PlotKind): void {
