@@ -76,6 +76,9 @@ const darken = (c: string, f = 0.7): string => {
 };
 /** Glide of an asset marker between zones (ease-in-out). */
 const GLIDE_MS = 1800;
+/** Asset icon size on screen, and the zoom below which every zone with 2+ assets shows one badge. */
+const ICON_PX = 30;
+const CLUSTER_ZOOM = -1.25;
 const reducedMotion = (): boolean => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const STATE_COLOR = { Moving: '#16a34a', Stationary: '#6d28d9', Unknown: '#94a3b8' } as const;
 
@@ -199,6 +202,13 @@ const ASSET_SVG =
     .fp-am--hl .tr-fill { stroke-width: 2.6; }
     .fp-am .tr-handle { fill: none; stroke: var(--c); stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
     .fp-am .tr-halo { fill: none; stroke: #fff; stroke-width: 4.6; stroke-linecap: round; stroke-linejoin: round; }
+    .fp-am-lbl { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 2px; white-space: nowrap; padding: 1px 6px; border-radius: 6px;
+      background: rgba(255, 255, 255, .94); color: #0f172a; font-size: 0.688rem; font-weight: 600; text-decoration: none; box-shadow: 0 1px 3px rgba(15, 23, 42, .25); pointer-events: none; }
+    .fp-labels .fp-am-lbl { display: block; }
+    .fp-cl { position: absolute; left: 50%; top: 50%; width: var(--d, 34px); height: var(--d, 34px); margin: calc(var(--d, 34px) / -2) 0 0 calc(var(--d, 34px) / -2); display: grid; place-items: center;
+      box-sizing: border-box; border-radius: 50%; background: #6d28d9; color: #fff; border: 2px solid #fff; font-size: 0.813rem; font-weight: 800; cursor: pointer;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, .4), 0 3px 8px rgba(15, 23, 42, .45); }
+    .fp-cl:hover { background: #5b21b6; }
     .fp-am i { position: absolute; inset: 0; border-radius: 50%; opacity: 0; pointer-events: none; }
     .fp-am u { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid #6d28d9; background: rgba(109, 40, 217, .12); opacity: 0; pointer-events: none; text-decoration: none; }
     .fp-am--moving i.r1 { background: rgba(22, 163, 74, .35); animation: fp-am-pulse 1.8s ease-out infinite; }
@@ -271,7 +281,15 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   private markers?: Leaflet.LayerGroup;
   private liveLayer?: Leaflet.LayerGroup;
   private assetLayer?: Leaflet.LayerGroup;
-  private assetMk = new Map<string, { m: Leaflet.Marker; zoneId: string; state: string }>();
+  private assetMk = new Map<string, { m: Leaflet.Marker; zoneId: string; state: string; name: string; code: string }>();
+  /** Zones drawn on the current floor / zone view (set by updateAssets, read by the clustering). */
+  private curZones = new Map<string, PlanZone>();
+  private clusterMk: Leaflet.Marker[] = [];
+  private reclusterTimer?: ReturnType<typeof setTimeout>;
+  /** An asset that changed zone keeps counting in its OLD zone / cluster until its glide ends (then both counts update). */
+  private zoneHold = new Map<string, { zone: string; timer: ReturnType<typeof setTimeout>; flier?: Leaflet.Marker }>();
+  /** Zones opened by clicking their cluster: shown split until the user zooms out again. */
+  private expand?: { zones: Set<string>; zoom: number };
   private scopeBounds: Leaflet.LatLngBounds | null = null;
   private shownHl = '';
   private hlTimer?: ReturnType<typeof setTimeout>;
@@ -304,6 +322,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       // the trolley markers keep one size on screen at every zoom; a zoom / refit never glides them
       this.host.nativeElement.style.setProperty('--fp-am', '30px');
       map.on('zoomstart viewreset', () => this.stopGlides());
+      map.on('zoomend moveend resize', () => this.scheduleRecluster());
       map.on('move zoom resize', () => this.placePopup());
       map.on('click dragstart', () => this.closePopup());
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
@@ -344,6 +363,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.destroyed = true;
     clearTimeout(this.hlTimer);
+    clearTimeout(this.reclusterTimer);
+    this.abortMoves();
     clearInterval(this.viewTimer);
     this.viewSub?.unsubscribe();
     this.resize?.disconnect();
@@ -579,7 +600,11 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private assetHtml(a: PlanAsset): string {
-    return `<span class="fp-am fp-am--${a.state.toLowerCase()}" style="--c:${STATE_COLOR[a.state]}"><u></u><i class="r1"></i><i class="r2"></i>${TROLLEY_SVG}</span>`;
+    return `<span class="fp-am fp-am--${a.state.toLowerCase()}" style="--c:${STATE_COLOR[a.state]}"><u></u><i class="r1"></i><i class="r2"></i>${TROLLEY_SVG}<s class="fp-am-lbl">${esc(a.name)}</s></span>`;
+  }
+
+  private assetIcon(a: PlanAsset): Leaflet.DivIcon {
+    return this.L!.divIcon({ className: 'fp-asset-marker', html: this.assetHtml(a), iconSize: [0, 0], iconAnchor: [0, 0] });
   }
 
   /** Inline transform transition for the next setLatLng: a continuing move starts from where the icon is now (browser retargets). */
@@ -592,6 +617,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private stopGlides(): void {
+    this.abortMoves();
     for (const e of this.assetMk.values()) {
       const el = e.m.getElement();
       if (el) { el.style.transition = ''; clearTimeout(this.glideTimers.get(el)); this.glideTimers.delete(el); }
@@ -605,6 +631,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     const L = this.L;
     const map = this.map;
     if (!L || !map || !this.assetLayer || !this.planReady) return;
+    this.host.nativeElement.classList.toggle('fp-labels', this.showLabels);
     const zones = new Map((this.zoneId === undefined ? this.zones : this.zones.filter((z) => z.id === this.zoneId)).map((z) => [z.id, z]));
     const want = this.showAssets ? this.assetMarkers.filter((a) => zones.has(a.zoneId)) : [];
     const byZone = new Map<string, PlanAsset[]>();
@@ -625,40 +652,233 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       const at = pos.get(a.id)!;
       const e = this.assetMk.get(a.id);
       if (!e) {
-        const m = L.marker(at, { keyboard: false, riseOnHover: true, zIndexOffset: 600, icon: L.divIcon({ className: 'fp-asset-marker', html: this.assetHtml(a), iconSize: [0, 0], iconAnchor: [0, 0] }) })
+        const m = L.marker(at, { keyboard: false, riseOnHover: true, zIndexOffset: 600, icon: this.assetIcon(a) })
           .bindTooltip(this.assetTip(a), { direction: 'top', offset: [0, -10], opacity: 1 })
           .on('click', () => {
             this.openPopup({ kind: 'asset', id: a.id }, null);
             this.ngZone.run(() => this.assetSelect.emit(a.id));
           })
-          .addTo(this.assetLayer);
-        this.assetMk.set(a.id, { m, zoneId: a.zoneId, state: a.state });
+          ;
+        this.assetMk.set(a.id, { m, zoneId: a.zoneId, state: a.state, name: a.name, code: a.code });
         continue;
       }
       const from = e.m.getLatLng();
-      if (Math.abs(from.lat - at[0]) > 0.01 || Math.abs(from.lng - at[1]) > 0.01) {
-        // changed zone (or the layout shifted): glide there; a moving asset leaves a fading trail
-        if (a.state === 'Moving' && e.zoneId !== a.zoneId && !reducedMotion()) this.drawTrail([from.lat, from.lng], at);
-        this.glide(e.m);
+      const moved = Math.abs(from.lat - at[0]) > 0.01 || Math.abs(from.lng - at[1]) > 0.01;
+      if (e.state !== a.state) {
+        e.state = a.state;
+        // the icon (not just its classes) is replaced, so a marker that is re-added after a split keeps its state colour
+        e.m.setIcon(this.assetIcon(a));
+      }
+      if (moved && e.zoneId !== a.zoneId && !reducedMotion() && this.map?.hasLayer(this.assetLayer)) {
+        // changed zone: a flier glides from the old spot to the new one; both clusters' counts update when it lands
+        this.startMove(a, e, from, at);
+      } else if (moved) {
+        if (this.assetLayer.hasLayer(e.m)) this.glide(e.m);
         e.m.setLatLng(at);
       }
-      if (e.state !== a.state || e.zoneId !== a.zoneId) {
-        const el = e.m.getElement()?.firstElementChild as HTMLElement | null;
-        if (el) {
-          el.classList.remove('fp-am--moving', 'fp-am--stationary', 'fp-am--unknown');
-          el.classList.add('fp-am--' + a.state.toLowerCase());
-          el.style.setProperty('--c', STATE_COLOR[a.state]);
-        }
-        e.state = a.state;
-        e.zoneId = a.zoneId;
-      }
+      e.zoneId = a.zoneId;
+      e.name = a.name;
+      e.code = a.code;
       e.m.setTooltipContent(this.assetTip(a));
     }
+    this.curZones = zones;
+    this.recluster();
     this.applyAssetFocus(zones);
     this.checkPopup();
     if (this.live?.assetId || this.signal?.assetId) this.updateLive();
   }
 
+
+  // ---------------------------------------------------------------- zone changes (flier) + clustering
+
+  /** An asset left its zone: a temporary icon glides old spot -> new spot; until it lands the old zone still counts it. */
+  private startMove(a: PlanAsset, e: { m: Leaflet.Marker; zoneId: string }, from: Leaflet.LatLng, to: [number, number]): void {
+    const L = this.L!;
+    const prev = this.zoneHold.get(a.id);
+    const startAt = prev?.flier ? prev.flier.getLatLng() : from; // an update during a glide continues from where the icon is now
+    const oldZone = prev?.zone ?? e.zoneId;
+    if (prev) {
+      clearTimeout(prev.timer);
+      prev.flier?.remove();
+    }
+    const flier = L.marker(startAt, { interactive: false, keyboard: false, zIndexOffset: 700, icon: this.assetIcon(a) }).addTo(this.assetLayer!);
+    e.m.setLatLng(to);
+    const timer = setTimeout(() => this.endMove(a.id), GLIDE_MS + 120);
+    this.zoneHold.set(a.id, { zone: oldZone, timer, flier });
+    requestAnimationFrame(() => {
+      if (this.zoneHold.get(a.id)?.flier !== flier) return;
+      this.glide(flier);
+      flier.setLatLng(to);
+    });
+  }
+
+  private endMove(id: string): void {
+    const h = this.zoneHold.get(id);
+    if (!h) return;
+    clearTimeout(h.timer);
+    h.flier?.remove();
+    this.zoneHold.delete(id);
+    this.recluster();
+  }
+
+  private abortMoves(): void {
+    if (!this.zoneHold.size) return;
+    for (const h of this.zoneHold.values()) {
+      clearTimeout(h.timer);
+      h.flier?.remove();
+    }
+    this.zoneHold.clear();
+  }
+
+  private scheduleRecluster(): void {
+    clearTimeout(this.reclusterTimer);
+    this.reclusterTimer = setTimeout(() => this.recluster(), 100);
+  }
+
+  /**
+   * Zoomed out / icons would overlap: one badge per zone with the count; zoomed in: the single icons on the in-zone grid.
+   * Badges (and icons) of different zones that overlap on screen are merged into one badge. The asset being located / selected
+   * is always an icon of its own. Gateways are separate markers and never take part.
+   */
+  private recluster(): void {
+    const L = this.L;
+    const map = this.map;
+    const layer = this.assetLayer;
+    if (!L || !map || !layer || !this.planReady) return;
+    for (const c of this.clusterMk) c.remove();
+    this.clusterMk = [];
+
+    const zoom = map.getZoom();
+    if (this.expand && zoom < this.expand.zoom - 0.5) this.expand = undefined;
+    const pinned = new Set<string>([...(this.assetFocus?.ids ?? []), this.live?.assetId ?? '', this.signal?.assetId ?? ''].filter(Boolean));
+    const px = (ll: Leaflet.LatLng) => map.latLngToLayerPoint(ll);
+
+    interface Unit { ids: string[]; held: number; zones: Set<string>; x: number; y: number; r: number; ll: Leaflet.LatLng }
+    const perZone = new Map<string, { shown: [string, Leaflet.LatLng][]; held: number }>();
+    for (const [id, e] of this.assetMk) {
+      if (pinned.has(id) && !this.zoneHold.has(id)) continue;
+      const hold = this.zoneHold.get(id);
+      const z = hold ? hold.zone : e.zoneId;
+      const g = perZone.get(z) ?? { shown: [], held: 0 };
+      if (hold) g.held++;
+      else g.shown.push([id, e.m.getLatLng()]);
+      perZone.set(z, g);
+    }
+
+    const units: Unit[] = [];
+    const single = new Set<string>(); // assets drawn as icons
+    for (const [zid, g] of perZone) {
+      const total = g.shown.length + g.held;
+      const open = !!this.expand?.zones.has(zid);
+      let cluster = false;
+      if (total >= 2 && !open) {
+        cluster = zoom < CLUSTER_ZOOM;
+        if (!cluster) {
+          const pts = g.shown.map(([, ll]) => px(ll));
+          outer: for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) if (pts[i].distanceTo(pts[j]) < ICON_PX * 0.95) { cluster = true; break outer; }
+        }
+      }
+      if (cluster) {
+        const n = g.shown.length;
+        const ll = n
+          ? L.latLng(g.shown.reduce((t, [, p]) => t + p.lat, 0) / n, g.shown.reduce((t, [, p]) => t + p.lng, 0) / n)
+          : this.zoneCentre(zid) ?? L.latLng(this.h / 2, W / 2);
+        const c = px(ll);
+        units.push({ ids: g.shown.map(([id]) => id), held: g.held, zones: new Set([zid]), x: c.x, y: c.y, r: this.clusterSize(total) / 2, ll });
+      } else {
+        for (const [id, ll] of g.shown) {
+          const c = px(ll);
+          units.push({ ids: [id], held: 0, zones: new Set([zid]), x: c.x, y: c.y, r: ICON_PX / 2, ll });
+        }
+      }
+    }
+
+    // different zones whose icons / badges overlap on screen -> one badge with the total
+    for (let guard = 0; guard < 12; guard++) {
+      let merged = false;
+      outer2: for (let i = 0; i < units.length; i++) {
+        for (let j = i + 1; j < units.length; j++) {
+          const a = units[i], b = units[j];
+          const sameZoneIcons = a.ids.length === 1 && b.ids.length === 1 && [...a.zones][0] === [...b.zones][0];
+          if (sameZoneIcons || Math.hypot(a.x - b.x, a.y - b.y) >= a.r + b.r) continue;
+          const na = a.ids.length + a.held, nb = b.ids.length + b.held;
+          const w = na + nb;
+          a.x = (a.x * na + b.x * nb) / w;
+          a.y = (a.y * na + b.y * nb) / w;
+          a.ll = L.latLng((a.ll.lat * na + b.ll.lat * nb) / w, (a.ll.lng * na + b.ll.lng * nb) / w);
+          a.ids = [...a.ids, ...b.ids];
+          a.held += b.held;
+          b.zones.forEach((z) => a.zones.add(z));
+          a.r = this.clusterSize(a.ids.length + a.held) / 2;
+          units.splice(j, 1);
+          merged = true;
+          break outer2;
+        }
+      }
+      if (!merged) break;
+    }
+
+    for (const u of units) {
+      const n = u.ids.length + u.held;
+      if (u.ids.length === 1 && !u.held && u.zones.size === 1) single.add(u.ids[0]);
+      else this.addClusterMarker(u.ids, n, u.zones, u.ll);
+    }
+    for (const id of pinned) if (this.assetMk.has(id) && !this.zoneHold.has(id)) single.add(id);
+    for (const [id, e] of this.assetMk) {
+      const show = single.has(id) && this.showAssets;
+      const on = layer.hasLayer(e.m);
+      if (show && !on) e.m.addTo(layer);
+      else if (!show && on) e.m.remove();
+    }
+    const ids = new Set(this.assetFocus?.ids ?? []);
+    for (const [id, e] of this.assetMk) e.m.getElement()?.firstElementChild?.classList.toggle('fp-am--hl', ids.has(id));
+  }
+
+  private clusterSize(n: number): number {
+    return Math.round(ICON_PX + Math.min(14, Math.log2(Math.max(1, n)) * 4));
+  }
+
+  private zoneCentre(zid: string): Leaflet.LatLng | null {
+    const z = this.curZones.get(zid);
+    if (!z) return null;
+    const g = this.zoneGeom(z);
+    return this.L!.latLng((g.s + g.n) / 2, (g.w + g.e) / 2);
+  }
+
+  private addClusterMarker(ids: string[], n: number, zones: Set<string>, ll: Leaflet.LatLng): void {
+    const L = this.L!;
+    const d = this.clusterSize(n);
+    const names = [...ids.map((id) => this.assetMk.get(id)?.name ?? ''), ...[...this.zoneHold.entries()].filter(([, h]) => zones.has(h.zone)).map(([id]) => this.assetMk.get(id)?.name ?? '')].filter(Boolean);
+    const shown = names.slice(0, 8).map((x) => `<span>${esc(x)}</span>`).join('');
+    const more = names.length > 8 ? `<span>and ${names.length - 8} more</span>` : '';
+    const m = L.marker(ll, {
+      keyboard: false,
+      zIndexOffset: 500,
+      icon: L.divIcon({ className: 'fp-cluster-mk', html: `<span class="fp-cl" style="--d:${d}px">${n}</span>`, iconSize: [0, 0], iconAnchor: [0, 0] }),
+    })
+      .bindTooltip(`<div class="fp-tip"><strong>${n} asset${n === 1 ? '' : 's'}</strong>${shown}${more}</div>`, { direction: 'top', offset: [0, -d / 2], opacity: 1 })
+      .on('click', () => this.openCluster(zones))
+      .addTo(this.assetLayer!);
+    this.clusterMk.push(m);
+  }
+
+  /** Click on a badge: zoom to its zone(s) until the icons split (they stay split until the user zooms back out). */
+  private openCluster(zones: Set<string>): void {
+    const L = this.L!;
+    const map = this.map!;
+    let b: Leaflet.LatLngBounds | null = null;
+    for (const zid of zones) {
+      const z = this.curZones.get(zid);
+      if (!z) continue;
+      const g = this.zoneGeom(z);
+      const zb = L.latLngBounds([g.s, g.w], [g.n, g.e]);
+      b = b ? b.extend(zb) : zb;
+    }
+    if (!b) return;
+    const target = Math.min(2, map.getBoundsZoom(b, false, L.point(80, 80)));
+    this.expand = { zones, zoom: Math.max(target, map.getZoom() + 0.5) };
+    map.flyToBounds(b, { padding: [40, 40], maxZoom: 2, duration: reducedMotion() ? 0 : 0.6 });
+  }
 
   // ---------------------------------------------------------------- click popup (same card as Maps & Floor Plans › Map Library)
 
