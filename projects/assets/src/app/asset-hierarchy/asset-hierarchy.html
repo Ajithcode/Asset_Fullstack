@@ -429,13 +429,7 @@
           <span class="field-label">Parent Hierarchy Node <em>*</em></span>
           <select class="control" name="nodeParent" [(ngModel)]="nodeForm.parentId">
             <option [ngValue]="null" disabled>Select Parent Hierarchy Node</option>
-            <optgroup label="In the hierarchy">
-              <option *ngFor="let o of nodeParentOptions" [ngValue]="o.id">{{ o.label }}</option>
-            </optgroup>
-            <!-- registered assets not in the hierarchy yet: picking one adds it to the hierarchy first -->
-            <optgroup *ngIf="registeredParentOptions.length" label="Registered assets">
-              <option *ngFor="let o of registeredParentOptions" [ngValue]="o.id">{{ o.label }}</option>
-            </optgroup>
+            <option *ngFor="let o of nodeParentOptions" [ngValue]="o.id">{{ o.label }}</option>
           </select>
         </label>
         <label class="field">

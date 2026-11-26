@@ -48,9 +48,8 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
-import { AssetRegistrationListItem, AssetRegistrationService } from '../services/asset-registration/asset-registration';
 import {
   AssetHierarchyItemDto,
   AssetHierarchyService,
@@ -95,14 +94,6 @@ interface NodeForm {
 
 /** Id of the on-screen "All Assets" root; top-level items are saved with no parent. */
 const ROOT_ID = '__root__';
-/** Parent option for a registered asset that is not in the hierarchy yet: "reg:" + its Asset ID. */
-const REG_PREFIX = 'reg:';
-
-/** A parent choice in the Create Hierarchy Node form. */
-interface ParentOption {
-  id: string;
-  label: string;
-}
 const NODE_KINDS: NodeKind[] = ['site', 'building', 'area', 'floor', 'system', 'asset'];
 
 type GroupKind = Exclude<NodeKind, 'root' | 'asset'>;
@@ -230,23 +221,11 @@ export class AssetHierarchy implements OnInit {
 
   private readonly router = inject(Router);
   private readonly api = inject(AssetHierarchyService);
-  private readonly registrations = inject(AssetRegistrationService);
-
-  /** Registered assets (GET /api/asset-registrations), offered as parents in the Create Hierarchy Node form. */
-  registeredAssets: AssetRegistrationListItem[] = [];
 
   ngOnInit(): void {
     this.reload(true);
     this.api.getAssetTypes().subscribe({ next: (types) => (this.assetTypes = types), error: () => (this.assetTypes = []) });
     this.api.getModels().subscribe({ next: (models) => (this.models = models), error: () => (this.models = []) });
-    this.loadRegisteredAssets();
-  }
-
-  private loadRegisteredAssets(): void {
-    this.registrations.getAllMatching().subscribe({
-      next: (items) => (this.registeredAssets = items),
-      error: () => (this.registeredAssets = []),
-    });
   }
 
   // ===== Loading =====
@@ -730,48 +709,29 @@ export class AssetHierarchy implements OnInit {
     this.nodeFormOpen = true;
   }
 
-  /** Everything already in the hierarchy (grouping nodes and assets), indented by depth. */
-  get nodeParentOptions(): ParentOption[] {
-    const out: ParentOption[] = [];
+  /** Grouping nodes (no assets) a new hierarchy node can be placed under, indented by depth. */
+  get nodeParentOptions(): { id: string; label: string }[] {
+    const out: { id: string; label: string }[] = [];
     const visit = (n: HierarchyNode, depth: number) => {
-      const tag = n.kind === 'asset' && n.tag ? ` (${n.tag})` : '';
-      out.push({ id: n.id, label: `${'\u00a0\u00a0\u00a0'.repeat(depth)}${n.name}${tag}` });
+      if (n.kind === 'asset') return;
+      out.push({ id: n.id, label: `${'\u00a0\u00a0\u00a0'.repeat(depth)}${n.name}` });
       n.children.forEach((c) => visit(c, depth + 1));
     };
     visit(this.root, 0);
     return out;
   }
 
-  /** Registered assets not in the hierarchy yet; picking one adds it to the hierarchy first. */
-  get registeredParentOptions(): ParentOption[] {
-    return this.registeredAssets
-      .filter((a) => !this.hierarchyNodeForAsset(a))
-      .map((a) => ({ id: REG_PREFIX + a.assetRegistrationId, label: `${a.assetName || a.assetRegistrationId}${a.assetTag ? ' (' + a.assetTag + ')' : ''}` }))
-      .sort((x, y) => x.label.localeCompare(y.label));
-  }
-
-  /** The hierarchy asset with the registered asset's tag, if it is already in the hierarchy. */
-  private hierarchyNodeForAsset(a: AssetRegistrationListItem): HierarchyNode | null {
-    const tag = (a.assetTag ?? '').trim().toUpperCase();
-    return tag ? this.findBy((n) => n.kind === 'asset' && n.tag.toUpperCase() === tag) : null;
-  }
-
-  private registeredFor(parentId: string): AssetRegistrationListItem | undefined {
-    return parentId.startsWith(REG_PREFIX) ? this.registeredAssets.find((a) => REG_PREFIX + a.assetRegistrationId === parentId) : undefined;
-  }
-
   /** "Head Office / Building A / Floor 1 / HVAC System" preview of where the new node lands. */
   get nodePreview(): string {
-    const reg = this.registeredFor(this.nodeForm.parentId);
     const parent = this.find(this.nodeForm.parentId) ?? this.root;
-    const names = reg ? [reg.assetName || reg.assetRegistrationId] : this.lineage(parent.id).slice(1).map((a) => a.name);
+    const names = this.lineage(parent.id).slice(1).map((a) => a.name);
     names.push(this.nodeForm.name.trim() || 'New Node');
     return names.join(' / ');
   }
 
   get nodeFormValid(): boolean {
     const f = this.nodeForm;
-    return !!f.name.trim() && !!f.kind && !!f.code.trim() && !this.isCodeTaken(f.code) && (!!this.find(f.parentId) || !!this.registeredFor(f.parentId));
+    return !!f.name.trim() && !!f.kind && !!f.code.trim() && !this.isCodeTaken(f.code) && !!this.find(f.parentId);
   }
 
   isCodeTaken(code: string): boolean {
@@ -783,9 +743,7 @@ export class AssetHierarchy implements OnInit {
     this.nodeFormSubmitted = true;
     if (!this.nodeFormValid || this.saving) return;
     const f = this.nodeForm;
-    const reg = this.registeredFor(f.parentId);
     const parent = this.find(f.parentId) ?? this.root;
-    const parentName = reg ? reg.assetName || reg.assetRegistrationId : parent.name;
     const input: HierarchyItemInput = {
       itemKind: f.kind as GroupKind,
       parentId: parent.id === ROOT_ID ? null : parent.id,
@@ -797,38 +755,19 @@ export class AssetHierarchy implements OnInit {
       manufacturerName: null,
       status: f.status,
     };
-    // A registered asset not in the hierarchy yet is added first (top level, as an asset), then the node goes under it.
-    const parentId$: Observable<string | null> = reg
-      ? this.api
-          .create({
-            itemKind: 'asset',
-            parentId: null,
-            name: reg.assetName || reg.assetRegistrationId,
-            assetTag: (reg.assetTag || reg.assetRegistrationId).trim().toUpperCase(),
-            assetTypeId: null,
-            modelId: null,
-            manufacturerId: null,
-            manufacturerName: reg.manufacturer || null,
-            status: reg.status === 'Inactive' ? 'Inactive' : 'Active',
-          })
-          .pipe(map((created) => created.id))
-      : of(input.parentId);
     this.saving = true;
-    parentId$.pipe(switchMap((parentId) => this.api.create({ ...input, parentId }))).subscribe({
+    this.api.create(input).subscribe({
       next: (saved) => {
         this.saving = false;
         this.nodeFormOpen = false;
-        if (saved.parentId) this.expanded.add(saved.parentId);
         this.expanded.add(parent.id);
         this.selectedId = saved.id;
-        this.showToast(`${saved.name} created under ${parentName}.`);
+        this.showToast(`${saved.name} created under ${parent.name}.`);
         this.reload();
       },
       error: (err) => {
         this.saving = false;
         this.showToast(apiErrorMessage(err));
-        // the parent asset may already have been added to the hierarchy
-        if (reg) this.reload();
       },
     });
   }
