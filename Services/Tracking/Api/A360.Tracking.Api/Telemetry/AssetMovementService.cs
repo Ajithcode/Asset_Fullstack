@@ -12,8 +12,10 @@ namespace A360.Tracking.Api.Telemetry;
 /// placed in its zone through maps_plots. The history is the readings in time order with consecutive readings in the same
 /// zone (or the same gateway, when it is not plotted) folded into one visit; every change of visit is one movement.
 /// </summary>
-public sealed class AssetMovementService(IMongoDatabase database)
+public sealed class AssetMovementService(IMongoDatabase database, IConfiguration configuration)
 {
+    private readonly A360.Repository.Repositories.ResolvedLocationReader _resolved = new(database, configuration);
+
     private const string TagsCollection = "TrackingTag";
     private const string ReadingsCollection = "NetworkTimeSeries";
     private const string PlotsCollection = "maps_plots";
@@ -256,14 +258,18 @@ public sealed class AssetMovementService(IMongoDatabase database)
     private async Task<List<Bucket>> BucketsAsync(List<string> tagKeys, DateTime fromUtc, DateTime toUtc, CancellationToken ct)
     {
         var notBlank = new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" });
+        var match = new BsonDocument
+        {
+            { "timestamp", new BsonDocument { { "$gte", fromUtc }, { "$lt", toUtc } } },
+            { "meta.tagid", new BsonDocument("$in", new BsonArray(tagKeys)) },
+            { "meta.gatewayid", notBlank }
+        };
+        // Visits follow the zone the worker resolved: only the readings of the resolved device ("in") count, not every
+        // device that heard the tag. Readings before the cut-over (see DEV-NOTES) carry the old per-gateway "in" too.
+        if (_resolved.Enabled) match["device_trigger"] = "in";
         var pipeline = new[]
         {
-            new BsonDocument("$match", new BsonDocument
-            {
-                { "timestamp", new BsonDocument { { "$gte", fromUtc }, { "$lt", toUtc } } },
-                { "meta.tagid", new BsonDocument("$in", new BsonArray(tagKeys)) },
-                { "meta.gatewayid", notBlank }
-            }),
+            new BsonDocument("$match", match),
             new BsonDocument("$group", new BsonDocument
             {
                 { "_id", new BsonDocument

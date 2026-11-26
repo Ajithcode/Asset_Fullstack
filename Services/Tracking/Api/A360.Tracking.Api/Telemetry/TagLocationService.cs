@@ -1,3 +1,4 @@
+using A360.Repository.Repositories;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -14,8 +15,10 @@ namespace A360.Tracking.Api.Telemetry;
 /// Ids are compared ignoring case, ':' , '-' and spaces (c3000099138f = C3:00:00:99:13:8F). Every link that could not
 /// be made is listed in <see cref="TagLocation.MatchIssues"/>. Serves GET /api/real-time-location/tags and its /live WebSocket.
 /// </summary>
-public sealed class TagLocationService(IMongoDatabase database)
+public sealed class TagLocationService(IMongoDatabase database, IConfiguration configuration)
 {
+    private readonly ResolvedLocationReader _resolved = new(database, configuration);
+
     public const string ReadingsCollection = "NetworkTimeSeries";
     public const string PlotsCollection = "maps_plots";
     public const string TrackingTagCollection = "TrackingTag";
@@ -44,7 +47,9 @@ public sealed class TagLocationService(IMongoDatabase database)
         var kept = new List<(LatestReading Reading, GatewayPlot? Plot)>(readings.Count);
         foreach (var r in readings)
         {
-            plots.TryGetValue(Normalize(r.GatewayId)!, out var p);
+            // no resolved device yet, or the worker has not updated the tag within the presence window: no live location
+            GatewayPlot? p = null;
+            if (!r.Stale && Normalize(r.GatewayId) is { } gatewayKey) plots.TryGetValue(gatewayKey, out p);
             if (zonedOnly && p is null) continue;
             if (!string.IsNullOrWhiteSpace(siteId) && !string.Equals(p?.SiteId, siteId, StringComparison.OrdinalIgnoreCase)) continue;
             if (!string.IsNullOrWhiteSpace(floorPlanId) && !string.Equals(p?.FloorPlanId, floorPlanId, StringComparison.OrdinalIgnoreCase)) continue;
@@ -60,7 +65,8 @@ public sealed class TagLocationService(IMongoDatabase database)
         {
             var link = links[r.TagId];
             var issues = new List<string>(link.Issues);
-            if (p is null) issues.Add(MatchIssue.GatewayNotPlotted);
+            if (r.Stale) issues.Add(MatchIssue.LocationStale);
+            else if (p is null) issues.Add(MatchIssue.GatewayNotPlotted);
             else
             {
                 if (p.PlotCount > 1) issues.Add(MatchIssue.GatewayPlottedMultipleTimes);
@@ -89,6 +95,17 @@ public sealed class TagLocationService(IMongoDatabase database)
     /// <summary>Newest reading of each tag (lower-case tag id) that has a gateway id, newest first.</summary>
     private async Task<List<LatestReading>> LatestPerTagAsync(DateTime since, CancellationToken ct)
     {
+        if (_resolved.Enabled)
+        {
+            // the worker resolved device + zone once per tag (median RSSI + hysteresis): read it, do not re-resolve here
+            var now = DateTime.UtcNow;
+            return (await _resolved.GetAsync(since, ct)).Values
+                .OrderByDescending(x => x.UpdatedAt)
+                .Select(x => new LatestReading(x.TagId, x.DeviceId ?? string.Empty, x.UpdatedAt, x.Status, x.Rssi, x.Battery,
+                    !x.HasLocation || _resolved.IsStale(x, now)))
+                .ToList();
+        }
+
         var notBlank = new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" });
         var pipeline = new[]
         {
@@ -349,7 +366,7 @@ public sealed class TagLocationService(IMongoDatabase database)
 
     private static double? Number(BsonValue value) => value.IsNumeric ? value.ToDouble() : null;
 
-    private sealed record LatestReading(string TagId, string GatewayId, DateTime Timestamp, string? Status, double? Rssi, double? Battery);
+    private sealed record LatestReading(string TagId, string GatewayId, DateTime Timestamp, string? Status, double? Rssi, double? Battery, bool Stale = false);
 
     private sealed record GatewayPlot(
         string DeviceId, string? GatewayName, string? ZoneId, string? ZoneName, string? ZoneCode, string? FloorPlanId, string? FloorName,
@@ -391,6 +408,8 @@ public static class MatchIssue
 
     /// <summary>No device plot in maps_plots has this gateway id as device_id (or item_id): zone / floor unknown.</summary>
     public const string GatewayNotPlotted = "gateway-not-plotted";
+    /// <summary>The worker has not updated the tag within the presence window (or has no zone for it yet): no live location.</summary>
+    public const string LocationStale = "location-stale";
 
     /// <summary>The gateway is plotted more than once; the first plot's zone was used.</summary>
     public const string GatewayPlottedMultipleTimes = "gateway-plotted-multiple-times";

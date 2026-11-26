@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using A360.Repository.Repositories;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -11,8 +12,11 @@ namespace A360.Tracking.Api.Telemetry;
 /// maps_plots (where each gateway is plotted: site / building / floor / zone) and IoTAlert (alerts).
 /// BLE tags have no GPS: an asset's location is ESTIMATED as the zone of the gateway hearing its tag strongest.
 /// </summary>
-public sealed class TelemetryOverviewService(IMongoDatabase database)
+public sealed class TelemetryOverviewService(IMongoDatabase database, IConfiguration configuration)
 {
+    private readonly ResolvedLocationReader _resolved = new(database, configuration);
+    private readonly DeviceStatusReader _deviceStatus = new(database);
+
     /// <summary>Heard within this long = Online; within <see cref="IdleAfter"/> = Idle; otherwise Offline.</summary>
     public static readonly TimeSpan OnlineWithin = TimeSpan.FromMinutes(2);
     public static readonly TimeSpan IdleAfter = TimeSpan.FromMinutes(10);
@@ -46,9 +50,24 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
         var plots = await PlottedGatewaysAsync(ct);
 
         // newest reading of every tag (any gateway) and the strongest gateway of the last couple of minutes
-        var latest = await LatestPerTagAsync(now - TimeSpan.FromDays(7), ct);
-        var strongest = await StrongestGatewayAsync(now - LocationWindow, ct);
-        var gatewayLastSeen = await LatestPerGatewayAsync(now - TimeSpan.FromDays(7), ct);
+        // Location comes from the zone the worker resolved per tag (median RSSI + hysteresis), not from a second resolution here.
+        // Location:ResolverEnabled=false falls back to the old "strongest gateway of the last 2 minutes".
+        var resolvedOn = _resolved.Enabled;
+        Dictionary<string, Reading> latest, strongest;
+        if (resolvedOn)
+        {
+            var states = await _resolved.GetAsync(now - TimeSpan.FromDays(7), ct);
+            latest = states.ToDictionary(x => x.Key, x => new Reading(x.Value.DeviceId ?? string.Empty, x.Value.UpdatedAt, x.Value.Rssi, x.Value.Battery));
+            strongest = states.Where(x => x.Value.HasLocation && !_resolved.IsStale(x.Value, now))
+                .ToDictionary(x => x.Key, x => new Reading(x.Value.DeviceId!, x.Value.UpdatedAt, x.Value.Rssi, null));
+        }
+        else
+        {
+            latest = await LatestPerTagAsync(now - TimeSpan.FromDays(7), ct);
+            strongest = await StrongestGatewayAsync(now - LocationWindow, ct);
+        }
+        // Gateway / repeater status: the shared rule (newest reading of the device itself, beacon for repeaters, tags heard in 2 min)
+        var deviceStatus = await _deviceStatus.GetAsync(gateways.Keys, ct, now);
 
         var alerts = await AlertsAsync(from, ct);
         var openAlerts = alerts.Where(a => a.Status == "Open").ToList();
@@ -68,7 +87,7 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
             var best = group.Select(t => strongest.TryGetValue(t.TagId, out var s) ? s : null).Where(s => s is not null)
                 .OrderByDescending(s => s!.Rssi).FirstOrDefault();
             var newest = tagDtos.Where(t => t.LastSeenAt is not null).OrderByDescending(t => t.LastSeenAt).FirstOrDefault();
-            var gatewayId = best?.GatewayId ?? newest?.GatewayId;
+            var gatewayId = best?.GatewayId ?? (resolvedOn ? null : newest?.GatewayId);
             plots.TryGetValue(gatewayId ?? string.Empty, out var plot);
             gateways.TryGetValue(gatewayId ?? string.Empty, out var gw);
             var location = gatewayId is null
@@ -104,10 +123,11 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
         // ---- gateways (registered IoT devices and any gateway that reports)
         var gatewayRows = gateways.Values.Select(g =>
         {
-            gatewayLastSeen.TryGetValue(g.GatewayKey, out var seen);
+            deviceStatus.TryGetValue(DeviceStatusReader.Normalize(g.GatewayKey), out var ds);
+            var seen = ds?.LastSeen;
             plots.TryGetValue(g.GatewayKey, out var plot);
-            var heard = latest.Values.Count(l => l.GatewayId == g.GatewayKey && l.At >= now - IdleAfter);
-            return new GatewayDto(g.DeviceId, g.Name, g.Type, g.Model, Connectivity(seen, now), seen, heard,
+            var heard = ds?.TagsInRange ?? 0;
+            return new GatewayDto(g.DeviceId, g.Name, g.Type, g.Model, ds?.Status ?? "Offline", seen, heard,
                 plot?.ZoneName, plot?.FloorName, plot?.FloorPlanId, plot is not null, plot?.SiteId ?? g.SiteId);
         }).ToList();
         if (!string.IsNullOrWhiteSpace(siteId))
@@ -410,6 +430,7 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
     public async Task<List<Move>> LocationChangesAsync(List<string> tagIds, DateTime from, TimeSpan span, CancellationToken ct)
     {
         if (tagIds.Count == 0) return [];
+        if (_resolved.Enabled) return await ResolvedLocationChangesAsync(tagIds, from, ct);
         var slot = span <= TimeSpan.FromHours(1) ? 1 : span <= TimeSpan.FromDays(1) ? 2 : 10;
         var pipeline = new[]
         {
@@ -449,6 +470,45 @@ public sealed class TelemetryOverviewService(IMongoDatabase database)
             }
         }
 
+        return moves;
+    }
+
+    /// <summary>
+    /// Zone changes of the tags from the worker's own events: its resolved "in" documents grouped per (tag, zone_in) - one group
+    /// is one stay in a zone, whichever devices heard the tag. A stay that began in the window is a move from the previous stay's
+    /// device (null = first location in this period).
+    /// </summary>
+    private async Task<List<Move>> ResolvedLocationChangesAsync(List<string> tagIds, DateTime from, CancellationToken ct)
+    {
+        var pipeline = new[]
+        {
+            new BsonDocument("$match", new BsonDocument
+            {
+                { "timestamp", new BsonDocument("$gte", from.AddDays(-1)) },
+                { "meta.tagid", new BsonDocument("$in", new BsonArray(tagIds)) },
+                { "device_trigger", "in" },
+                { "zone_in", new BsonDocument("$type", "date") }
+            }),
+            new BsonDocument("$sort", new BsonDocument("timestamp", 1)),
+            new BsonDocument("$group", new BsonDocument
+            {
+                { "_id", new BsonDocument { { "tag", new BsonDocument("$toLower", "$meta.tagid") }, { "zin", "$zone_in" } } },
+                { "first", new BsonDocument("$first", new BsonDocument("$toLower", "$meta.gatewayid")) },
+                { "last", new BsonDocument("$last", new BsonDocument("$toLower", "$meta.gatewayid")) }
+            })
+        };
+        var rows = await C("NetworkTimeSeries").Aggregate<BsonDocument>(pipeline, new AggregateOptions { AllowDiskUse = true }, ct).ToListAsync(ct);
+        var moves = new List<Move>();
+        foreach (var tag in rows.GroupBy(r => r["_id"]["tag"].AsString))
+        {
+            string? previous = null;
+            foreach (var stay in tag.OrderBy(r => r["_id"]["zin"].ToUniversalTime()))
+            {
+                var at = stay["_id"]["zin"].ToUniversalTime();
+                if (at >= from) moves.Add(new Move(tag.Key, at, previous, stay["first"].AsString));
+                previous = stay["last"].AsString;
+            }
+        }
         return moves;
     }
 

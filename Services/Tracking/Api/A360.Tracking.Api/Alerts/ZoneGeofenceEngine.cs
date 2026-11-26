@@ -1,5 +1,6 @@
 using A360.Repository.Sequences;
 using A360.Tracking.Domain.Entities;
+using A360.Repository.Repositories;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -40,6 +41,7 @@ public sealed class ZoneGeofenceEngine(
     /// <summary>A tag counts as inside while a zone gateway heard it within this window (readings arrive every few seconds).</summary>
     private TimeSpan PresenceWindow => TimeSpan.FromSeconds(Math.Max(15, configuration.GetValue("Alerts:PresenceSeconds", 60)));
 
+    private ResolvedLocationReader? _resolvedLocations;
     private IMongoCollection<ZonePresenceDocument> Presence => database.GetCollection<ZonePresenceDocument>(ZonePresenceDocument.CollectionName);
     private IMongoCollection<WatchedZoneDocument> Watched => database.GetCollection<WatchedZoneDocument>(WatchedZoneDocument.CollectionName);
     private IMongoCollection<AlertRule> Rules => database.GetCollection<AlertRule>("AlertRule");
@@ -476,6 +478,18 @@ public sealed class ZoneGeofenceEngine(
         if (gatewayIds is { Count: 0 })
         {
             return [];
+        }
+
+        // Zones come ONLY from the state the worker resolved per tag (median RSSI + hysteresis): one device per tag, so a tag
+        // is in one zone, and a stale state (not updated within the presence window) means it is in none.
+        // Location:ResolverEnabled=false falls back to the readings below.
+        _resolvedLocations ??= new ResolvedLocationReader(database, configuration);
+        if (_resolvedLocations.Enabled)
+        {
+            var wanted = gatewayIds?.Select(g => g.ToLowerInvariant()).ToHashSet();
+            return (await _resolvedLocations.GetAsync(since, ct)).Values
+                .Where(s => s.HasLocation && (wanted is null || wanted.Contains(s.DeviceId!)))
+                .Select(s => new Heard(s.TagId, s.DeviceId!, s.UpdatedAt)).ToList();
         }
 
         var match = new BsonDocument

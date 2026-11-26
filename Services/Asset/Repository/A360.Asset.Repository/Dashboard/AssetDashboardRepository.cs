@@ -2,6 +2,8 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using A360.Asset.Domain.Entities;
 using A360.Asset.Repository.Repositories;
+using A360.Repository.Repositories;
+using Microsoft.Extensions.Configuration;
 
 namespace A360.Asset.Repository.Dashboard;
 
@@ -36,9 +38,12 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
     private readonly IMongoDatabase _database;
     private readonly IMongoCollection<AssetRegistration> _assets;
 
-    public AssetDashboardRepository(IMongoDatabase database)
+    private readonly ResolvedLocationReader _resolved;
+
+    public AssetDashboardRepository(IMongoDatabase database, IConfiguration configuration)
     {
         _database = database;
+        _resolved = new ResolvedLocationReader(database, configuration);
         _assets = database.GetCollection<AssetRegistration>(AssetRegistrationRepository.CollectionName);
     }
 
@@ -314,6 +319,21 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             tags[key] = tags.TryGetValue(key, out var existing) ? Combine(existing, summary) : summary;
         }
 
+        // The gateway of a tag is the device the worker resolved for it (the newest reading is a tie between devices).
+        if (_resolved.Enabled && tags.Count > 0)
+        {
+            var states = await _resolved.GetAsync(null, cancellationToken);
+            var now = DateTime.UtcNow;
+            foreach (var (key, summary) in tags.ToList())
+            {
+                var stateKey = summary.TagId.Replace(":", "").Replace("-", "").Trim().ToLowerInvariant();
+                if (states.TryGetValue(stateKey, out var state))
+                {
+                    tags[key] = summary with { LastGatewayId = state.HasLocation && !_resolved.IsStale(state, now) ? state.DeviceId : null };
+                }
+            }
+        }
+
         return tags;
 
         static DateTime? DateOrNull(BsonDocument row, string name) =>
@@ -442,6 +462,8 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             { "meta.gatewayid", new BsonDocument("$nin", new BsonArray { BsonNull.Value, "" }) },
             { "device_trigger", new BsonDocument("$ne", "out") }
         };
+        // Gateway changes = changes of the device the worker resolved: only its "in" readings, not every device that heard the tag.
+        if (_resolved.Enabled) readingFilter["device_trigger"] = "in";
         if (tagIds is not null)
         {
             // Matched with the case-insensitive collation below, as GetNetworkTagAsync does.
