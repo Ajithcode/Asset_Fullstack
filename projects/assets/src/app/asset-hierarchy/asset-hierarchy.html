@@ -473,7 +473,13 @@
           <span class="field-label">New Parent</span>
           <select class="control" [(ngModel)]="moveParentId">
             <option [ngValue]="null" disabled>Select New Parent</option>
-            <option *ngFor="let o of moveOptions" [ngValue]="o.id">{{ o.label }}</option>
+            <optgroup label="In the hierarchy">
+              <option *ngFor="let o of moveOptions" [ngValue]="o.id">{{ o.label }}</option>
+            </optgroup>
+            <!-- registered assets not in the hierarchy yet: moving under one adds it to the hierarchy first -->
+            <optgroup *ngIf="registeredMoveOptions.length" label="Registered assets">
+              <option *ngFor="let o of registeredMoveOptions" [ngValue]="o.id">{{ o.label }}</option>
+            </optgroup>
           </select>
         </label>
         <p class="hint">Everything under the moved item{{ movingNodes.length === 1 ? '' : 's' }} moves with {{ movingNodes.length === 1 ? 'it' : 'them' }}.</p>
