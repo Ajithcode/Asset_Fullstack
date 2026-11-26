@@ -1421,3 +1421,62 @@ td > .sub-toggle {
     display: none;
   }
 }
+
+/* Compact sub asset panel: starts under the Asset Name column and keeps its own width,
+   instead of stretching across every column of the table */
+.asset-table tbody tr.sub-row > td {
+  padding-left: 168px;
+}
+
+.asset-table .sub-panel {
+  position: sticky;
+  left: 168px;
+  width: min(640px, calc(100vw - 120px));
+}
+
+.sub-panel__head {
+  padding: 8px 12px;
+}
+
+.sub-search {
+  width: 220px;
+  height: 32px;
+}
+
+.sub-list {
+  max-height: 240px;
+}
+
+.sub-item {
+  grid-template-columns: 28px minmax(110px, 1fr) minmax(80px, 130px) minmax(90px, 170px) auto;
+  gap: 10px;
+  padding: 6px 8px;
+}
+
+.sub-item__icon {
+  width: 28px;
+  height: 28px;
+}
+
+@media (max-width: 900px) {
+  .asset-table tbody tr.sub-row > td {
+    padding-left: 10px;
+  }
+
+  .asset-table .sub-panel {
+    left: 10px;
+  }
+
+  .sub-item {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+  }
+}
+
+/* grid cards keep the panel at the card's width */
+.asset-card .sub-panel {
+  width: auto;
+}
+
+.asset-card .sub-item {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+}
