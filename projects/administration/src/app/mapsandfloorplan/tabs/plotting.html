@@ -160,7 +160,7 @@
       <label><input type="checkbox" [(ngModel)]="show.assets" /> Assets ({{ count('asset') }})</label>
       <label><input type="checkbox" [(ngModel)]="show.zones" /> Zones ({{ store.zones.length }})</label>
       <label><input type="checkbox" [(ngModel)]="show.labels" /> Labels</label>
-      <app-map-opacity></app-map-opacity>
+      <app-map-opacity [zoneNames]="false"></app-map-opacity>
       <span class="map-foot__spacer"></span>
       Show
       <select class="zoom-select" aria-label="Show" [(ngModel)]="showFilter">

@@ -78,6 +78,8 @@ const darken = (c: string, f = 0.7): string => {
 const GLIDE_MS = 1800;
 /** Asset icon size on screen, and the zoom below which every zone with 2+ assets shows one badge. */
 const ICON_PX = 30;
+/** Zoom below which the zone name chips are shortened. */
+const SHORT_NAME_ZOOM = -1;
 const CLUSTER_ZOOM = -1.25;
 const reducedMotion = (): boolean => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const STATE_COLOR = { Moving: '#16a34a', Stationary: '#6d28d9', Unknown: '#94a3b8' } as const;
@@ -169,8 +171,15 @@ const ASSET_SVG =
       border: 1.5px solid #c4b5fd; box-shadow: 0 4px 14px rgba(76, 29, 149, .18); font-size: 0.719rem; font-weight: 600; white-space: nowrap;
       transform: translate(-50%, -50%); }
     .fp-total b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #6d28d9; color: #fff; font-size: 0.688rem; }
-    .fp-zone-label { transform: translate(-50%, -100%); white-space: nowrap; padding: 2px 9px; border-radius: 6px; background: var(--c); color: #fff; border: 1.5px solid #fff;
-      font-size: 0.719rem; font-weight: 700; box-shadow: 0 2px 6px rgba(15, 23, 42, .35); }
+    /* zone name tab: outside the zone, its edge against the zone's border; constant size, never clickable */
+    .fp-zone-label { position: absolute; left: 0; top: 0; display: block; max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 9px; background: var(--c); color: #fff;
+      font-size: 0.719rem; font-weight: 700; line-height: 1.25; pointer-events: none; box-shadow: 0 1px 4px rgba(15, 23, 42, .35); }
+    .fp-zl--top { transform: translate(0, -100%); border-radius: 6px 6px 0 0; }
+    .fp-zl--bottom { transform: none; border-radius: 0 0 6px 6px; }
+    .fp-zl--left { transform: translate(-100%, 0); border-radius: 6px 0 0 6px; }
+    .fp-zl--right { transform: none; border-radius: 0 6px 6px 0; }
+    .fp-zl--short { max-width: 72px; }
+    .fp-no-zn .fp-zone-label { display: none; }
     .fp-live-marker { transition: transform 1.6s ease-out; }
     .leaflet-zoom-anim .fp-live-marker { transition: none; }
     .fp-live { position: relative; display: grid; place-items: center; width: 22px; height: 22px; }
@@ -285,6 +294,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   /** Zones drawn on the current floor / zone view (set by updateAssets, read by the clustering). */
   private curZones = new Map<string, PlanZone>();
   private clusterMk: Leaflet.Marker[] = [];
+  private zoneLabels: { z: PlanZone; m: Leaflet.Marker; b: Leaflet.LatLngBounds }[] = [];
   private reclusterTimer?: ReturnType<typeof setTimeout>;
   /** An asset that changed zone keeps counting in its OLD zone / cluster until its glide ends (then both counts update). */
   private zoneHold = new Map<string, { zone: string; timer: ReturnType<typeof setTimeout>; flier?: Leaflet.Marker }>();
@@ -316,6 +326,10 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.shapes = Lf.layerGroup().addTo(map);
       this.markers = Lf.layerGroup().addTo(map);
       this.liveLayer = Lf.layerGroup().addTo(map);
+      // zone name chips: above the plan and zone fill, below the assets / gateways, never block a click
+      const lp = map.createPane('fpZoneLabels');
+      lp.style.zIndex = '450';
+      lp.style.pointerEvents = 'none';
       this.assetLayer = Lf.layerGroup().addTo(map);
       map.setView([this.h / 2, W / 2], -1);
       // the popup follows its object, and closes on a click on the map or a drag (pan)
@@ -323,6 +337,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.host.nativeElement.style.setProperty('--fp-am', '30px');
       map.on('zoomstart viewreset', () => this.stopGlides());
       map.on('zoomend moveend resize', () => this.scheduleRecluster());
+      map.on('zoomend resize', () => this.layoutZoneLabels());
       map.on('move zoom resize', () => this.placePopup());
       map.on('click dragstart', () => this.closePopup());
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
@@ -336,6 +351,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   /** Floor plan picture opacity and zone fill opacity from the shared sliders; borders, icons and labels are untouched. */
   private applyView(): void {
     const v = this.viewPrefs.value;
+    this.host.nativeElement.classList.toggle('fp-no-zn', !v.names);
     this.image?.setOpacity(v.plan / 100);
     this.shapes?.eachLayer((l) => {
       const path = l as Leaflet.Path;
@@ -450,6 +466,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     );
     let focus: Leaflet.LatLngBounds | null = null;
 
+    this.zoneLabels = [];
     for (const z of zones) {
       const style: Leaflet.PathOptions = { color: darken(z.color || '#7c3aed'), weight: 2.5, fillColor: z.color || '#7c3aed', fillOpacity: this.viewPrefs.value.zone / 100, dashArray: z.active ? undefined : '6 6', className: 'fp-zone-shape' };
       let shape: Leaflet.Path & { getBounds(): Leaflet.LatLngBounds };
@@ -466,13 +483,14 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       // Click a zone: zoom in on it
       shape.on('click', () => map.flyToBounds(b, { padding: [40, 40], maxZoom: 2, duration: 0.6 }));
       focus = focus ? focus.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
-      if (this.showLabels) {
-        L.marker([b.getNorth(), b.getCenter().lng], {
-          interactive: false,
-          keyboard: false,
-          icon: L.divIcon({ className: '', html: `<span class="fp-zone-label" style="--c:${esc(darken(z.color || '#7c3aed'))}">${esc(z.name)}</span>`, iconSize: [0, 0] }),
-        }).addTo(this.shapes!);
-      }
+      // zone name: a small tab outside the zone (placed by layoutZoneLabels), in its own pane under the assets and gateways
+      const chip = L.marker([b.getNorth(), b.getWest()], {
+        pane: 'fpZoneLabels',
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({ className: '', html: `<span class="fp-zone-label" style="--c:${esc(darken(z.color || '#7c3aed'))}">${esc(z.name)}</span>`, iconSize: [0, 0] }),
+      }).addTo(this.shapes!);
+      this.zoneLabels.push({ z, m: chip, b: L.latLngBounds(b.getSouthWest(), b.getNorthEast()) });
       // live "Total Assets": distinct assets heard by the gateways plotted in this zone
       const names = this.zoneAssets(z.id);
       if (names.length && this.showTotals) {
@@ -505,6 +523,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
         .addTo(this.markers!);
       if (this.zoneId !== undefined) focus = focus ? focus.extend(pos) : L.latLngBounds(pos, pos);
     }
+
+    this.layoutZoneLabels();
 
     // frame the plan (floor view) or the zone (zone view) when the scope changes
     if (this.shownScope !== this.zoneId) {
@@ -688,6 +708,50 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     if (this.live?.assetId || this.signal?.assetId) this.updateLive();
   }
 
+
+  // ---------------------------------------------------------------- zone name chips
+
+  /**
+   * Each zone's name sits OUTSIDE the zone as a tab on its top edge (left-aligned); when that would leave the plan or touch another
+   * name it goes to the bottom edge, then the left / right side. Chips keep one size on screen, so this is redone after every zoom.
+   * Below a small zoom the names are shortened (the zone's hover tooltip has the full name).
+   */
+  private layoutZoneLabels(): void {
+    const map = this.map;
+    const L = this.L;
+    if (!map || !L || !this.zoneLabels.length) return;
+    const short = map.getZoom() < SHORT_NAME_ZOOM;
+    const plan0 = map.latLngToContainerPoint([0, 0]);
+    const plan1 = map.latLngToContainerPoint([this.h, W]);
+    const plan = { l: Math.min(plan0.x, plan1.x), r: Math.max(plan0.x, plan1.x), t: Math.min(plan0.y, plan1.y), b: Math.max(plan0.y, plan1.y) };
+    interface Rect { x: number; y: number; w: number; h: number }
+    const hit = (a: Rect, b: Rect) => a.x < b.x + b.w + 3 && b.x < a.x + a.w + 3 && a.y < b.y + b.h + 3 && b.y < a.y + a.h + 3;
+    const inside = (r: Rect) => r.x >= plan.l - 1 && r.y >= plan.t - 1 && r.x + r.w <= plan.r + 1 && r.y + r.h <= plan.b + 1;
+    const placed: Rect[] = [];
+    // top-left zones first, so the first choice (top edge) goes to the ones that are most likely to need it
+    const order = [...this.zoneLabels].sort((a, b) => b.b.getNorth() - a.b.getNorth() || a.b.getWest() - b.b.getWest());
+    for (const l of order) {
+      const chip = l.m.getElement()?.firstElementChild as HTMLElement | null;
+      if (!chip) continue;
+      chip.classList.toggle('fp-zl--short', short);
+      const cw = chip.offsetWidth || 60;
+      const ch = chip.offsetHeight || 20;
+      const nw = map.latLngToContainerPoint(l.b.getNorthWest());
+      const se = map.latLngToContainerPoint(l.b.getSouthEast());
+      const ne = map.latLngToContainerPoint(l.b.getNorthEast());
+      const cands: { side: string; r: Rect; ll: Leaflet.LatLng }[] = [
+        { side: 'top', r: { x: nw.x, y: nw.y - ch, w: cw, h: ch }, ll: l.b.getNorthWest() },
+        { side: 'bottom', r: { x: nw.x, y: se.y, w: cw, h: ch }, ll: l.b.getSouthWest() },
+        { side: 'left', r: { x: nw.x - cw, y: nw.y, w: cw, h: ch }, ll: l.b.getNorthWest() },
+        { side: 'right', r: { x: ne.x, y: ne.y, w: cw, h: ch }, ll: l.b.getNorthEast() },
+      ];
+      const pick = cands.find((c) => inside(c.r) && !placed.some((p) => hit(c.r, p))) ?? cands.find((c) => !placed.some((p) => hit(c.r, p))) ?? cands[0];
+      l.m.setLatLng(pick.ll);
+      chip.classList.remove('fp-zl--top', 'fp-zl--bottom', 'fp-zl--left', 'fp-zl--right');
+      chip.classList.add('fp-zl--' + pick.side);
+      placed.push(pick.r);
+    }
+  }
 
   // ---------------------------------------------------------------- zone changes (flier) + clustering
 

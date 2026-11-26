@@ -89,7 +89,7 @@
       <label><input type="checkbox" [(ngModel)]="show.devices" /> Devices ({{ shownCount('device') }})</label>
       <label><input type="checkbox" [(ngModel)]="show.assets" /> Assets ({{ shownCount('asset') }})</label>
       <label><input type="checkbox" [(ngModel)]="show.labels" /> Labels</label>
-      <app-map-opacity></app-map-opacity>
+      <app-map-opacity [zoneNames]="false"></app-map-opacity>
     </div>
   </app-map-viewer>
 
