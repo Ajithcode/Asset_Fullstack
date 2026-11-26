@@ -112,7 +112,8 @@ public class TagLocationResolver(
 
     // ---- resolution --------------------------------------------------------------------------------------------
 
-    private BsonDocument? Resolve(TagState st, List<BsonDocument> docs, long t, DateTime windowTime,
+    // internal: tools/ReplayHarness compiles this file and replays stored readings through it
+    internal BsonDocument? Resolve(TagState st, List<BsonDocument> docs, long t, DateTime windowTime,
         IReadOnlyDictionary<string, PlottedDevice> inZone, StreamMapping mapping)
     {
         // 1. add this window's samples (max per device), keep the tag's last-seen info

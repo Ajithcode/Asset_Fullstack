@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ReplayHarness</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- the SAME resolver code as the running worker -->
+    <Compile Include="../../Services/TagLocationResolver.cs" Link="Worker/TagLocationResolver.cs" />
+    <Compile Include="../../Services/PlottedDeviceLookup.cs" Link="Worker/PlottedDeviceLookup.cs" />
+    <Compile Include="../../Services/DeviceTriggerTracker.cs" Link="Worker/DeviceTriggerTracker.cs" />
+    <Compile Include="../../Settings/LocationSettings.cs" Link="Worker/LocationSettings.cs" />
+    <Compile Include="../../Settings/StreamMapping.cs" Link="Worker/StreamMapping.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="3.10.0" />
+    <PackageReference Include="StackExchange.Redis" Version="3.0.17" />
+  </ItemGroup>
+</Project>
