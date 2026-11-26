@@ -352,6 +352,7 @@
       </div>
       <ul class="sub-list" *ngIf="filteredSubAssets(a) as subs">
         <li *ngFor="let s of subs; trackBy: trackSub">
+          <div class="sub-row-item">
           <button type="button" class="sub-item" (click)="openSubAsset()" [title]="s.name + (s.type ? ' · ' + s.type : '') + (s.status ? ' · ' + s.status : '') + (s.childCount ? ' · ' + s.childCount + ' under it' : '') + ' – open in Asset Hierarchy'">
             <span class="sub-item__icon"><lucide-icon [img]="icons.Box" [size]="14"></lucide-icon></span>
             <span class="sub-item__main">
@@ -359,6 +360,14 @@
               <small class="mono">{{ s.tag || '–' }} · {{ s.kind }}</small>
             </span>
           </button>
+          <!-- same two actions as Real-Time Location › Locate asset -->
+          <button type="button" class="sub-act" [disabled]="checkingSubId === s.id" (click)="locateSub(s, 'signal')"
+            [title]="'Blink LED / buzzer on ' + s.name" [attr.aria-label]="'Blink LED or buzzer on ' + s.name">
+            <lucide-icon [img]="icons.Lightbulb" [size]="15"></lucide-icon></button>
+          <button type="button" class="sub-act" [disabled]="checkingSubId === s.id" (click)="locateSub(s, 'live')"
+            [title]="'Show ' + s.name + ' live on the map'" [attr.aria-label]="'Show ' + s.name + ' live on the map'">
+            <lucide-icon [img]="icons.LocateFixed" [size]="15"></lucide-icon></button>
+          </div>
         </li>
         <li *ngIf="!subs.length" class="sub-empty">No sub asset matches &ldquo;{{ subSearch[a.id] }}&rdquo;.</li>
       </ul>
@@ -392,6 +401,22 @@
       <button type="button" class="btn btn-outline" (click)="resetFilters()">Reset filters</button>
     </div>
   </ng-template>
+
+  <!-- Sub asset without a tag: Real-Time Location cannot find it -->
+  <div *ngIf="noTagFor as s" class="tag-overlay" (click)="noTagFor = null">
+    <div class="tag-modal" role="alertdialog" aria-modal="true" aria-labelledby="no-tag-title" aria-describedby="no-tag-text" (click)="$event.stopPropagation()">
+      <div class="tag-modal__head">
+        <span class="tag-modal__icon"><lucide-icon [img]="icons.LocateFixed" [size]="20"></lucide-icon></span>
+        <h2 id="no-tag-title">No tag linked</h2>
+        <button type="button" class="icon-btn" (click)="noTagFor = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <p id="no-tag-text"><b>{{ s.name }}</b><ng-container *ngIf="s.tag"> ({{ s.tag }})</ng-container> is not linked with a tag ID, so it cannot be located, blinked or tracked live. Link a tag to it in Tracking &amp; IoT › Tag Management first.</p>
+      <div class="tag-modal__foot">
+        <button type="button" class="btn btn-outline" (click)="openTagManagement()">Open Tag Management</button>
+        <button type="button" class="btn btn-primary" (click)="noTagFor = null">OK</button>
+      </div>
+    </div>
+  </div>
 
   <div *ngIf="toast" class="toast" role="status">{{ toast }}</div>
 </section>

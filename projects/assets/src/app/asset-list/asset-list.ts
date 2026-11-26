@@ -27,6 +27,8 @@ import {
   History,
   Inbox,
   Laptop,
+  Lightbulb,
+  LocateFixed,
   LayoutGrid,
   List,
   Pencil,
@@ -48,6 +50,7 @@ import {
   AssetRegistrationFilters, AssetRegistrationListItem, AssetRegistrationResult, AssetRegistrationListQuery, AssetRegistrationListResult, AssetRegistrationService,
 } from '../services/asset-registration/asset-registration';
 import { AssetHierarchyItemDto, AssetHierarchyService } from '../asset-hierarchy/asset-hierarchy.service';
+import { TagLinkService } from '../services/tag-link.service';
 
 type SortKey = 'name' | 'tag' | 'category' | 'location' | 'custodian' | 'status' | 'criticality' | 'nextMaintenance';
 type MaintenanceDue = '' | 'overdue' | '30' | '90' | 'none';
@@ -191,7 +194,7 @@ const AVATAR_COLORS = ['#6d4aff', '#2563eb', '#0891b2', '#db2777', '#7c3aed', '#
 export class AssetList {
   readonly icons = {
     Box, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
-    Download, EllipsisVertical, Eye, Funnel, GitBranch, History, Inbox, LayoutGrid, List, Pencil, Plus,
+    Download, EllipsisVertical, Eye, Funnel, GitBranch, History, Inbox, LayoutGrid, Lightbulb, List, LocateFixed, Pencil, Plus,
     Printer, Search, Trash2, UserRound, Wrench, X,
   };
 
@@ -211,6 +214,7 @@ export class AssetList {
 
   private readonly api = inject(AssetRegistrationService);
   private readonly hierarchyApi = inject(AssetHierarchyService);
+  private readonly tagLinks = inject(TagLinkService);
   private readonly destroyRef = inject(DestroyRef);
 
   // ===== Filter options (GET /api/asset-registrations/filters) =====
@@ -731,6 +735,44 @@ export class AssetList {
 
   trackSub(_: number, sub: SubItem): string {
     return sub.id;
+  }
+
+  // ===== Locate a sub asset (same two actions as Real-Time Location › Locate asset) =====
+
+  /** Sub asset whose tag link is being checked. */
+  checkingSubId: string | null = null;
+  /** Sub asset with no tag linked: shown in the "not linked" popup. */
+  noTagFor: SubItem | null = null;
+
+  /**
+   * Bulb (blink LED / buzzer) or location (live tracking) button: checks Tag Management for a tag linked to the
+   * asset first; with one, opens Real-Time Location on that asset and action, otherwise explains it has no tag.
+   */
+  locateSub(sub: SubItem, action: 'signal' | 'live'): void {
+    if (this.checkingSubId) return;
+    this.checkingSubId = sub.id;
+    this.tagLinks.linkedTags().subscribe({
+      next: (tags) => {
+        this.checkingSubId = null;
+        const link = TagLinkService.findFor(tags, sub);
+        if (!link?.assetRegistrationId) {
+          this.noTagFor = sub;
+          return;
+        }
+        this.router.navigate(['/tracking-iot/real-time-location'], {
+          queryParams: { asset: link.assetRegistrationId, tag: link.tagId, action },
+        });
+      },
+      error: () => {
+        this.checkingSubId = null;
+        this.showToast('Could not check the tag link. Please try again.');
+      },
+    });
+  }
+
+  openTagManagement(): void {
+    this.noTagFor = null;
+    this.router.navigateByUrl('/tracking-iot/tag-ids');
   }
 
   // ===== Export / print =====
