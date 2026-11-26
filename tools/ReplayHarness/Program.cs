@@ -19,6 +19,8 @@ string Ist(long ms) => DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime.A
 string Both(long ms) => $"{Utc(ms)}Z / {Ist(ms)} IST";
 long Ms(DateTime d) => new DateTimeOffset(DateTime.SpecifyKind(d, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
 
+List<(string Tag, Move Move)> MissedLast = new();
+
 // ---- data ---------------------------------------------------------------------------------------------------------
 var lookup = new PlottedDeviceLookup(db, Options.Create(new LocationSettings { PlotCacheSeconds = 100000 }), NullLogger<PlottedDeviceLookup>.Instance);
 var (inZone, allPlotted) = await lookup.GetAsync(CancellationToken.None);
@@ -108,8 +110,10 @@ List<Switch> Replay(LocationSettings s, out List<Switch> deviceOnly)
 // match switches to reference moves; flips = switch back to the previous zone within 5 min
 Summary Analyse(List<Switch> sw)
 {
+    List<(string Tag, Move Move)> missedList;
     var delays = new List<double>();
     int missed = 0, spurious = 0, flips = 0, matched = 0;
+    missedList = new();
     var used = new HashSet<Switch>();
     foreach (var t in tags)
     {
@@ -119,27 +123,28 @@ Summary Analyse(List<Switch> sw)
         {
             var end = i + 1 < mv.Count ? mv[i + 1].T : mv[i].T + 600000;
             var hit = mine.FirstOrDefault(x => x.ToZone == mv[i].Zone && x.T >= mv[i].T - 30000 && x.T < end && !used.Contains(x));
-            if (hit is null) { missed++; continue; }
+            if (hit is null) { missed++; missedList.Add((t, mv[i])); continue; }
             used.Add(hit); matched++; delays.Add((hit.T - mv[i].T) / 1000.0);
         }
         spurious += mine.Count(x => !used.Contains(x));
         for (var i = 1; i < mine.Count; i++)
             if (mine[i].ToZone == mine[i - 1].FromZone && mine[i].T - mine[i - 1].T <= 300000) flips++;
     }
+    MissedLast = missedList;
     return new Summary(matched, missed, spurious, flips, delays);
 }
 
 if (mode == "replay")
 {
+    LocationSettings Set7(int minSamples, double strong) => new() { RssiWindowCount = 5, RssiMinWindows = 2, SwitchConsecutiveWindows = 1, SwitchMarginDb = 6, CurrentDeviceSilenceSeconds = 60, FastSwitchMarginDb = 15, TakeoverMinSamples = minSamples, TakeoverStrongRssiDbm = strong };
     var sets = new (string Name, LocationSettings S)[]
     {
-        ("1 current  (w3 min2 cons1 margin6 silence30 fast15)", new() { RssiWindowCount = 3, RssiMinWindows = 2, SwitchConsecutiveWindows = 1, SwitchMarginDb = 6, CurrentDeviceSilenceSeconds = 30, FastSwitchMarginDb = 15 }),
-        ("2 faster   (w3 min2 cons1 margin4 silence20 fast12)", new() { RssiWindowCount = 3, RssiMinWindows = 2, SwitchConsecutiveWindows = 1, SwitchMarginDb = 4, CurrentDeviceSilenceSeconds = 20, FastSwitchMarginDb = 12 }),
-        ("3 safer    (w5 min3 cons2 margin6 silence75, old baseline)", new() { RssiWindowCount = 5, RssiMinWindows = 3, SwitchConsecutiveWindows = 2, SwitchMarginDb = 6, CurrentDeviceSilenceSeconds = 75, FastSwitchMarginDb = 1000 }),
-        ("4 silence45 (w3 min2 cons1 margin6 silence45 fast15)", new() { RssiWindowCount = 3, RssiMinWindows = 2, SwitchConsecutiveWindows = 1, SwitchMarginDb = 6, CurrentDeviceSilenceSeconds = 45, FastSwitchMarginDb = 15 }),
-        ("5 silence60 (w3 min2 cons1 margin6 silence60 fast15)", new() { RssiWindowCount = 3, RssiMinWindows = 2, SwitchConsecutiveWindows = 1, SwitchMarginDb = 6, CurrentDeviceSilenceSeconds = 60, FastSwitchMarginDb = 15 }),
-        ("6 silence60+cons2 (w3 min2 cons2 margin6 silence60 fast15)", new() { RssiWindowCount = 3, RssiMinWindows = 2, SwitchConsecutiveWindows = 2, SwitchMarginDb = 6, CurrentDeviceSilenceSeconds = 60, FastSwitchMarginDb = 15 }),
-        ("7 w5 silence60 (w5 min2 cons1 margin6 silence60 fast15)", new() { RssiWindowCount = 5, RssiMinWindows = 2, SwitchConsecutiveWindows = 1, SwitchMarginDb = 6, CurrentDeviceSilenceSeconds = 60, FastSwitchMarginDb = 15 }),
+        ("1 old current (w3 min2 cons1 margin6 silence30 fast15, no guard)", new() { RssiWindowCount = 3, RssiMinWindows = 2, SwitchConsecutiveWindows = 1, SwitchMarginDb = 6, CurrentDeviceSilenceSeconds = 30, FastSwitchMarginDb = 15, TakeoverMinSamples = 1 }),
+        ("7  no guard   (w5 min2 cons1 margin6 silence60 fast15)", Set7(1, -75)),
+        ("7g -75 dBm    (guard: 2 samples or one >= -75)", Set7(2, -75)),
+        ("7g -70 dBm    (guard: 2 samples or one >= -70)", Set7(2, -70)),
+        ("7g -65 dBm    (guard: 2 samples or one >= -65)", Set7(2, -65)),
+        ("7g -60 dBm    (guard: 2 samples or one >= -60)", Set7(2, -60)),
     };
     var span = (Ms(toUtc) - Ms(fromUtc)) / 60000.0;
     Console.WriteLine($"\nreplay window: {fromUtc:HH:mm:ss}Z .. now ({span:F0} min). Reference moves (RSSI-estimated, set-independent): {moves.Values.Sum(m => m.Count)}");
@@ -170,6 +175,9 @@ if (mode == "replay")
             foreach (var g in part.GroupBy(x => x.Tag)) { var m = g.OrderBy(x => x.T).ToList(); for (var i = 1; i < m.Count; i++) if (m[i].ToZone == m[i - 1].FromZone && m[i].T - m[i - 1].T <= 300000) fl++; }
             Console.WriteLine($"    {label}: {part.Count} switches, {fl} flips");
         }
+        foreach (var (mt, mm) in MissedLast) Console.WriteLine($"  MISSED reference move: {mt[^4..]} -> {ZoneName(mm.Zone)} at {Both(mm.T)}");
+        foreach (var x in sw.Where(x => TimeSpan.FromMilliseconds(x.T % 86400000) >= TimeSpan.Parse("11:50:30")))
+            Console.WriteLine($"  switch after 11:50:30: {x.Tag[^4..]} {ZoneName(x.FromZone)} -> {ZoneName(x.ToZone)} at {Both(x.T)}");
         Console.WriteLine(sorted.Count == 0 ? "  delay: n/a" : $"  delay vs RSSI-estimated move: median {sorted[sorted.Count / 2]:F0} s, max {sorted[^1]:F0} s, all: {string.Join(", ", sorted.Select(x => x.ToString("F0")))}");
     }
 }

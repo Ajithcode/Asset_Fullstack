@@ -26,6 +26,12 @@ public class LocationSettings
     /// <summary>A device heard in the latest window this many dB stronger than the current device's latest sample: switch after one window.</summary>
     public double FastSwitchMarginDb { get; set; } = 15;
 
+    /// <summary>Fast path / silence takeover: the challenger needs this many samples in the range ...</summary>
+    public int TakeoverMinSamples { get; set; } = 2;
+
+    /// <summary>... or one sample at or above this RSSI (dBm).</summary>
+    public double TakeoverStrongRssiDbm { get; set; } = -75;
+
     /// <summary>Length of one NetworkServer aggregation window.</summary>
     public int WindowSeconds { get; set; } = 15;
 

@@ -173,7 +173,8 @@ public class TagLocationResolver(
         var fast = st.Samples
             .Where(kv => kv.Key != current && inZone.ContainsKey(kv.Key))
             .Select(kv => (Device: kv.Key, Sample: kv.Value.FirstOrDefault(x => x.T == t)))
-            .Where(x => x.Sample != null && (ownLatest == null || x.Sample.R >= ownLatest.R + S.FastSwitchMarginDb))
+            .Where(x => x.Sample != null && (ownLatest == null || x.Sample.R >= ownLatest.R + S.FastSwitchMarginDb)
+                        && CanTakeOver(st.Samples[x.Device], x.Sample.R))
             .OrderByDescending(x => x.Sample!.R).ThenBy(x => x.Device, StringComparer.Ordinal)
             .FirstOrDefault();
         if (fast.Device != null)
@@ -182,7 +183,7 @@ public class TagLocationResolver(
         // b) silence: no sample of the current device for CurrentDeviceSilenceSeconds and a challenger qualifies: switch now
         var top = medians.Where(m => m.Key != current).OrderByDescending(m => m.Value).ThenBy(m => m.Key, StringComparer.Ordinal).Select(m => ((string Key, double Value)?)(m.Key, m.Value)).FirstOrDefault();
         var silent = ownLatest == null || ownLatest.T <= t - S.CurrentDeviceSilenceSeconds * 1000L;
-        if (silent && top is { } silentBest)
+        if (silent && top is { } silentBest && CanTakeOver(st.Samples[silentBest.Key], st.Samples[silentBest.Key].OrderBy(x => x.T).Last().R))
             return Switch(st, inZone[silentBest.Key], silentBest.Value, docs, mapping, windowTime, t);
 
         // c) normal: the current device keeps its place while it has any sample in range (compared with its own median, even
@@ -214,6 +215,11 @@ public class TagLocationResolver(
         }
         return null;
     }
+
+    // Weak-sample guard for the fast path and the silence takeover: the challenger needs TakeoverMinSamples samples in the
+    // range, or a single sample at or above TakeoverStrongRssiDbm. One weak reading must not take a tag from a silent repeater.
+    private bool CanTakeOver(List<Sample> challenger, double latestRssi) =>
+        challenger.Count >= S.TakeoverMinSamples || latestRssi >= S.TakeoverStrongRssiDbm;
 
     // Moves the tag to another device. A different ZONE also closes the stay: "out" document for the old device.
     private static BsonDocument? Switch(TagState st, PlottedDevice next, double rssi, List<BsonDocument> docs,
