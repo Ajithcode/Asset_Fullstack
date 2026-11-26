@@ -1,4 +1,4 @@
-import { MapOpacity } from 'shared-ui';
+import { MapOpacity } from '../map-view-prefs';
 import { Component, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {

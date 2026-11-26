@@ -4,7 +4,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Observable, Subscription, catchError, forkJoin, map, of } from 'rxjs';
-import { MapOpacity, ExportMenu, ExportRequest, pushToast } from 'shared-ui';
+import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
+import { MapOpacity } from '../shared/map-view-prefs';
 import {
   LucideAngularModule, ArrowLeft, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, Lightbulb, LocateFixed, MapPin, Pause, Play, Power,
   Radio, Route, Search, Send, Settings, ShieldAlert, Square, TriangleAlert, Volume2, Wifi, X, HelpCircle,

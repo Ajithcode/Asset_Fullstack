@@ -1,6 +1,10 @@
+/**
+ * Local to this app on purpose: a NEW export in the federated shared-ui is not seen by the browser until fe-shell and every remote are rebuilt
+ * together. Same localStorage key and defaults as the copy in the other map app, so the values are shared across all maps.
+ */
 import { ChangeDetectionStrategy, Component, Injectable, Input, ViewEncapsulation, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from 'shared-ui';
 
 /** How the maps show the plan and its zones. Shared by every map (one value, remembered per user). */
 export interface MapViewPrefs {

@@ -19,7 +19,8 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import type { LucideIconData } from 'lucide-angular';
 import { FloorPlan, MapZone, PlotItem, SiteNode, TONE_HEX, ZoneGeometry, ZoneShape, isImageFormat, zoneIcon } from '../maps.data';
-import { MapControls, MapViewPrefsService } from 'shared-ui';
+import { MapControls } from 'shared-ui';
+import { MapViewPrefsService } from '../map-view-prefs';
 import { MapsStore } from '../maps.store';
 import { MapViewer } from '../map-viewer/map-viewer';
 

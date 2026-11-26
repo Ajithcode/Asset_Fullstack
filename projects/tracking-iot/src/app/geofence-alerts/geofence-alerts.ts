@@ -2,7 +2,8 @@ import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MapOpacity, ExportMenu, MapControls, ExportRequest, ExportService, pushToast } from 'shared-ui';
+import { ExportMenu, MapControls, ExportRequest, ExportService, pushToast } from 'shared-ui';
+import { MapOpacity } from '../shared/map-view-prefs';
 import { Observable, Subscription, catchError, forkJoin, of, switchMap } from 'rxjs';
 import {
   LucideAngularModule,

@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, Output, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import type * as Leaflet from 'leaflet';
-import { MapControls, MapPopup, MapViewPrefsService } from 'shared-ui';
+import { MapControls, MapPopup } from 'shared-ui';
+import { MapViewPrefsService } from '../shared/map-view-prefs';
 import { GatewayFeed, PlanPlot, PlanZone } from './floor-map-api.service';
 
 type L = typeof Leaflet;
