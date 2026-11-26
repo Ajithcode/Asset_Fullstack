@@ -42,6 +42,14 @@ interface Frame {
   widthM: number;
 }
 
+/** The zone colour ~30% darker for its border; anything that is not a hex colour is returned unchanged. */
+const darkenHex = (c: string, f = 0.7): string => {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec((c ?? '').trim());
+  if (!m) return c;
+  const h = m[1].length === 3 ? m[1].split('').map((x) => x + x).join('') : m[1];
+  return '#' + [0, 2, 4].map((k) => Math.round(parseInt(h.slice(k, k + 2), 16) * f).toString(16).padStart(2, '0')).join('');
+};
+
 /**
  * The map tab canvas, two views:
  * - A floor with a layout picture (uploaded floor plan, else the floor image from Master Data): the picture alone,
@@ -144,16 +152,16 @@ interface Frame {
     }
     .mfp-draw-btn--primary { border-color: transparent; background: linear-gradient(90deg, #4c1d95, #6d28d9); color: #fff; }
     .mfp-marker, .mfp-pin { background: none; border: 0; }
-    .mfp-marker__wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; transform: translate(-50%, -12px); width: max-content; margin-left: 12px; }
+    .mfp-marker__wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; transform: translate(-50%, -15px); width: max-content; margin-left: 15px; }
     .mfp-marker__dot {
       display: grid;
       place-items: center;
-      width: 24px;
-      height: 24px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       background: var(--tone);
       color: #fff;
-      box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(15, 23, 42, 0.3);
+      box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(15, 23, 42, 0.35), 0 3px 8px rgba(15, 23, 42, 0.4);
     }
     .mfp-marker--asset .mfp-marker__dot { border-radius: 6px; }
     /* "Total Assets N" at the centre of a zone with a gateway: linked assets heard by the zone's gateway(s) */
@@ -717,10 +725,10 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
     const hex = this.store.zoneHex(z);
     const active = z.id === this.selectedZoneId;
     const style = {
-      color: hex,
-      weight: active ? 3 : 2,
+      color: darkenHex(hex),
+      weight: active ? 3 : 2.5,
       fillColor: hex,
-      fillOpacity: active ? 0.2 : 0.12,
+      fillOpacity: active ? 0.22 : 0.18,
       interactive: !this.preview
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -836,7 +844,7 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
     const gw = this.isGateway(i) ? this.gatewayCount(i) : null;
     const title = gw ? `${i.name} ${i.code} · ${gw.count} linked asset${gw.count === 1 ? '' : 's'}${gw.count ? ': ' + gw.names.join(', ') : ''}` : `${i.name} ${i.code}`;
     const marker = L.marker(this.toLatLng(i.x ?? 0, i.y ?? 0), {
-      icon: L.divIcon({ className: 'mfp-marker', html, iconSize: [24, 24], iconAnchor: [12, 12] }),
+      icon: L.divIcon({ className: 'mfp-marker', html, iconSize: [30, 30], iconAnchor: [15, 15] }),
       title,
       keyboard: true,
       zIndexOffset: i.id === this.selectedItemId ? 1000 : 0

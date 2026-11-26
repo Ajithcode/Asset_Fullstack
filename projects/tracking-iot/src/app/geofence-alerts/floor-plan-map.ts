@@ -66,6 +66,16 @@ interface PopupView {
   actions: boolean;
 }
 
+/** The zone colour ~30% darker (borders, label chips); anything that is not a hex colour is returned unchanged. */
+const darken = (c: string, f = 0.7): string => {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c.trim());
+  if (!m) return c;
+  const h = m[1].length === 3 ? m[1].split('').map((x) => x + x).join('') : m[1];
+  const ch = [0, 2, 4].map((i) => Math.round(parseInt(h.slice(i, i + 2), 16) * f).toString(16).padStart(2, '0'));
+  return '#' + ch.join('');
+};
+/** Glide of an asset marker between zones (ease-in-out). */
+const GLIDE_MS = 1800;
 const reducedMotion = (): boolean => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const STATE_COLOR = { Moving: '#16a34a', Stationary: '#6d28d9', Unknown: '#94a3b8' } as const;
 
@@ -144,8 +154,8 @@ const ASSET_SVG =
     .fp-map--blank { background-color: #fff; background-image: linear-gradient(#eef2f7 1px, transparent 1px), linear-gradient(90deg, #eef2f7 1px, transparent 1px);
       background-size: 32px 32px; }
     .fp-zone-shape { cursor: zoom-in; }
-    .fp-pin { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 2.5px solid #fff; color: #fff;
-      box-shadow: 0 3px 10px rgba(15, 23, 42, .28); transition: transform .15s; }
+    .fp-pin { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; color: #fff;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, .45), 0 3px 8px rgba(15, 23, 42, .4); transition: transform .15s; }
     .fp-pin:hover { transform: scale(1.12); }
     .fp-pin--device { background: #059669; }
     .fp-pin--asset { background: #7c3aed; }
@@ -156,8 +166,8 @@ const ASSET_SVG =
       border: 1.5px solid #c4b5fd; box-shadow: 0 4px 14px rgba(76, 29, 149, .18); font-size: 0.719rem; font-weight: 600; white-space: nowrap;
       transform: translate(-50%, -50%); }
     .fp-total b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #6d28d9; color: #fff; font-size: 0.688rem; }
-    .fp-zone-label { transform: translate(-50%, -100%); white-space: nowrap; padding: 2px 8px; border-radius: 6px; background: var(--c); color: #fff;
-      font-size: 0.688rem; font-weight: 600; box-shadow: 0 2px 6px rgba(15, 23, 42, .2); }
+    .fp-zone-label { transform: translate(-50%, -100%); white-space: nowrap; padding: 2px 9px; border-radius: 6px; background: var(--c); color: #fff; border: 1.5px solid #fff;
+      font-size: 0.719rem; font-weight: 700; box-shadow: 0 2px 6px rgba(15, 23, 42, .35); }
     .fp-live-marker { transition: transform 1.6s ease-out; }
     .leaflet-zoom-anim .fp-live-marker { transition: none; }
     .fp-live { position: relative; display: grid; place-items: center; width: 22px; height: 22px; }
@@ -178,31 +188,34 @@ const ASSET_SVG =
     .fp-live--stale b, .fp-live--stale span { background: #64748b; }
     @keyframes fp-live-pulse { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(2.6); opacity: 0; } }
     /* assets inside their zone (Real-Time Location) */
-    .fp-asset-marker { transition: transform 1.2s cubic-bezier(.4, 0, .2, 1); }
-    .leaflet-zoom-anim .fp-asset-marker { transition: none; }
-    /* the asset marker is a small trolley; its size follows the zoom (--fp-am, set by the map: 18 - 40 px) */
+    /* a glide between zones is an inline transform transition set by the map (updateAssets), so zoom / refit / first draw never animate */
+    .fp-asset-marker { will-change: transform; }
+    .leaflet-zoom-anim .fp-asset-marker { transition: none !important; }
+    /* the asset marker is a small trolley, constant 30 px on screen at every zoom (--fp-am) */
     .fp-am { position: absolute; left: 50%; top: 50%; display: block; width: var(--fp-am, 24px); height: var(--fp-am, 24px);
       margin: calc(var(--fp-am, 24px) / -2) 0 0 calc(var(--fp-am, 24px) / -2); }
-    .fp-am svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgba(15, 23, 42, .4)); }
-    .fp-am .tr-fill { fill: var(--c); stroke: #fff; stroke-width: 1.3; stroke-linejoin: round; }
+    .fp-am svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 1.5px rgba(15, 23, 42, .6)); shape-rendering: geometricPrecision; }
+    .fp-am .tr-fill { fill: var(--c); stroke: #fff; stroke-width: 1.7; stroke-linejoin: round; paint-order: stroke; }
+    .fp-am--hl .tr-fill { stroke-width: 2.6; }
     .fp-am .tr-handle { fill: none; stroke: var(--c); stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
-    .fp-am .tr-halo { fill: none; stroke: #fff; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; }
+    .fp-am .tr-halo { fill: none; stroke: #fff; stroke-width: 4.6; stroke-linecap: round; stroke-linejoin: round; }
     .fp-am i { position: absolute; inset: 0; border-radius: 50%; opacity: 0; pointer-events: none; }
     .fp-am u { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid #6d28d9; background: rgba(109, 40, 217, .12); opacity: 0; pointer-events: none; text-decoration: none; }
     .fp-am--moving i.r1 { background: rgba(22, 163, 74, .35); animation: fp-am-pulse 1.8s ease-out infinite; }
     .fp-am--hl { --c: #6d28d9 !important; }
-    .fp-am--hl u { opacity: 1; }
+    .fp-am--hl u { opacity: 1; border-width: 3px; animation: fp-am-ring 1.4s ease-in-out infinite; }
     .fp-am--hl-anim i { background: none; border: 2px solid #6d28d9; opacity: 1; animation: fp-am-ripple 1.5s ease-out infinite; }
     .fp-am--hl-anim i.r2 { animation-delay: .75s; }
     .fp-am--hl-anim svg { animation: fp-am-bounce .9s ease-in-out 3; }
     .fp-trail { animation: fp-trail-fade 8s ease-out forwards; }
+    @keyframes fp-am-ring { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
     @keyframes fp-am-pulse { 0% { transform: scale(.7); opacity: .9; } 100% { transform: scale(2.4); opacity: 0; } }
     @keyframes fp-am-ripple { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(3); opacity: 0; } }
     @keyframes fp-am-bounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-9px); } 70% { transform: translateY(-2px); } }
     @keyframes fp-trail-fade { from { opacity: .8; } to { opacity: 0; } }
     @media (prefers-reduced-motion: reduce) {
       .fp-asset-marker { transition: none; }
-      .fp-am i, .fp-am svg, .fp-trail { animation: none !important; }
+      .fp-am i, .fp-am svg, .fp-am u, .fp-trail { animation: none !important; }
       .fp-am i { display: none; }
     }
     .fp-tip strong { display: block; font-size: 0.781rem; }
@@ -286,10 +299,9 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.assetLayer = Lf.layerGroup().addTo(map);
       map.setView([this.h / 2, W / 2], -1);
       // the popup follows its object, and closes on a click on the map or a drag (pan)
-      // the trolley markers scale with the zoom, between 18 and 40 px
-      const size = () => this.host.nativeElement.style.setProperty('--fp-am', `${Math.round(Math.min(40, Math.max(18, 24 * Math.pow(1.25, map.getZoom()))))}px`);
-      size();
-      map.on('zoom', size);
+      // the trolley markers keep one size on screen at every zoom; a zoom / refit never glides them
+      this.host.nativeElement.style.setProperty('--fp-am', '30px');
+      map.on('zoomstart viewreset', () => this.stopGlides());
       map.on('move zoom resize', () => this.placePopup());
       map.on('click dragstart', () => this.closePopup());
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
@@ -403,7 +415,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     let focus: Leaflet.LatLngBounds | null = null;
 
     for (const z of zones) {
-      const style: Leaflet.PathOptions = { color: z.color || '#7c3aed', weight: 2.2, fillColor: z.color || '#7c3aed', fillOpacity: 0.12, dashArray: z.active ? undefined : '6 6', className: 'fp-zone-shape' };
+      const style: Leaflet.PathOptions = { color: darken(z.color || '#7c3aed'), weight: 2.5, fillColor: z.color || '#7c3aed', fillOpacity: 0.18, dashArray: z.active ? undefined : '6 6', className: 'fp-zone-shape' };
       let shape: Leaflet.Path & { getBounds(): Leaflet.LatLngBounds };
       if (z.shape === 'Circle') {
         shape = L.circle(this.at(z.x + z.w / 2, z.y + z.h / 2), { ...style, radius: ((z.radius ?? z.w / 2) / 100) * W });
@@ -422,7 +434,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
         L.marker([b.getNorth(), b.getCenter().lng], {
           interactive: false,
           keyboard: false,
-          icon: L.divIcon({ className: '', html: `<span class="fp-zone-label" style="--c:${esc(z.color || '#7c3aed')}">${esc(z.name)}</span>`, iconSize: [0, 0] }),
+          icon: L.divIcon({ className: '', html: `<span class="fp-zone-label" style="--c:${esc(darken(z.color || '#7c3aed'))}">${esc(z.name)}</span>`, iconSize: [0, 0] }),
         }).addTo(this.shapes!);
       }
       // live "Total Assets": distinct assets heard by the gateways plotted in this zone
@@ -555,6 +567,24 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     return `<span class="fp-am fp-am--${a.state.toLowerCase()}" style="--c:${STATE_COLOR[a.state]}"><u></u><i class="r1"></i><i class="r2"></i>${TROLLEY_SVG}</span>`;
   }
 
+  /** Inline transform transition for the next setLatLng: a continuing move starts from where the icon is now (browser retargets). */
+  private glide(m: Leaflet.Marker): void {
+    const el = m.getElement();
+    if (!el || reducedMotion()) return;
+    el.style.transition = `transform ${GLIDE_MS}ms cubic-bezier(.45, 0, .55, 1)`;
+    clearTimeout(this.glideTimers.get(el));
+    this.glideTimers.set(el, setTimeout(() => { el.style.transition = ''; this.glideTimers.delete(el); }, GLIDE_MS + 100));
+  }
+
+  private stopGlides(): void {
+    for (const e of this.assetMk.values()) {
+      const el = e.m.getElement();
+      if (el) { el.style.transition = ''; clearTimeout(this.glideTimers.get(el)); this.glideTimers.delete(el); }
+    }
+  }
+
+  private readonly glideTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
+
   /** Draws / moves the asset markers. Existing markers keep their element, so a move glides (CSS transition on the marker). */
   private updateAssets(): void {
     const L = this.L;
@@ -594,6 +624,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       if (Math.abs(from.lat - at[0]) > 0.01 || Math.abs(from.lng - at[1]) > 0.01) {
         // changed zone (or the layout shifted): glide there; a moving asset leaves a fading trail
         if (a.state === 'Moving' && e.zoneId !== a.zoneId && !reducedMotion()) this.drawTrail([from.lat, from.lng], at);
+        this.glide(e.m);
         e.m.setLatLng(at);
       }
       if (e.state !== a.state || e.zoneId !== a.zoneId) {
