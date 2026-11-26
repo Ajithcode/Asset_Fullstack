@@ -1,3 +1,4 @@
+using A360.Repository.Repositories;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -71,10 +72,16 @@ public sealed class NetworkReadingRepository(IMongoDatabase database) : INetwork
             latest[NetworkReadingKeys.Normalize(reading.TagId)] = reading;
         }
 
-        // Gateways relay readings rather than report as a tag: their latest relayed reading tells when they were last heard.
-        foreach (var (gatewayId, reading) in await LatestRelayedAsync(variants, cancellationToken))
+        // Gateways / repeaters relay readings rather than report as a tag: the shared device-status rule (A360.Repository
+        // DeviceStatusReader) gives when they were last heard (own readings, or a repeater's beacon heard by a gateway).
+        // This list only knows online / offline, so Idle (heard within 10 min) counts as online here.
+        var status = await new DeviceStatusReader(database).GetAsync(ids, cancellationToken);
+        foreach (var (deviceId, device) in status)
         {
-            latest.TryAdd(NetworkReadingKeys.Normalize(gatewayId), reading);
+            if (device.LastSeen is { } seen)
+            {
+                latest.TryAdd(deviceId, new NetworkReading(deviceId, null, seen, device.Status == "Offline" ? "offline" : "online", null, null, null, null));
+            }
         }
 
         return latest;
@@ -95,31 +102,6 @@ public sealed class NetworkReadingRepository(IMongoDatabase database) : INetwork
 
         var rows = await Collection.Aggregate<BsonDocument>(pipeline, cancellationToken: cancellationToken).ToListAsync(cancellationToken);
         return rows.Select(row => ToReading(row["doc"].AsBsonDocument)).ToList();
-    }
-
-    private async Task<IReadOnlyList<(string GatewayId, NetworkReading Reading)>> LatestRelayedAsync(
-        BsonArray values,
-        CancellationToken cancellationToken)
-    {
-        var pipeline = new[]
-        {
-            new BsonDocument("$match", new BsonDocument { { "meta.gatewayid", new BsonDocument("$in", values) }, { "device_trigger", new BsonDocument("$ne", "out") } }),
-            new BsonDocument("$sort", new BsonDocument("timestamp", -1)),
-            new BsonDocument("$group", new BsonDocument
-            {
-                { "_id", new BsonDocument("$toLower", "$meta.gatewayid") },
-                { "doc", new BsonDocument("$first", "$$ROOT") }
-            })
-        };
-
-        var rows = await Collection.Aggregate<BsonDocument>(pipeline, cancellationToken: cancellationToken).ToListAsync(cancellationToken);
-        return rows.Select(row =>
-        {
-            var relayed = ToReading(row["doc"].AsBsonDocument);
-            // The gateway itself was heard when it relayed; the tag's battery and signal are not the gateway's.
-            var gateway = new NetworkReading(row["_id"].AsString, null, relayed.Timestamp, "online", null, null, relayed.Latitude, relayed.Longitude);
-            return (row["_id"].AsString, gateway);
-        }).ToList();
     }
 
     private static NetworkReading ToReading(BsonDocument document)

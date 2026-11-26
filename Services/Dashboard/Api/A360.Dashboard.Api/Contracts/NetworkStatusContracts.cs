@@ -71,7 +71,8 @@ public sealed record GatewayAssetsResponse(
     int TagCount,
     DateTime? LastSeenAt,
     IReadOnlyList<GatewayAssetResponse> Assets,
-    IReadOnlyList<string> UnlinkedTagIds)
+    IReadOnlyList<string> UnlinkedTagIds,
+    string Status = "Offline")
 {
     public static GatewayAssetsResponse FromGateway(GatewayTags gateway)
     {
@@ -89,9 +90,10 @@ public sealed record GatewayAssetsResponse(
             gateway.GatewayId,
             assets.Count,
             gateway.Tags.Count,
-            gateway.Tags.Max(tag => tag.LastSeenAt),
+            gateway.LastSeenAt,
             assets,
-            gateway.Tags.Where(tag => tag.AssetId is null).Select(tag => tag.TagId).ToList());
+            gateway.Tags.Where(tag => tag.AssetId is null).Select(tag => tag.TagId).ToList(),
+            gateway.Status);
     }
 }
 

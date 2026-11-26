@@ -20,7 +20,9 @@ public interface INetworkStatusRepository
 }
 
 /// <summary>A gateway and the tags it currently hears (by each tag's newest reading).</summary>
-public sealed record GatewayTags(string GatewayId, IReadOnlyList<GatewayTag> Tags);
+/// <param name="LastSeenAt">Newest reading of the device itself (or its beacon, for a repeater).</param>
+/// <param name="Status">Online (<= 2 min), Idle (<= 10 min) or Offline.</param>
+public sealed record GatewayTags(string GatewayId, IReadOnlyList<GatewayTag> Tags, DateTime? LastSeenAt = null, string Status = "Offline");
 
 /// <param name="AssetId">The linked asset as stored on the link (asset tag or registration id); null when the tag is not linked.</param>
 public sealed record GatewayTag(string TagId, string? AssetId, string? AssetName, DateTime? LastSeenAt);

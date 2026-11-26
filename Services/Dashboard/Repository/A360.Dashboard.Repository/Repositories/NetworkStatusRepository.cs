@@ -1,3 +1,5 @@
+using A360.Repository.Repositories;
+using Microsoft.Extensions.Configuration;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -26,9 +28,12 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
     private readonly IMongoCollection<BsonDocument> _collection;
     private readonly IMongoDatabase _database;
 
-    public NetworkStatusRepository(IMongoDatabase database)
+    private readonly ResolvedLocationReader _resolved;
+
+    public NetworkStatusRepository(IMongoDatabase database, IConfiguration configuration)
     {
         _database = database;
+        _resolved = new ResolvedLocationReader(database, configuration);
         _collection = database.GetCollection<BsonDocument>(CollectionName);
     }
 
@@ -220,46 +225,42 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
 
     public async Task<IReadOnlyList<GatewayTags>> GetGatewayTagsAsync(CancellationToken cancellationToken = default)
     {
-        var filter = Builders<BsonDocument>.Filter;
-
-        // Each tag once, with the gateway of its newest reading (a moving asset's tag switches gateway). Only tags heard
-        // within the window count: one silent for longer is no longer at that gateway (and the scan stays small).
-        var since = DateTime.UtcNow.AddHours(-GatewayWindowHours);
-        var rows = await _collection
-            .Aggregate()
-            .Match(filter.Gte("timestamp", since) & filter.Type("meta.tagid", BsonType.String) & filter.Type("meta.gatewayid", BsonType.String) & filter.Ne("device_trigger", "out"))
-            .Sort(Builders<BsonDocument>.Sort.Descending("timestamp"))
-            .Group(new BsonDocument
-            {
-                { "_id", new BsonDocument("$toLower", "$meta.tagid") },
-                { "tagId", new BsonDocument("$first", "$meta.tagid") },
-                { "gatewayId", new BsonDocument("$first", "$meta.gatewayid") },
-                { "timestamp", new BsonDocument("$first", "$timestamp") }
-            })
-            .ToListAsync(cancellationToken);
-
-        var tags = rows
-            .Select(row => (
-                TagId: row.GetStringOrNull("tagId")!,
-                GatewayId: row.GetStringOrNull("gatewayId")!,
-                LastSeen: row.TryGetValue("timestamp", out var time) && time.IsValidDateTime ? time.ToUniversalTime() : (DateTime?)null))
-            .Where(tag => tag.TagId is not null && tag.GatewayId is not null)
+        // One shared device-status rule (DeviceStatusReader): last seen = newest reading of the device itself (a repeater also
+        // counts a gateway hearing its beacon), Online <= 2 min, Idle <= 10 min, Offline after; assets in range = distinct tags
+        // the device heard in the last 2 minutes. Plotted devices are listed even when they heard nothing.
+        var reader = new DeviceStatusReader(_database);
+        var status = await reader.GetAsync(null, cancellationToken);
+        var plotted = (await _database.GetCollection<BsonDocument>("maps_plots")
+                .Find(new BsonDocument { { "kind", "device" }, { "is_deleted", new BsonDocument("$ne", true) } })
+                .Project(Builders<BsonDocument>.Projection.Include("device_id").Include("item_id"))
+                .ToListAsync(cancellationToken))
+            .Select(plot => plot.GetStringOrNull("device_id") ?? plot.GetStringOrNull("item_id"))
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => DeviceStatusReader.Normalize(id!))
+            .Distinct()
+            .Where(id => !status.ContainsKey(id))
             .ToList();
+        foreach (var (id, device) in await reader.GetAsync(plotted, cancellationToken))
+        {
+            status[id] = device;
+        }
 
-        var assets = await ResolveRegistrationsAsync(tags.Select(tag => (tag.TagId, (string?)null)).ToList(), cancellationToken);
+        var tagIds = status.Values.SelectMany(device => device.TagIds).Distinct().ToList();
+        var assets = await ResolveRegistrationsAsync(tagIds.Select(tag => (tag, (string?)null)).ToList(), cancellationToken);
 
-        return tags
-            .GroupBy(tag => tag.GatewayId, StringComparer.OrdinalIgnoreCase)
-            .Select(gateway => new GatewayTags(
-                gateway.First().GatewayId,
-                gateway
+        return status.Values
+            .Select(device => new GatewayTags(
+                device.DeviceId,
+                device.TagIds
                     .Select(tag =>
                     {
-                        assets.TryGetValue(tag.TagId, out var asset);
-                        return new GatewayTag(tag.TagId, asset.AssetRegistrationId, asset.AssetName, tag.LastSeen);
+                        assets.TryGetValue(tag, out var asset);
+                        return new GatewayTag(tag, asset.AssetRegistrationId, asset.AssetName, device.LastSeen);
                     })
                     .OrderBy(tag => tag.AssetName ?? tag.TagId, StringComparer.OrdinalIgnoreCase)
-                    .ToList()))
+                    .ToList(),
+                device.LastSeen,
+                device.Status))
             .OrderBy(gateway => gateway.GatewayId, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
@@ -296,6 +297,11 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
             })
             .ToListAsync(cancellationToken);
 
+        // The gateway shown for a tag is the device the worker resolved for it (the newest reading is a tie between devices);
+        // a state older than the presence window means no live gateway.
+        var states = _resolved.Enabled ? await _resolved.GetAsync(null, cancellationToken) : null;
+        var now = DateTime.UtcNow;
+
         foreach (var row in rows)
         {
             var tagId = row.GetStringOrNull("tagId");
@@ -304,10 +310,16 @@ public sealed class NetworkStatusRepository : INetworkStatusRepository
                 continue;
             }
 
+            var gatewayId = row.GetStringOrNull("gatewayId");
+            if (states is not null && states.TryGetValue(tagId.ToLowerInvariant(), out var state))
+            {
+                gatewayId = state.HasLocation && !_resolved.IsStale(state, now) ? state.DeviceId : null;
+            }
+
             latest[tagId] = new TagLatestReading(
                 tagId,
                 false,
-                row.GetStringOrNull("gatewayId"),
+                gatewayId,
                 row.TryGetValue("timestamp", out var time) && time.IsValidDateTime ? time.ToUniversalTime() : null,
                 row.GetStringOrNull("status"),
                 Number(row, "battery"),
