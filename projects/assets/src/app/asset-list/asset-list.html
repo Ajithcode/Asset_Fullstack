@@ -208,7 +208,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let a of pageRows; let i = index; trackBy: trackById" [class.is-selected]="selected.has(a.id)">
+          <ng-container *ngFor="let a of pageRows; let i = index; trackBy: trackById">
+          <tr [class.is-selected]="selected.has(a.id)" [class.is-expanded]="expanded.has(a.id)">
             <td class="col-check no-print">
               <input type="checkbox" [checked]="selected.has(a.id)" (change)="toggleRow(a)" [attr.aria-label]="'Select ' + a.name" />
             </td>
@@ -219,7 +220,15 @@
                 <ng-template #rowIcon><lucide-icon [img]="assetIcons[a.icon]" [size]="20"></lucide-icon></ng-template>
               </span>
             </td>
-            <td><button type="button" class="asset-name" (click)="viewAsset(a)">{{ a.name }}</button></td>
+            <td>
+              <button type="button" class="asset-name" (click)="viewAsset(a)">{{ a.name }}</button>
+              <button *ngIf="subAssetsOf(a).length as n" type="button" class="sub-toggle no-print" [class.is-open]="expanded.has(a.id)"
+                (click)="toggleSubAssets(a)" [attr.aria-expanded]="expanded.has(a.id)" [attr.aria-controls]="'subs-' + a.id">
+                <lucide-icon [img]="icons.ChevronDown" [size]="14" class="sub-toggle__caret"></lucide-icon>
+                {{ n }} sub asset{{ n === 1 ? '' : 's' }}
+              </button>
+              <small *ngIf="mainAssetsOf(a) as mains" class="sub-of">Sub asset of {{ mains }}</small>
+            </td>
             <td class="mono">{{ a.tag }}</td>
             <td class="two-line"><span>{{ a.category }}</span><small>{{ a.type }}</small></td>
             <td class="two-line"><span>{{ a.site }}</span><small>{{ a.area }}</small></td>
@@ -242,6 +251,12 @@
               <ng-container *ngTemplateOutlet="rowMenu; context: { $implicit: a }"></ng-container>
             </td>
           </tr>
+          <tr *ngIf="expanded.has(a.id)" class="sub-row" [id]="'subs-' + a.id">
+            <td colspan="12">
+              <ng-container *ngTemplateOutlet="subPanel; context: { $implicit: a }"></ng-container>
+            </td>
+          </tr>
+          </ng-container>
         </tbody>
       </table>
       <ng-container *ngIf="!pageRows.length && !loading" [ngTemplateOutlet]="emptyState"></ng-container>
@@ -279,7 +294,16 @@
           </dl>
           <footer>
             <span class="pill" [ngClass]="criticalityClass(a.criticality)"><span class="dot"></span>{{ a.criticality }}</span>
+            <button *ngIf="subAssetsOf(a).length as n" type="button" class="sub-toggle no-print" [class.is-open]="expanded.has(a.id)"
+              (click)="toggleSubAssets(a)" [attr.aria-expanded]="expanded.has(a.id)">
+              <lucide-icon [img]="icons.ChevronDown" [size]="14" class="sub-toggle__caret"></lucide-icon>
+              {{ n }} sub asset{{ n === 1 ? '' : 's' }}
+            </button>
           </footer>
+          <small *ngIf="mainAssetsOf(a) as mains" class="sub-of">Sub asset of {{ mains }}</small>
+          <ng-container *ngIf="expanded.has(a.id)">
+            <ng-container *ngTemplateOutlet="subPanel; context: { $implicit: a }"></ng-container>
+          </ng-container>
         </article>
       </div>
     </div>
@@ -313,6 +337,34 @@
       </div>
     </div>
   </div>
+
+  <!-- Sub assets of one main asset (shared by list and grid views) -->
+  <ng-template #subPanel let-a>
+    <div class="sub-panel">
+      <div class="sub-panel__head">
+        <span class="sub-panel__title">
+          <lucide-icon [img]="icons.GitBranch" [size]="15"></lucide-icon>
+          Sub assets of {{ a.name }} <span class="sub-count">{{ subAssetsOf(a).length }}</span>
+        </span>
+        <label class="sub-search">
+          <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
+          <input type="search" [(ngModel)]="subSearch[a.id]" [name]="'subSearch-' + a.id" placeholder="Search sub assets" [attr.aria-label]="'Search sub assets of ' + a.name" autocomplete="off" />
+        </label>
+      </div>
+      <ul class="sub-list" *ngIf="filteredSubAssets(a) as subs">
+        <li *ngFor="let s of subs; trackBy: trackSub">
+          <button type="button" class="sub-item" (click)="openSubAsset(s, a)" [title]="s.assetRegistrationId ? 'Open ' + s.name : 'Open the components of ' + a.name">
+            <span class="sub-item__icon"><lucide-icon [img]="icons.Box" [size]="16"></lucide-icon></span>
+            <span class="sub-item__main"><b>{{ s.name || s.tag }}</b><small class="mono">{{ s.tag || s.assetRegistrationId || 'Component' }}</small></span>
+            <span class="sub-item__meta">{{ s.category || '–' }}</span>
+            <span class="sub-item__meta sub-item__loc">{{ s.location || '–' }}</span>
+            <span class="sub-type">{{ s.relationshipType }}</span>
+          </button>
+        </li>
+        <li *ngIf="!subs.length" class="sub-empty">No sub asset matches &ldquo;{{ subSearch[a.id] }}&rdquo;.</li>
+      </ul>
+    </div>
+  </ng-template>
 
   <!-- Row action menu (shared by list and grid views) -->
   <ng-template #rowMenu let-a>

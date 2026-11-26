@@ -23,6 +23,7 @@ import {
   Flame,
   Forklift,
   Funnel,
+  GitBranch,
   History,
   Inbox,
   Laptop,
@@ -46,6 +47,7 @@ import { apiErrorMessage } from '../services/asset-api';
 import {
   AssetRegistrationFilters, AssetRegistrationListItem, AssetRegistrationResult, AssetRegistrationListQuery, AssetRegistrationListResult, AssetRegistrationService,
 } from '../services/asset-registration/asset-registration';
+import { AssetRelationshipService, SubAssetDto } from '../asset-relationship-list/asset-relationship.service';
 
 type SortKey = 'name' | 'tag' | 'category' | 'location' | 'custodian' | 'status' | 'criticality' | 'nextMaintenance';
 type MaintenanceDue = '' | 'overdue' | '30' | '90' | 'none';
@@ -176,7 +178,7 @@ const AVATAR_COLORS = ['#6d4aff', '#2563eb', '#0891b2', '#db2777', '#7c3aed', '#
 export class AssetList {
   readonly icons = {
     Box, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
-    Download, EllipsisVertical, Eye, Funnel, History, Inbox, LayoutGrid, List, Pencil, Plus,
+    Download, EllipsisVertical, Eye, Funnel, GitBranch, History, Inbox, LayoutGrid, List, Pencil, Plus,
     Printer, Search, Trash2, UserRound, Wrench, X,
   };
 
@@ -195,6 +197,7 @@ export class AssetList {
   };
 
   private readonly api = inject(AssetRegistrationService);
+  private readonly relationshipsApi = inject(AssetRelationshipService);
   private readonly destroyRef = inject(DestroyRef);
 
   // ===== Filter options (GET /api/asset-registrations/filters) =====
@@ -266,6 +269,7 @@ export class AssetList {
     this.searchInput$.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.refresh());
     this.loadFilterOptions();
     this.loadDrafts();
+    this.loadSubAssets();
     this.refresh();
   }
 
@@ -618,6 +622,7 @@ export class AssetList {
         this.selected.delete(asset.id);
         this.showToast(`${asset.name} deleted.`);
         this.loadFilterOptions();
+        this.loadSubAssets();
         this.refresh();
       },
       error: (err) => {
@@ -632,6 +637,75 @@ export class AssetList {
     this.openMenuId = null;
     // id: the overview reads GET /api/asset-registrations/{id}; tag: the other detail tabs find the asset by tag
     this.router.navigate(['/assets/overview'], { queryParams: { id: asset.registrationId, tag: asset.tag } });
+  }
+
+  // ===== Sub assets (GET /api/asset-relationships: each main asset with the sub assets linked to it) =====
+
+  /** Sub assets per main asset, by the main asset's registration id. */
+  private subAssetsByMain = new Map<string, SubAssetDto[]>();
+  /** Main asset names per sub asset registration id, for the "Sub asset of" note. */
+  private mainsBySub = new Map<string, string[]>();
+  /** Rows whose sub assets are shown (closed by default). */
+  readonly expanded = new Set<string>();
+  /** Search text per expanded row. */
+  subSearch: Record<string, string> = {};
+
+  private loadSubAssets(): void {
+    this.relationshipsApi.getRelationships().subscribe({
+      next: (relationships) => {
+        const byMain = new Map<string, SubAssetDto[]>();
+        const bySub = new Map<string, string[]>();
+        for (const r of relationships) {
+          const subs = r.subAssets ?? [];
+          if (!subs.length) continue;
+          byMain.set(r.mainAssetRegistrationId, subs);
+          const mainName = r.mainAssetName || r.mainAssetTag || r.mainAssetRegistrationId;
+          for (const s of subs) if (s.assetRegistrationId) bySub.set(s.assetRegistrationId, [...(bySub.get(s.assetRegistrationId) ?? []), mainName]);
+        }
+        this.subAssetsByMain = byMain;
+        this.mainsBySub = bySub;
+      },
+      // the list still works without them; the dropdowns just don't appear
+      error: () => {
+        this.subAssetsByMain = new Map();
+        this.mainsBySub = new Map();
+      },
+    });
+  }
+
+  subAssetsOf(row: AssetRow): SubAssetDto[] {
+    return this.subAssetsByMain.get(row.registrationId) ?? [];
+  }
+
+  /** Main assets this row is linked under, e.g. "Generator 01". */
+  mainAssetsOf(row: AssetRow): string {
+    return (this.mainsBySub.get(row.registrationId) ?? []).join(', ');
+  }
+
+  toggleSubAssets(row: AssetRow): void {
+    if (this.expanded.has(row.id)) this.expanded.delete(row.id);
+    else this.expanded.add(row.id);
+  }
+
+  /** The row's sub assets matching its search (name, tag, category, relationship or location). */
+  filteredSubAssets(row: AssetRow): SubAssetDto[] {
+    const subs = this.subAssetsOf(row);
+    const q = (this.subSearch[row.id] ?? '').trim().toLowerCase();
+    if (!q) return subs;
+    return subs.filter((s) => [s.name, s.tag, s.category, s.relationshipType, s.location].some((v) => v?.toLowerCase().includes(q)));
+  }
+
+  /** A registered sub asset opens its own overview; a component opens the main asset's components tab. */
+  openSubAsset(sub: SubAssetDto, main: AssetRow): void {
+    if (sub.assetRegistrationId) {
+      this.router.navigate(['/assets/overview'], { queryParams: { id: sub.assetRegistrationId, tag: sub.tag || undefined } });
+    } else {
+      this.router.navigate(['/assets/component-details'], { queryParams: { tag: main.tag } });
+    }
+  }
+
+  trackSub(_: number, sub: SubAssetDto): string {
+    return sub.componentId ? 'c:' + sub.componentId : 'a:' + (sub.assetRegistrationId ?? sub.name);
   }
 
   // ===== Export / print =====
