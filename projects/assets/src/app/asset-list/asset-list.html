@@ -228,6 +228,10 @@
                 {{ n }} sub asset{{ n === 1 ? '' : 's' }}
               </button>
               <small *ngIf="mainAssetsOf(a) as mains" class="sub-of">Sub asset of {{ mains }}</small>
+              <!-- sub assets open inside the Asset Name cell, as wide as this column -->
+              <div *ngIf="expanded.has(a.id)" [id]="'subs-' + a.id">
+                <ng-container *ngTemplateOutlet="subPanel; context: { $implicit: a }"></ng-container>
+              </div>
             </td>
             <td class="mono">{{ a.tag }}</td>
             <td class="two-line"><span>{{ a.category }}</span><small>{{ a.type }}</small></td>
@@ -249,11 +253,6 @@
             </td>
             <td class="col-actions no-print">
               <ng-container *ngTemplateOutlet="rowMenu; context: { $implicit: a }"></ng-container>
-            </td>
-          </tr>
-          <tr *ngIf="expanded.has(a.id)" class="sub-row" [id]="'subs-' + a.id">
-            <td colspan="12">
-              <ng-container *ngTemplateOutlet="subPanel; context: { $implicit: a }"></ng-container>
             </td>
           </tr>
           </ng-container>
@@ -343,22 +342,22 @@
     <div class="sub-panel">
       <div class="sub-panel__head">
         <span class="sub-panel__title">
-          <lucide-icon [img]="icons.GitBranch" [size]="15"></lucide-icon>
-          Sub assets of {{ a.name }} <span class="sub-count">{{ subAssetsOf(a).length }}</span>
+          <lucide-icon [img]="icons.GitBranch" [size]="14"></lucide-icon>
+          Sub assets <span class="sub-count">{{ subAssetsOf(a).length }}</span>
         </span>
         <label class="sub-search">
           <lucide-icon [img]="icons.Search" [size]="15"></lucide-icon>
-          <input type="search" [(ngModel)]="subSearch[a.id]" [name]="'subSearch-' + a.id" placeholder="Search sub assets" [attr.aria-label]="'Search sub assets of ' + a.name" autocomplete="off" />
+          <input type="search" [(ngModel)]="subSearch[a.id]" [name]="'subSearch-' + a.id" placeholder="Search" [attr.aria-label]="'Search sub assets of ' + a.name" autocomplete="off" />
         </label>
       </div>
       <ul class="sub-list" *ngIf="filteredSubAssets(a) as subs">
         <li *ngFor="let s of subs; trackBy: trackSub">
-          <button type="button" class="sub-item" (click)="openSubAsset(s, a)" [title]="s.assetRegistrationId ? 'Open ' + s.name : 'Open the components of ' + a.name">
-            <span class="sub-item__icon"><lucide-icon [img]="icons.Box" [size]="16"></lucide-icon></span>
-            <span class="sub-item__main"><b>{{ s.name || s.tag }}</b><small class="mono">{{ s.tag || s.assetRegistrationId || 'Component' }}</small></span>
-            <span class="sub-item__meta">{{ s.category || '–' }}</span>
-            <span class="sub-item__meta sub-item__loc" [title]="s.location || ''">{{ s.location || '–' }}</span>
-            <span class="sub-type">{{ s.relationshipType }}</span>
+          <button type="button" class="sub-item" (click)="openSubAsset(s, a)" [title]="(s.name || s.tag) + (s.category ? ' · ' + s.category : '') + (s.location ? ' · ' + s.location : '')">
+            <span class="sub-item__icon"><lucide-icon [img]="icons.Box" [size]="14"></lucide-icon></span>
+            <span class="sub-item__main">
+              <b>{{ s.name || s.tag }}</b>
+              <small class="mono">{{ s.tag || s.assetRegistrationId || 'Component' }} · {{ s.relationshipType }}</small>
+            </span>
           </button>
         </li>
         <li *ngIf="!subs.length" class="sub-empty">No sub asset matches &ldquo;{{ subSearch[a.id] }}&rdquo;.</li>
