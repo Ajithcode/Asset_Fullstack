@@ -151,29 +151,48 @@ public class TagLocationResolver(
             if (inZone.ContainsKey(dev) && list.Count >= S.RssiMinWindows)
                 medians[dev] = Median(list.Select(x => x.R).ToList());
 
-        if (medians.Count == 0)
-            return null; // nobody qualifies: keep the current device and zone (the API ages it out as stale)
-
-        var top = medians.OrderByDescending(m => m.Value).ThenBy(m => m.Key, StringComparer.Ordinal).First();
-
-        // first assignment: strongest device, no hysteresis
+        // first assignment: strongest qualifying device, no hysteresis
         if (st.Device == null)
         {
-            Assign(st, inZone[top.Key], t);
-            st.Rssi = top.Value;
+            if (medians.Count == 0) return null;
+            var first = medians.OrderByDescending(m => m.Value).ThenBy(m => m.Key, StringComparer.Ordinal).First();
+            Assign(st, inZone[first.Key], t);
+            st.Rssi = first.Value;
             return null;
         }
 
-        // The current device keeps its place while it still has any sample in the range (even fewer than RssiMinWindows,
-        // e.g. a repeater heard only every other window): compared with its own median, so it is not replaced by a weaker
-        // device that happens to qualify. Silent for the whole range = lost.
-        var currentMedian = medians.TryGetValue(st.Device, out var cm) ? cm
-            : st.Samples.TryGetValue(st.Device, out var own) && own.Count > 0 ? Median(own.Select(x => x.R).ToList())
+        var current = st.Device;
+        st.Samples.TryGetValue(current, out var own);
+        var ownLatest = own is { Count: > 0 } ? own.OrderBy(x => x.T).Last() : null;
+
+        // a) fast path: a plotted device heard in THIS window is >= FastSwitchMarginDb stronger than the current device's latest
+        //    sample (or the current device has no sample in range at all): switch after one window, before it has RssiMinWindows
+        //    samples. A gap in the current device's own readings (repeaters are heard every other window) is NOT a reason by
+        //    itself: it is compared with its latest sample in range.
+        var fast = st.Samples
+            .Where(kv => kv.Key != current && inZone.ContainsKey(kv.Key))
+            .Select(kv => (Device: kv.Key, Sample: kv.Value.FirstOrDefault(x => x.T == t)))
+            .Where(x => x.Sample != null && (ownLatest == null || x.Sample.R >= ownLatest.R + S.FastSwitchMarginDb))
+            .OrderByDescending(x => x.Sample!.R).ThenBy(x => x.Device, StringComparer.Ordinal)
+            .FirstOrDefault();
+        if (fast.Device != null)
+            return Switch(st, inZone[fast.Device], fast.Sample!.R, docs, mapping, windowTime, t);
+
+        // b) silence: no sample of the current device for CurrentDeviceSilenceSeconds and a challenger qualifies: switch now
+        var top = medians.Where(m => m.Key != current).OrderByDescending(m => m.Value).ThenBy(m => m.Key, StringComparer.Ordinal).Select(m => ((string Key, double Value)?)(m.Key, m.Value)).FirstOrDefault();
+        var silent = ownLatest == null || ownLatest.T <= t - S.CurrentDeviceSilenceSeconds * 1000L;
+        if (silent && top is { } silentBest)
+            return Switch(st, inZone[silentBest.Key], silentBest.Value, docs, mapping, windowTime, t);
+
+        // c) normal: the current device keeps its place while it has any sample in range (compared with its own median, even
+        //    with fewer than RssiMinWindows); a qualified challenger must be SwitchMarginDb stronger for SwitchConsecutiveWindows
+        var currentMedian = medians.TryGetValue(current, out var cm) ? cm
+            : own is { Count: > 0 } ? Median(own.Select(x => x.R).ToList())
             : double.NegativeInfinity;
-        if (top.Key != st.Device && top.Value >= currentMedian + S.SwitchMarginDb)
+        if (top is { } challenger && challenger.Value >= currentMedian + S.SwitchMarginDb)
         {
-            st.PendingCount = st.Pending == top.Key ? st.PendingCount + 1 : 1;
-            st.Pending = top.Key;
+            st.PendingCount = st.Pending == challenger.Key ? st.PendingCount + 1 : 1;
+            st.Pending = challenger.Key;
         }
         else
         {
@@ -182,38 +201,42 @@ public class TagLocationResolver(
         }
 
         if (st.Pending != null && st.PendingCount >= S.SwitchConsecutiveWindows)
-        {
-            var next = inZone[st.Pending];
-            BsonDocument? outDoc = null;
-            var oldDevice = st.Device;
-            var oldSince = st.SinceMs;
-            var zoneChanged = !string.Equals(next.ZoneId, st.ZoneId, StringComparison.Ordinal);
-            if (zoneChanged)
-                outDoc = OutDocument(docs[0], mapping, oldDevice, oldSince, windowTime);
+            return Switch(st, inZone[st.Pending], medians[st.Pending], docs, mapping, windowTime, t);
 
-            st.Device = next.DeviceId;
-            if (zoneChanged)
-            {
-                st.ZoneId = next.ZoneId;
-                st.ZoneName = next.ZoneName;
-                st.FloorPlanId = next.FloorPlanId;
-                st.SinceMs = t;
-            }
-            st.Pending = null;
-            st.PendingCount = 0;
-            st.Rssi = medians[next.DeviceId];
-            return outDoc;
-        }
-
-        st.Rssi = medians.TryGetValue(st.Device, out var cur) ? cur : st.Rssi;
+        st.Rssi = medians.TryGetValue(current, out var cur) ? cur : st.Rssi;
 
         // keep zone label in step with plot edits (same device, zone renamed/moved): no event
-        if (inZone.TryGetValue(st.Device, out var plot) && plot.ZoneId == st.ZoneId)
+        if (inZone.TryGetValue(current, out var plot) && plot.ZoneId == st.ZoneId)
         {
             st.ZoneName = plot.ZoneName;
             st.FloorPlanId = plot.FloorPlanId;
         }
         return null;
+    }
+
+    // Moves the tag to another device. A different ZONE also closes the stay: "out" document for the old device.
+    private static BsonDocument? Switch(TagState st, PlottedDevice next, double rssi, List<BsonDocument> docs,
+        StreamMapping mapping, DateTime windowTime, long t)
+    {
+        BsonDocument? outDoc = null;
+        var oldDevice = st.Device!;
+        var oldSince = st.SinceMs;
+        var zoneChanged = !string.Equals(next.ZoneId, st.ZoneId, StringComparison.Ordinal);
+        if (zoneChanged)
+            outDoc = OutDocument(docs[0], mapping, oldDevice, oldSince, windowTime);
+
+        st.Device = next.DeviceId;
+        if (zoneChanged)
+        {
+            st.ZoneId = next.ZoneId;
+            st.ZoneName = next.ZoneName;
+            st.FloorPlanId = next.FloorPlanId;
+            st.SinceMs = t;
+        }
+        st.Pending = null;
+        st.PendingCount = 0;
+        st.Rssi = rssi;
+        return outDoc;
     }
 
     private static void Assign(TagState st, PlottedDevice d, long t)
