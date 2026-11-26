@@ -1,3 +1,4 @@
+import { MapOpacity } from 'shared-ui';
 import { Component, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -28,7 +29,7 @@ import { MapsStore } from '../maps.store';
 @Component({
   standalone: true,
   selector: 'app-maps-plotting',
-  imports: [FormsModule, LucideAngularModule, MapViewer, MapCanvas, AssetLivePopup],
+  imports: [MapOpacity, FormsModule, LucideAngularModule, MapViewer, MapCanvas, AssetLivePopup],
   templateUrl: './plotting.html',
   styleUrls: ['../../shared/admin-workspace.css', '../maps.css'],
   styles: `

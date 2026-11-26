@@ -68,14 +68,15 @@
       <div class="mo mo-top">
         <select class="control control-sm" [ngModel]="mapFloorId" (ngModelChange)="setFloor($event)" aria-label="Floor"><option value="" disabled>Select floor</option><option *ngFor="let f of floors" [value]="f.id">{{ f.label }}</option></select>
       </div>
-      <div class="mo mo-layers" role="group" aria-label="Map layers">
-        <label><input type="checkbox" [(ngModel)]="showDevicesLayer" />Gateways</label>
-        <label><input type="checkbox" [(ngModel)]="showAssetsLayer" />Plotted assets</label>
-        <label><input type="checkbox" [(ngModel)]="showLabels" />Labels</label>
-      </div>
       <div class="mo mo-legend" [class.mo-legend--fs]="fullscreen" aria-label="Legend">
         <button *ngIf="fullscreen" type="button" class="lg-toggle" (click)="legendOpen = !legendOpen" [attr.aria-expanded]="legendOpen">Legend</button>
         <ng-container *ngIf="!fullscreen || legendOpen">
+          <span class="lg-layers" role="group" aria-label="Map layers">
+            <label><input type="checkbox" [(ngModel)]="showDevicesLayer" />Gateways</label>
+            <label><input type="checkbox" [(ngModel)]="showAssetsLayer" />Plotted assets</label>
+            <label><input type="checkbox" [(ngModel)]="showLabels" />Labels</label>
+          </span>
+          <app-map-opacity></app-map-opacity>
           <span><i class="lg lg--gw"></i>Gateway</span>
           <span><i class="lg lg--sel"></i>Hearing selected asset</span>
           <span><i class="lg lg--count">N</i>Assets heard (live)</span>

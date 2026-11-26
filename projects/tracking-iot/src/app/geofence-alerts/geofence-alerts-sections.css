@@ -168,3 +168,10 @@
 .desk-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: #faf5ff; border: 1px solid #ede9fe; font-size: 0.75rem; }
 .desk-ok { color: #15803d; font-weight: 600; }
 .desk-warn { color: #b45309; }
+
+/* map opacity sliders live in the strip; full screen = collapsed "Legend" panel bottom-left */
+.legend-strip .lg-toggle { padding: 3px 10px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+.map-card.mc-fs .legend-strip--fs { position: absolute; inset: auto auto 12px 10px; z-index: 1000; width: auto; max-width: 270px; flex-direction: column; align-items: flex-start; flex-wrap: nowrap; gap: 4px; padding: 4px 6px;
+  border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.88); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25); }
+.map-card.mc-fs .legend-strip--fs .mvp { flex-direction: column; align-items: flex-start; }
+.map-card.mc-fs { position: relative; }

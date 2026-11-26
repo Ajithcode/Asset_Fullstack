@@ -109,11 +109,15 @@
             <button type="button" class="btn btn-grey btn-xs" (click)="cancelShape()">Cancel</button>
           </div>
         </div>
-        <div *ngIf="floorId" class="legend-strip">
-          <label><input type="checkbox" [(ngModel)]="showGateways" /><i class="fp-dot fp-dot--device"></i>Gateways ({{ floorCount('device') }})</label>
-          <label><input type="checkbox" [(ngModel)]="showAssets" /><i class="fp-dot fp-dot--asset"></i>Assets ({{ floorCount('asset') }})</label>
-          <label><input type="checkbox" [(ngModel)]="showLabels" />Labels</label>
-          <span><i class="fp-total-key">N</i>Total Assets (live)</span>
+        <div *ngIf="floorId" class="legend-strip" [class.legend-strip--fs]="fullscreen">
+          <button *ngIf="fullscreen" type="button" class="lg-toggle" (click)="legendOpen = !legendOpen" [attr.aria-expanded]="legendOpen">Legend</button>
+          <ng-container *ngIf="!fullscreen || legendOpen">
+            <label><input type="checkbox" [(ngModel)]="showGateways" /><i class="fp-dot fp-dot--device"></i>Gateways ({{ floorCount('device') }})</label>
+            <label><input type="checkbox" [(ngModel)]="showAssets" /><i class="fp-dot fp-dot--asset"></i>Assets ({{ floorCount('asset') }})</label>
+            <label><input type="checkbox" [(ngModel)]="showLabels" />Labels</label>
+            <app-map-opacity></app-map-opacity>
+            <span><i class="fp-total-key">N</i>Total Assets (live)</span>
+          </ng-container>
         </div>
         <div *ngIf="!floorId" class="legend-strip">
           <span><i class="sq sq--blue"></i>Allowed zone</span>

@@ -1,3 +1,4 @@
+import { MapOpacity } from 'shared-ui';
 import { Component, EventEmitter, HostListener, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -27,7 +28,7 @@ import { ZoneColorPicker, ZONE_PALETTE } from '../zone-color/zone-color-picker';
 @Component({
   standalone: true,
   selector: 'app-maps-library',
-  imports: [FormsModule, LucideAngularModule, SiteTree, MapViewer, MapCanvas, ZoneForm, ZoneColorPicker, UploadDialog, AssetLivePopup],
+  imports: [MapOpacity, FormsModule, LucideAngularModule, SiteTree, MapViewer, MapCanvas, ZoneForm, ZoneColorPicker, UploadDialog, AssetLivePopup],
   templateUrl: './map-library.html',
   styleUrls: ['../../shared/admin-workspace.css', '../maps.css'],
   styles: `.map-stage { position: relative; flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }`

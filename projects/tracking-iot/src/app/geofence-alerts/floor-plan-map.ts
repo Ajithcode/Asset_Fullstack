@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, HostListener, Input, NgZone, Output, OnChanges, OnDestroy, SimpleChanges, ViewChild, ViewEncapsulation, inject } from '@angular/core';
 import type * as Leaflet from 'leaflet';
-import { MapControls, MapPopup } from 'shared-ui';
+import { MapControls, MapPopup, MapViewPrefsService } from 'shared-ui';
 import { GatewayFeed, PlanPlot, PlanZone } from './floor-map-api.service';
 
 type L = typeof Leaflet;
@@ -262,6 +262,8 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
 
   @ViewChild('host', { static: true }) private host!: ElementRef<HTMLDivElement>;
   private readonly ngZone = inject(NgZone);
+  private readonly viewPrefs = inject(MapViewPrefsService);
+  private viewSub?: { unsubscribe(): void };
   private L?: L;
   private map?: Leaflet.Map;
   private image?: Leaflet.ImageOverlay;
@@ -306,7 +308,19 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       map.on('click dragstart', () => this.closePopup());
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
       this.resize.observe(this.host.nativeElement);
+      // floor plan / zone fill opacity (shared sliders): live, without a redraw
+      this.viewSub = this.viewPrefs.prefs$.subscribe(() => this.ngZone.runOutsideAngular(() => this.applyView()));
       this.sync();
+    });
+  }
+
+  /** Floor plan picture opacity and zone fill opacity from the shared sliders; borders, icons and labels are untouched. */
+  private applyView(): void {
+    const v = this.viewPrefs.value;
+    this.image?.setOpacity(v.plan / 100);
+    this.shapes?.eachLayer((l) => {
+      const path = l as Leaflet.Path;
+      if (path.options?.className === 'fp-zone-shape') path.setStyle({ fillOpacity: v.zone / 100 });
     });
   }
 
@@ -331,6 +345,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     this.destroyed = true;
     clearTimeout(this.hlTimer);
     clearInterval(this.viewTimer);
+    this.viewSub?.unsubscribe();
     this.resize?.disconnect();
     this.map?.remove();
   }
@@ -360,7 +375,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
         if (url !== this.shownImage || !this.map) return;
         this.h = img.naturalWidth ? (W * img.naturalHeight) / img.naturalWidth : W * 0.6;
         const bounds = L.latLngBounds([0, 0], [this.h, W]);
-        this.image = L.imageOverlay(img.src, bounds, { interactive: false }).addTo(map);
+        this.image = L.imageOverlay(img.src, bounds, { interactive: false, opacity: this.viewPrefs.value.plan / 100 }).addTo(map);
         this.image.bringToBack();
         this.ready(bounds);
       };
@@ -415,7 +430,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     let focus: Leaflet.LatLngBounds | null = null;
 
     for (const z of zones) {
-      const style: Leaflet.PathOptions = { color: darken(z.color || '#7c3aed'), weight: 2.5, fillColor: z.color || '#7c3aed', fillOpacity: 0.18, dashArray: z.active ? undefined : '6 6', className: 'fp-zone-shape' };
+      const style: Leaflet.PathOptions = { color: darken(z.color || '#7c3aed'), weight: 2.5, fillColor: z.color || '#7c3aed', fillOpacity: this.viewPrefs.value.zone / 100, dashArray: z.active ? undefined : '6 6', className: 'fp-zone-shape' };
       let shape: Leaflet.Path & { getBounds(): Leaflet.LatLngBounds };
       if (z.shape === 'Circle') {
         shape = L.circle(this.at(z.x + z.w / 2, z.y + z.h / 2), { ...style, radius: ((z.radius ?? z.w / 2) / 100) * W });

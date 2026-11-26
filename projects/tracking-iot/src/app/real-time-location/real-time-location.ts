@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Observable, Subscription, catchError, forkJoin, map, of } from 'rxjs';
-import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
+import { MapOpacity, ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import {
   LucideAngularModule, ArrowLeft, Bell, Box, Building2, Clock, Crosshair, Download, Eye, History, Lightbulb, LocateFixed, MapPin, Pause, Play, Power,
   Radio, Route, Search, Send, Settings, ShieldAlert, Square, TriangleAlert, Volume2, Wifi, X, HelpCircle,
@@ -33,7 +33,7 @@ const MOVING_MS = 60000;
 @Component({
   selector: 'app-real-time-location',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FloorPlanMap, ExportMenu],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, MapOpacity, FloorPlanMap, ExportMenu],
   templateUrl: './real-time-location.html',
   styleUrls: [
     '../tracking-telemetry/tracking-telemetry.css', '../tracking-telemetry/tracking-telemetry-panels.css', '../tracking-telemetry/tracking-telemetry-v2.css',

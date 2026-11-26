@@ -19,7 +19,7 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import type { LucideIconData } from 'lucide-angular';
 import { FloorPlan, MapZone, PlotItem, SiteNode, TONE_HEX, ZoneGeometry, ZoneShape, isImageFormat, zoneIcon } from '../maps.data';
-import { MapControls } from 'shared-ui';
+import { MapControls, MapViewPrefsService } from 'shared-ui';
 import { MapsStore } from '../maps.store';
 import { MapViewer } from '../map-viewer/map-viewer';
 
@@ -225,6 +225,11 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
   /** The viewer panel around this canvas (null for thumbnails / minimap): it owns the zoom %, and its Full screen. */
   readonly viewer = inject(MapViewer, { optional: true });
   private readonly ngZone = inject(NgZone);
+  /** Floor plan / zone fill opacity (shared sliders): a change redraws the overlay (the preview thumbnails follow too). */
+  private readonly viewPrefs = inject(MapViewPrefsService);
+  private viewSub = this.viewPrefs.prefs$.subscribe(() => {
+    if (this.frame && this.overlay && !this.destroyed) this.ngZone.runOutsideAngular(() => this.draw());
+  });
   private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -481,6 +486,7 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    this.viewSub.unsubscribe();
     this.teardown();
   }
 
@@ -685,7 +691,7 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
 
     const src = this.imageSrc;
     if (src) {
-      L.imageOverlay(src, area, { interactive: false, className: 'mfp-floor-image' }).addTo(this.overlay);
+      L.imageOverlay(src, area, { interactive: false, className: 'mfp-floor-image', opacity: this.viewPrefs.value.plan / 100 }).addTo(this.overlay);
     } else if (this.showFrame) {
       L.rectangle(area, { color: '#5b2aa8', weight: this.preview ? 1 : 2, dashArray: '6 4', fill: false, interactive: false }).addTo(this.overlay);
     }
@@ -728,7 +734,7 @@ export class MapCanvas implements AfterViewInit, OnChanges, DoCheck, OnDestroy {
       color: darkenHex(hex),
       weight: active ? 3 : 2.5,
       fillColor: hex,
-      fillOpacity: active ? 0.22 : 0.18,
+      fillOpacity: active ? Math.min(0.9, this.viewPrefs.value.zone / 100 + 0.04) : this.viewPrefs.value.zone / 100,
       interactive: !this.preview
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

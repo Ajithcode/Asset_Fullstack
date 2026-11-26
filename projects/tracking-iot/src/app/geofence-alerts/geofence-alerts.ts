@@ -2,7 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject } from '@
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ExportMenu, MapControls, ExportRequest, ExportService, pushToast } from 'shared-ui';
+import { MapOpacity, ExportMenu, MapControls, ExportRequest, ExportService, pushToast } from 'shared-ui';
 import { Observable, Subscription, catchError, forkJoin, of, switchMap } from 'rxjs';
 import {
   LucideAngularModule,
@@ -91,7 +91,7 @@ const DEFAULT_TEAMS = ['Security Team', 'Operations Team', 'Maintenance Team', '
 @Component({
   selector: 'app-geofence-alerts',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LucideAngularModule, GeofenceMap, MapDrawTools, FloorPlanMap, ExportMenu, MapControls],
+  imports: [CommonModule, FormsModule, RouterLink, LucideAngularModule, MapOpacity, GeofenceMap, MapDrawTools, FloorPlanMap, ExportMenu, MapControls],
   templateUrl: './geofence-alerts.html',
   styleUrls: ['./geofence-alerts.css', './geofence-alerts-sections.css', '../shared/iot-purple-theme.css', './geofence-alerts-v2.css'],
 })
@@ -178,6 +178,14 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
   showAssets = true;
   showGateways = true;
   showLabels = true;
+  /** Full screen: the legend strip becomes a collapsed "Legend" button so it does not cover the plan. */
+  fullscreen = false;
+  legendOpen = false;
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    this.fullscreen = !!document.fullscreenElement;
+    if (!this.fullscreen) this.legendOpen = false;
+  }
   layersOpen = false;
   @ViewChild(GeofenceMap) gmap?: GeofenceMap;
   mapMode: MapMode = 'view';

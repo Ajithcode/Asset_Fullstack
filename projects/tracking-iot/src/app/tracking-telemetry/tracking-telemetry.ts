@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subscription, catchError, forkJoin, of } from 'rxjs';
-import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
+import { MapOpacity, ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import {
   LucideAngularModule, Activity, Battery, BatteryLow, Bell, Box, Building2, Calendar, Clock, Cpu, Download, Filter, Heart,
   History, Layers, Link, MapPin, RadioTower, Search, Signal, TriangleAlert, Wifi, WifiOff, X,
@@ -36,7 +36,7 @@ const CHART = { l: 56, r: 18, band: 118, gap: 26, axis: 24 };
 @Component({
   selector: 'app-tracking-telemetry',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FloorPlanMap, ExportMenu],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, MapOpacity, FloorPlanMap, ExportMenu],
   templateUrl: './tracking-telemetry.html',
   styleUrls: ['./tracking-telemetry.css', './tracking-telemetry-panels.css', './tracking-telemetry-v2.css', '../shared/iot-purple-theme.css'],
 })
