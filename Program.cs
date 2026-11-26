@@ -14,6 +14,7 @@ builder.WebHost.UseUrls(httpSettings.ListenUrl);
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection("Redis"));
 builder.Services.Configure<MongoSettings>(builder.Configuration.GetSection("Mongo"));
 builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("Mqtt"));
+builder.Services.Configure<LocationSettings>(builder.Configuration.GetSection("Location"));
 builder.Services.Configure<List<StreamMapping>>(builder.Configuration.GetSection("StreamMappings"));
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -29,6 +30,8 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
 });
 builder.Services.AddSingleton<TimeSeriesCollectionInitializer>();
 builder.Services.AddSingleton<DeviceTriggerTracker>();
+builder.Services.AddSingleton<PlottedDeviceLookup>();
+builder.Services.AddSingleton<TagLocationResolver>();
 builder.Services.AddHostedService<RedisStreamIngestWorker>();
 builder.Services.AddHostedService<MqttSubscriberWorker>();
 

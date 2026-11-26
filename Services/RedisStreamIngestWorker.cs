@@ -16,6 +16,8 @@ public class RedisStreamIngestWorker(
     IConnectionMultiplexer redis,
     TimeSeriesCollectionInitializer initializer,
     DeviceTriggerTracker triggers,
+    TagLocationResolver resolver,
+    IOptions<LocationSettings> location,
     IOptions<RedisSettings> redisSettings,
     IOptions<List<StreamMapping>> mappings,
     ILogger<RedisStreamIngestWorker> logger) : BackgroundService
@@ -116,11 +118,21 @@ public class RedisStreamIngestWorker(
         }
 
         Dictionary<string, string>? triggerChanges = null;
+        Dictionary<string, TagLocationResolver.TagState>? locationChanges = null;
         if (documents.Count > 0 && mapping.DeviceTriggerField != null)
         {
-            var applied = await triggers.ApplyAsync(documents, mapping);
-            documents = applied.Documents;
-            triggerChanges = applied.Changes;
+            if (location.Value.ResolverEnabled)
+            {
+                var resolved = await resolver.ApplyAsync(documents, mapping, ct);
+                documents = resolved.Documents;
+                locationChanges = resolved.Changes;
+            }
+            else
+            {
+                var applied = await triggers.ApplyAsync(documents, mapping);
+                documents = applied.Documents;
+                triggerChanges = applied.Changes;
+            }
         }
 
         if (documents.Count > 0)
@@ -133,6 +145,8 @@ public class RedisStreamIngestWorker(
         // Only after the insert, so a failed batch is retried from the old state.
         if (triggerChanges != null)
             await triggers.SaveAsync(mapping, triggerChanges);
+        if (locationChanges != null)
+            await resolver.SaveAsync(mapping, locationChanges, ct);
 
         await db.StreamAcknowledgeAsync(mapping.Stream, mapping.Group, ackIds.ToArray());
         if (mapping.DeleteAfterAck)
