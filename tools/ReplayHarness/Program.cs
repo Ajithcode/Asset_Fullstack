@@ -13,6 +13,8 @@ var toUtc = DateTime.UtcNow;
 var uri = Environment.GetEnvironmentVariable("MONGO_URI") ?? throw new InvalidOperationException("MONGO_URI not set");
 var db = new MongoClient(uri).GetDatabase(Environment.GetEnvironmentVariable("MONGO_DB") ?? "Asset360Dev");
 
+if (mode == "fast") { await FastReplay.RunAsync(args, db); return; }
+
 string Arg(string name, string fallback) { var i = Array.IndexOf(args, name); return i >= 0 && i + 1 < args.Length ? args[i + 1] : fallback; }
 string Utc(long ms) => DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime.ToString("HH:mm:ss");
 string Ist(long ms) => DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime.AddHours(5.5).ToString("HH:mm:ss");
