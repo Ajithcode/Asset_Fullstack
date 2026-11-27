@@ -80,6 +80,9 @@ export interface RegisteredAsset {
   criticality: string;
   manufacturer: string;
   imageUrl: string | null;
+  /** Custodian name and next maintenance (yyyy-mm-dd), as on the Asset List; only set by getAssets. */
+  custodian?: string;
+  nextMaintenance?: string | null;
 }
 
 interface AssetListItemDto {
@@ -94,6 +97,8 @@ interface AssetListItemDto {
   status: string | null;
   criticality: string | null;
   manufacturer: string | null;
+  custodianName?: string | null;
+  nextMaintenanceDate?: string | null;
 }
 
 interface AssetRegistrationListDto {
@@ -138,6 +143,8 @@ function toRegisteredAsset(dto: AssetListItemDto): RegisteredAsset {
     criticality: dto.criticality ?? '',
     manufacturer: dto.manufacturer ?? '',
     imageUrl: dto.imageUrl,
+    custodian: dto.custodianName ?? '',
+    nextMaintenance: dto.nextMaintenanceDate ? dto.nextMaintenanceDate.slice(0, 10) : null,
   };
 }
 

@@ -2,11 +2,12 @@ import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, ChevronDown, ChevronRight, Network, Plus, Search, Trash2, X } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Box, CalendarDays, ChevronDown, ChevronRight, Network, Plus, Search, Trash2, X } from 'lucide-angular';
 import { Observable } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
 import { FROM_RELATIONSHIPS } from './user-relationships';
 import {
+  API_RELATIONSHIP_TYPES,
   AssetRelationshipDto,
   AssetRelationshipService,
   RegisteredAsset,
@@ -25,6 +26,13 @@ interface PickAsset {
   category: string;
   location: string;
   status: string;
+  /** The asset's own tag (tag above is its Asset ID) and the other Asset List columns, for the popup's picker. */
+  assetTag: string;
+  type: string;
+  custodian: string;
+  criticality: string;
+  imageUrl: string | null;
+  nextMaintenance: string | null;
 }
 
 /** One sub asset linked to a main asset. */
@@ -70,10 +78,26 @@ interface AssetPreview {
   asset: PickAsset;
   subs: SubRow[];
   loading: boolean;
+  /** Other assets ticked in the popup to link as sub assets, with the relationship type chosen for each. */
+  picks: Map<string, string>;
+  /** Search over the assets offered to link. */
+  search: string;
 }
 
 function toPickAsset(a: RegisteredAsset): PickAsset {
-  return { tag: a.id, name: a.name, category: a.category, location: a.location, status: a.status };
+  return {
+    tag: a.id,
+    name: a.name,
+    category: a.category,
+    location: a.location,
+    status: a.status,
+    assetTag: a.assetTag,
+    type: a.assetType,
+    custodian: a.custodian ?? '',
+    criticality: a.criticality,
+    imageUrl: a.imageUrl,
+    nextMaintenance: a.nextMaintenance ?? null,
+  };
 }
 
 function toGroup(r: AssetRelationshipDto): MainGroup {
@@ -112,7 +136,8 @@ function toGroup(r: AssetRelationshipDto): MainGroup {
   ],
 })
 export class AssetRelationshipList implements OnInit, OnDestroy {
-  readonly icons = { ArrowLeft, ChevronDown, ChevronRight, Network, Plus, Search, Trash2, X };
+  readonly icons = { ArrowLeft, Box, CalendarDays, ChevronDown, ChevronRight, Network, Plus, Search, Trash2, X };
+  readonly relationshipTypes = API_RELATIONSHIP_TYPES;
 
   /** Saved relationships, one per main asset. */
   rels: AssetRelationshipDto[] = [];
@@ -342,7 +367,7 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
   nextToSubs(): void {
     const assets = this.selectedMains.map((t) => this.asset(t)).filter((a): a is PickAsset => !!a);
     if (!assets.length) return;
-    const previews: AssetPreview[] = assets.map((asset) => ({ asset, subs: [], loading: true }));
+    const previews: AssetPreview[] = assets.map((asset) => ({ asset, subs: [], loading: true, picks: new Map(), search: '' }));
     this.previews = previews;
     this.popupError = '';
     this.api.getRelated(assets.map((a) => a.tag)).subscribe({
@@ -370,6 +395,52 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
     });
   }
 
+  /** Assets the popup offers to link to this asset: every other asset not already among its sub assets. */
+  candidates(p: AssetPreview): PickAsset[] {
+    const linked = new Set(p.subs.map((s) => s.sub.assetRegistrationId).filter(Boolean));
+    const q = p.search.trim().toLowerCase();
+    return this.assets.filter(
+      (a) =>
+        a.tag !== p.asset.tag &&
+        !linked.has(a.tag) &&
+        (!q || [a.name, a.tag, a.assetTag, a.category, a.type, a.location, a.custodian, a.status, a.criticality].some((v) => v.toLowerCase().includes(q))),
+    );
+  }
+
+  togglePick(p: AssetPreview, a: PickAsset): void {
+    if (p.picks.has(a.tag)) p.picks.delete(a.tag);
+    else p.picks.set(a.tag, 'Sub Asset');
+  }
+
+  setPickType(p: AssetPreview, a: PickAsset, type: string): void {
+    p.picks.set(a.tag, type);
+  }
+
+  allPicked(p: AssetPreview): boolean {
+    const list = this.candidates(p);
+    return list.length > 0 && list.every((a) => p.picks.has(a.tag));
+  }
+
+  togglePickAll(p: AssetPreview, on: boolean): void {
+    for (const a of this.candidates(p)) {
+      if (on && !p.picks.has(a.tag)) p.picks.set(a.tag, 'Sub Asset');
+      if (!on) p.picks.delete(a.tag);
+    }
+  }
+
+  /** Ticked assets across the popup, for the footer. */
+  get pickCount(): number {
+    return (this.previews ?? []).reduce((n, p) => n + p.picks.size, 0);
+  }
+
+  statusClass(status: string): string {
+    return 'st--' + status.toLowerCase().replace(/\s+/g, '-');
+  }
+
+  criticalityClass(c: string): string {
+    return 'crit--' + c.toLowerCase();
+  }
+
   closePreview(): void {
     this.previews = null;
     this.popupError = '';
@@ -389,9 +460,17 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
       this.selectedMains = [];
       this.router.navigate(['/assets/relationships'], { queryParams: { tag: last, tags: tags.join(','), from: FROM_RELATIONSHIPS } });
     };
+    // what each asset already has, plus the assets ticked in the popup with their relationship type
     const toSave = list
-      .filter((p) => p.subs.length)
-      .map((p) => ({ mainAssetRegistrationId: p.asset.tag, subAssets: p.subs.map((s) => toSubAssetRef(s.sub)) }));
+      .filter((p) => p.subs.length || p.picks.size)
+      .map((p) => ({
+        mainAssetRegistrationId: p.asset.tag,
+        subAssets: [
+          ...p.subs.map((s) => toSubAssetRef(s.sub)),
+          ...[...p.picks].map(([assetRegistrationId, relationshipType]) => ({ assetRegistrationId, relationshipType })),
+        ],
+      }));
+    const linked = this.pickCount;
     if (!toSave.length) {
       open();
       return;
@@ -401,6 +480,7 @@ export class AssetRelationshipList implements OnInit, OnDestroy {
     this.api.save(toSave).subscribe({
       next: () => {
         this.saving = false;
+        if (linked) this.showToast(`${linked} sub asset${linked === 1 ? '' : 's'} linked.`);
         this.loadRelationships();
         open();
       },

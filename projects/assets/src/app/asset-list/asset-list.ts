@@ -23,9 +23,12 @@ import {
   Flame,
   Forklift,
   Funnel,
+  GitBranch,
   History,
   Inbox,
   Laptop,
+  Lightbulb,
+  LocateFixed,
   LayoutGrid,
   List,
   Pencil,
@@ -46,6 +49,8 @@ import { apiErrorMessage } from '../services/asset-api';
 import {
   AssetRegistrationFilters, AssetRegistrationListItem, AssetRegistrationResult, AssetRegistrationListQuery, AssetRegistrationListResult, AssetRegistrationService,
 } from '../services/asset-registration/asset-registration';
+import { AssetHierarchyItemDto, AssetHierarchyService } from '../asset-hierarchy/asset-hierarchy.service';
+import { TagLinkService } from '../services/tag-link.service';
 
 type SortKey = 'name' | 'tag' | 'category' | 'location' | 'custodian' | 'status' | 'criticality' | 'nextMaintenance';
 type MaintenanceDue = '' | 'overdue' | '30' | '90' | 'none';
@@ -73,6 +78,19 @@ interface AssetRow {
   /** yyyy-mm-dd, or null when not scheduled. */
   nextMaintenance: string | null;
   icon: AssetIconKey;
+}
+
+/** A child of an asset in Asset Hierarchy, shown under that asset's name. */
+interface SubItem {
+  id: string;
+  name: string;
+  tag: string;
+  /** "Asset", "System", "Floor" … (the hierarchy item kind). */
+  kind: string;
+  type: string;
+  status: string;
+  /** Items under this child in the hierarchy. */
+  childCount: number;
 }
 
 interface SelectOption {
@@ -176,7 +194,7 @@ const AVATAR_COLORS = ['#6d4aff', '#2563eb', '#0891b2', '#db2777', '#7c3aed', '#
 export class AssetList {
   readonly icons = {
     Box, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
-    Download, EllipsisVertical, Eye, Funnel, History, Inbox, LayoutGrid, List, Pencil, Plus,
+    Download, EllipsisVertical, Eye, Funnel, GitBranch, History, Inbox, LayoutGrid, Lightbulb, List, LocateFixed, Pencil, Plus,
     Printer, Search, Trash2, UserRound, Wrench, X,
   };
 
@@ -195,6 +213,8 @@ export class AssetList {
   };
 
   private readonly api = inject(AssetRegistrationService);
+  private readonly hierarchyApi = inject(AssetHierarchyService);
+  private readonly tagLinks = inject(TagLinkService);
   private readonly destroyRef = inject(DestroyRef);
 
   // ===== Filter options (GET /api/asset-registrations/filters) =====
@@ -266,6 +286,7 @@ export class AssetList {
     this.searchInput$.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef)).subscribe(() => this.refresh());
     this.loadFilterOptions();
     this.loadDrafts();
+    this.loadSubAssets();
     this.refresh();
   }
 
@@ -618,6 +639,7 @@ export class AssetList {
         this.selected.delete(asset.id);
         this.showToast(`${asset.name} deleted.`);
         this.loadFilterOptions();
+        this.loadSubAssets();
         this.refresh();
       },
       error: (err) => {
@@ -632,6 +654,125 @@ export class AssetList {
     this.openMenuId = null;
     // id: the overview reads GET /api/asset-registrations/{id}; tag: the other detail tabs find the asset by tag
     this.router.navigate(['/assets/overview'], { queryParams: { id: asset.registrationId, tag: asset.tag } });
+  }
+
+  // ===== Sub assets (GET /api/asset-hierarchy: the items created under an asset in Asset Hierarchy) =====
+
+  /** Children per asset tag (upper case): the hierarchy items directly under the hierarchy asset with that tag. */
+  private subAssetsByTag = new Map<string, SubItem[]>();
+  /** Parent asset name per child asset tag (upper case), for the "Sub asset of" note. */
+  private parentByTag = new Map<string, string>();
+  /** Rows whose sub assets are shown (closed by default). */
+  readonly expanded = new Set<string>();
+  /** Search text per expanded row. */
+  subSearch: Record<string, string> = {};
+
+  private loadSubAssets(): void {
+    this.hierarchyApi.getItems().subscribe({
+      next: (items) => {
+        const byId = new Map(items.map((i) => [i.id, i]));
+        const byTag = new Map<string, SubItem[]>();
+        const parents = new Map<string, string>();
+        const kindLabel = (k: string | null) => (k ? k.charAt(0).toUpperCase() + k.slice(1).toLowerCase() : 'Item');
+        const isAsset = (i: AssetHierarchyItemDto) => (i.itemKind ?? '').toLowerCase() === 'asset';
+        for (const child of items) {
+          const parent = child.parentId ? byId.get(child.parentId) : undefined;
+          const parentTag = parent && isAsset(parent) ? (parent.assetTag ?? '').trim().toUpperCase() : '';
+          if (!parent || !parentTag) continue;
+          byTag.set(parentTag, [
+            ...(byTag.get(parentTag) ?? []),
+            {
+              id: child.id,
+              name: child.name,
+              tag: child.assetTag ?? '',
+              kind: kindLabel(child.itemKind),
+              type: child.assetTypeName ?? '',
+              status: child.status ?? '',
+              childCount: child.childCount ?? 0,
+            },
+          ]);
+          const childTag = (child.assetTag ?? '').trim().toUpperCase();
+          if (childTag && isAsset(child)) parents.set(childTag, parent.name);
+        }
+        byTag.forEach((list) => list.sort((x, y) => x.name.localeCompare(y.name)));
+        this.subAssetsByTag = byTag;
+        this.parentByTag = parents;
+      },
+      // the list still works without them; the dropdowns just don't appear
+      error: () => {
+        this.subAssetsByTag = new Map();
+        this.parentByTag = new Map();
+      },
+    });
+  }
+
+  subAssetsOf(row: AssetRow): SubItem[] {
+    return this.subAssetsByTag.get(row.tag.trim().toUpperCase()) ?? [];
+  }
+
+  /** The asset this row sits under in Asset Hierarchy, e.g. "laptop". */
+  mainAssetsOf(row: AssetRow): string {
+    return this.parentByTag.get(row.tag.trim().toUpperCase()) ?? '';
+  }
+
+  toggleSubAssets(row: AssetRow): void {
+    if (this.expanded.has(row.id)) this.expanded.delete(row.id);
+    else this.expanded.add(row.id);
+  }
+
+  /** The row's sub assets matching its search (name, tag, kind, type or status). */
+  filteredSubAssets(row: AssetRow): SubItem[] {
+    const subs = this.subAssetsOf(row);
+    const q = (this.subSearch[row.id] ?? '').trim().toLowerCase();
+    if (!q) return subs;
+    return subs.filter((s) => [s.name, s.tag, s.kind, s.type, s.status].some((v) => v.toLowerCase().includes(q)));
+  }
+
+  /** Sub assets live in Asset Hierarchy: open it there. */
+  openSubAsset(): void {
+    this.router.navigateByUrl('/assets/hierarchy');
+  }
+
+  trackSub(_: number, sub: SubItem): string {
+    return sub.id;
+  }
+
+  // ===== Locate a sub asset (same two actions as Real-Time Location › Locate asset) =====
+
+  /** Sub asset whose tag link is being checked. */
+  checkingSubId: string | null = null;
+  /** Sub asset with no tag linked: shown in the "not linked" popup. */
+  noTagFor: SubItem | null = null;
+
+  /**
+   * Bulb (blink LED / buzzer) or location (live tracking) button: checks Tag Management for a tag linked to the
+   * asset first; with one, opens Real-Time Location on that asset and action, otherwise explains it has no tag.
+   */
+  locateSub(sub: SubItem, action: 'signal' | 'live'): void {
+    if (this.checkingSubId) return;
+    this.checkingSubId = sub.id;
+    this.tagLinks.linkedTags().subscribe({
+      next: (tags) => {
+        this.checkingSubId = null;
+        const link = TagLinkService.findFor(tags, sub);
+        if (!link?.assetRegistrationId) {
+          this.noTagFor = sub;
+          return;
+        }
+        this.router.navigate(['/tracking-iot/real-time-location'], {
+          queryParams: { asset: link.assetRegistrationId, tag: link.tagId, action },
+        });
+      },
+      error: () => {
+        this.checkingSubId = null;
+        this.showToast('Could not check the tag link. Please try again.');
+      },
+    });
+  }
+
+  openTagManagement(): void {
+    this.noTagFor = null;
+    this.router.navigateByUrl('/tracking-iot/tag-ids');
   }
 
   // ===== Export / print =====

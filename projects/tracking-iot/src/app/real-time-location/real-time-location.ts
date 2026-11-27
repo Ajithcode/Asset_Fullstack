@@ -2,7 +2,7 @@ import { Component, DestroyRef, HostListener, OnDestroy, OnInit, inject } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Observable, Subscription, catchError, forkJoin, map, of } from 'rxjs';
 import { ExportMenu, ExportRequest, pushToast } from 'shared-ui';
 import { MapOpacity } from '../shared/map-view-prefs';
@@ -64,6 +64,7 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   private readonly api = inject(RtlApi);
   private readonly floorApi = inject(FloorMapApiService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
   // ---- scope / filters
@@ -360,7 +361,43 @@ export class RealTimeLocation implements OnInit, OnDestroy {
         this.floorsReady = true;
         if (!this.mapFloorId && this.floors.length) this.setFloor(this.floors[0].id);
         else this.refresh();
+        this.openFromLink();
       });
+  }
+
+  /**
+   * Link from another page (e.g. Asset List › sub assets): ?asset=<Asset ID>&tag=<tag>&action=signal|live opens the
+   * same thing as the bulb / location buttons in Locate asset. The query is then removed so a reload does not repeat it.
+   */
+  private openFromLink(): void {
+    const q = this.route.snapshot.queryParamMap;
+    const assetId = q.get('asset');
+    const action = q.get('action');
+    if (!assetId || (action !== 'signal' && action !== 'live')) return;
+    const tag = (q.get('tag') ?? '').trim();
+    void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    this.locateSub?.unsubscribe();
+    this.locateSub = this.api.overview(this.site, '').subscribe({
+      next: (d) => {
+        this.locateAll = d.assets;
+        const a = d.assets.find((x) => x.assetId === assetId || (!!tag && x.tags.some((t) => t.toLowerCase() === tag.toLowerCase())));
+        if (!a) {
+          this.showToast(`${assetId} is not on the location map yet: its tag${tag ? ' ' + tag : ''} has not been heard by a gateway.`);
+          return;
+        }
+        // the linked tag first, so the bulb / live follow use it
+        const asset = tag && !a.tags.includes(tag) ? { ...a, tags: [tag, ...a.tags] } : a;
+        if (action === 'signal') {
+          this.locateOpen = true;
+          this.locateQuery = '';
+          this.locateSel = new Set();
+          this.openSignal(asset);
+        } else {
+          this.startLive(asset);
+        }
+      },
+      error: (err) => this.showToast(apiErrorMessage(err, 'Could not load asset locations.')),
+    });
   }
 
   /** Shows a floor; "assets in view" and the KPIs follow it ('' = all floors). */
