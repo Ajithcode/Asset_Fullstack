@@ -741,8 +741,10 @@ export class AssetList {
 
   /** Sub asset whose tag link is being checked. */
   checkingSubId: string | null = null;
-  /** Parent asset with no tag linked (and the sub asset it was asked for): shown in the "not linked" popup. */
+  /** Asset with no tag linked (and, from a sub asset, which one asked): shown in the "not linked" popup. */
   noTagFor: { name: string; tag: string; sub: string } | null = null;
+  /** Row whose tag link is being checked from its Actions menu. */
+  checkingRowId: string | null = null;
 
   /**
    * Bulb (blink LED / buzzer) or location (live tracking) button on a sub asset. A sub asset has no tag of its own: it
@@ -751,15 +753,31 @@ export class AssetList {
    * action, otherwise explains that the parent has no tag.
    */
   locateSub(sub: SubItem, main: AssetRow, action: 'signal' | 'live'): void {
-    if (this.checkingSubId) return;
+    if (this.checkingSubId || this.checkingRowId) return;
     this.checkingSubId = sub.id;
+    this.locateAsset(main, action, sub.name, () => (this.checkingSubId = null));
+  }
+
+  /** Actions menu › Blink LED / Buzzer or Live Tracking on the asset itself. */
+  locateRow(a: AssetRow, action: 'signal' | 'live'): void {
+    this.openMenuId = null;
+    if (this.checkingSubId || this.checkingRowId) return;
+    this.checkingRowId = a.id;
+    this.locateAsset(a, action, '', () => (this.checkingRowId = null));
+  }
+
+  /**
+   * Checks Tag Management for a tag linked to the asset; with one, opens Real-Time Location on it (bulb: the LED /
+   * buzzer form, live: live tracking), otherwise shows the "No tag linked" popup.
+   */
+  private locateAsset(asset: AssetRow, action: 'signal' | 'live', fromSub: string, done: () => void): void {
     this.tagLinks.linkedTags().subscribe({
       next: (tags) => {
-        this.checkingSubId = null;
+        done();
         const link =
-          tags.find((t) => t.assetRegistrationId === main.registrationId) ?? TagLinkService.findFor(tags, { tag: main.tag, name: main.name });
+          tags.find((t) => t.assetRegistrationId === asset.registrationId) ?? TagLinkService.findFor(tags, { tag: asset.tag, name: asset.name });
         if (!link?.assetRegistrationId) {
-          this.noTagFor = { name: main.name, tag: main.tag, sub: sub.name };
+          this.noTagFor = { name: asset.name, tag: asset.tag, sub: fromSub };
           return;
         }
         this.router.navigate(['/tracking-iot/real-time-location'], {
@@ -767,7 +785,7 @@ export class AssetList {
         });
       },
       error: () => {
-        this.checkingSubId = null;
+        done();
         this.showToast('Could not check the tag link. Please try again.');
       },
     });
