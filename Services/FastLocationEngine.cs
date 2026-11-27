@@ -84,6 +84,7 @@ public sealed class FastLocationEngine(FastParams p)
         public long LastAnyRecvMs;
         public long LastAnyTsMs;
         public double? Rssi;
+        public long SeededAtMs;
     }
 
     private readonly Dictionary<string, Tag> _tags = new();
@@ -96,11 +97,11 @@ public sealed class FastLocationEngine(FastParams p)
         _tags.TryGetValue(tag, out var t) ? (t.Device, t.ZoneId, t.SinceMs) : null;
 
     /// <summary>Takes over a known state (restart, or switching a warm shadow engine to live): the evidence buffers are kept.</summary>
-    public void Seed(string tag, string? device, string? zoneId, string? zoneName, string? floorPlanId, long sinceMs, long lastSeenMs)
+    public void Seed(string tag, string? device, string? zoneId, string? zoneName, string? floorPlanId, long sinceMs, long lastSeenMs, long seededAtMs)
     {
         var t = Get(tag);
         t.Device = device; t.ZoneId = zoneId; t.ZoneName = zoneName; t.FloorPlanId = floorPlanId;
-        t.SinceMs = sinceMs; t.Pending = null;
+        t.SinceMs = sinceMs; t.Pending = null; t.SeededAtMs = seededAtMs;
         if (device != null && t.LastAnyRecvMs == 0) t.LastAnyRecvMs = lastSeenMs;
     }
 
@@ -172,6 +173,10 @@ public sealed class FastLocationEngine(FastParams p)
                     decisions.Add(Apply(tag, t, inZone[first.Key], FastDecisionKind.Assign, nowMs, first.Value.Ewma, values));
                 continue;
             }
+
+            // restart / cut-over: the seeded device has not been heard yet (a repeater needs up to a stale period) - hold the
+            // zone until it has evidence or the grace (one repeater stale period) is over, so a weak gateway reading cannot take it
+            if (!t.Devices.ContainsKey(t.Device) && nowMs - t.SeededAtMs < p.StaleSecondsRepeater * 1000) { t.Pending = null; continue; }
 
             var curFresh = t.Devices.TryGetValue(t.Device, out var cur) && Fresh(t.Device, cur, nowMs) && inZone.ContainsKey(t.Device);
             var best = fresh.Where(kv => kv.Key != t.Device)

@@ -126,7 +126,7 @@ public class FastLocationWorker(
         var rows = await writer.LoadStateAsync(ct);
         foreach (var r in rows)
         {
-            foreach (var e in _engines) e.Seed(r.Tag, r.Device, r.Zone, r.ZoneName, r.Floor, r.SinceMs, r.SeenMs);
+            foreach (var e in _engines) e.Seed(r.Tag, r.Device, r.Zone, r.ZoneName, r.Floor, r.SinceMs, r.SeenMs, Now());
             if (r.Device != null) store.Current[r.Tag] = (r.Device, r.SinceMs);
             _official[r.Tag] = r.Zone;
         }
