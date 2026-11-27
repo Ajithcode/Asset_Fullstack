@@ -48,8 +48,7 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, catchError, forkJoin, map, of, switchMap } from 'rxjs';
-import { SearchSelect, SearchSelectOption } from './search-select';
+import { Observable, forkJoin, map, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetRegistrationListItem, AssetRegistrationService } from '../services/asset-registration/asset-registration';
 import {
@@ -131,7 +130,7 @@ const KIND_LABELS: Record<NodeKind, string> = {
 @Component({
   selector: 'app-asset-hierarchy',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu, SearchSelect],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, ExportMenu],
   templateUrl: './asset-hierarchy.html',
   styleUrl: './asset-hierarchy.css',
 })
@@ -767,178 +766,6 @@ export class AssetHierarchy implements OnInit {
         this.showToast(apiErrorMessage(err));
       },
     });
-  }
-
-  // ===== Add child (registered assets: one parent, several children) =====
-
-  childOpen = false;
-  /** Registration ids: the parent (0 or 1) and the children. */
-  childParent: string[] = [];
-  childIds: string[] = [];
-  childCategory = '';
-  childType = '';
-  /** Allow children that already sit under another parent (re-parent them). */
-  childMove = false;
-  childError = '';
-
-  /** "Add Child" on an asset opens the registered-asset popup; on a site / group it keeps the create form. */
-  openAddChild(parent: HierarchyNode = this.selected): void {
-    if (parent.kind !== 'asset') {
-      this.openAdd(parent);
-      return;
-    }
-    this.openMenu = null;
-    const tag = parent.tag.trim().toUpperCase();
-    const reg = this.registeredAssets.find((a) => (a.assetTag ?? '').trim().toUpperCase() === tag);
-    this.childParent = reg ? [reg.assetRegistrationId] : [];
-    this.childIds = [];
-    this.childCategory = '';
-    this.childType = '';
-    this.childMove = false;
-    this.childError = '';
-    this.childOpen = true;
-  }
-
-  get childCategories(): string[] {
-    return [...new Set(this.registeredAssets.map((a) => a.category).filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
-  }
-
-  get childTypes(): string[] {
-    return [...new Set(this.registeredAssets.filter((a) => !this.childCategory || a.category === this.childCategory).map((a) => a.assetType).filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
-  }
-
-  private regById(id: string | undefined): AssetRegistrationListItem | undefined {
-    return id ? this.registeredAssets.find((a) => a.assetRegistrationId === id) : undefined;
-  }
-
-  private regLabel(a: AssetRegistrationListItem): string {
-    return `${a.assetName || a.assetRegistrationId}${a.assetTag ? ' (' + a.assetTag + ')' : ''}`;
-  }
-
-  private matchesChildFilter(a: AssetRegistrationListItem): boolean {
-    return (!this.childCategory || a.category === this.childCategory) && (!this.childType || a.assetType === this.childType);
-  }
-
-  /** Parent choices: every registered asset except the chosen children and anything under them (would be a cycle). */
-  get childParentOptions(): SearchSelectOption[] {
-    const children = this.childIds.map((id) => this.hierarchyNodeForAsset(this.regById(id)!)).filter((n): n is HierarchyNode => !!n);
-    return this.registeredAssets
-      .filter((a) => this.matchesChildFilter(a) || this.childParent.includes(a.assetRegistrationId))
-      .map((a) => {
-        const node = this.hierarchyNodeForAsset(a);
-        const bad = this.childIds.includes(a.assetRegistrationId) || (!!node && children.some((c) => this.isInSubtree(node, c)));
-        return { id: a.assetRegistrationId, label: this.regLabel(a), sub: [a.category, a.assetType].filter(Boolean).join(' · '), disabled: bad, hint: 'Is, or is under, a chosen child' };
-      })
-      .sort((x, y) => x.label.localeCompare(y.label));
-  }
-
-  /** Child choices: not the parent, not the parent's ancestors, and (unless "move") no asset that already has a parent. */
-  get childOptions(): SearchSelectOption[] {
-    const parentReg = this.regById(this.childParent[0]);
-    const parentNode = parentReg ? this.hierarchyNodeForAsset(parentReg) : null;
-    const ancestors = new Set(parentNode ? this.lineage(parentNode.id).map((n) => n.id) : []);
-    return this.registeredAssets
-      .filter((a) => a.assetRegistrationId !== parentReg?.assetRegistrationId && (this.matchesChildFilter(a) || this.childIds.includes(a.assetRegistrationId)))
-      .map((a) => {
-        const node = this.hierarchyNodeForAsset(a);
-        const current = node ? this.parentOf(node.id) : null;
-        const sub = [a.category, a.assetType].filter(Boolean).join(' · ');
-        if (node && ancestors.has(node.id)) return { id: a.assetRegistrationId, label: this.regLabel(a), sub, disabled: true, hint: 'Is an ancestor of the parent' };
-        if (node && parentNode && current?.id === parentNode.id) return { id: a.assetRegistrationId, label: this.regLabel(a), sub, disabled: true, hint: 'Already a child of this parent' };
-        if (current && current.id !== ROOT_ID && !this.childMove) {
-          return { id: a.assetRegistrationId, label: this.regLabel(a), sub, disabled: true, hint: `Currently under ${current.name} (tick "Move" to re-parent)` };
-        }
-        return { id: a.assetRegistrationId, label: this.regLabel(a), sub };
-      })
-      .sort((x, y) => x.label.localeCompare(y.label));
-  }
-
-  onChildMoveChange(): void {
-    // drop the children that are no longer allowed
-    const ok = new Set(this.childOptions.filter((o) => !o.disabled).map((o) => o.id));
-    this.childIds = this.childIds.filter((id) => ok.has(id));
-  }
-
-  setChildParent(ids: string[]): void {
-    this.childParent = ids;
-    const ok = new Set(this.childOptions.filter((o) => !o.disabled).map((o) => o.id));
-    this.childIds = this.childIds.filter((id) => ok.has(id));
-  }
-
-  private inputFromRegistration(reg: AssetRegistrationListItem, parentId: string | null): HierarchyItemInput {
-    return {
-      itemKind: 'asset',
-      parentId,
-      name: reg.assetName || reg.assetRegistrationId,
-      assetTag: (reg.assetTag || reg.assetRegistrationId).trim().toUpperCase(),
-      assetTypeId: this.assetTypes.find((t) => t.name === reg.assetType)?.id ?? null,
-      modelId: null,
-      manufacturerId: null,
-      manufacturerName: reg.manufacturer || null,
-      status: reg.status === 'Inactive' ? 'Inactive' : 'Active',
-    };
-  }
-
-  /** One PUT / POST per child; failures are counted and reported, the rest still saves. */
-  saveChildren(): void {
-    const parentReg = this.regById(this.childParent[0]);
-    if (!parentReg) {
-      this.childError = 'Select a parent.';
-      return;
-    }
-    const regs = this.childIds.map((id) => this.regById(id)).filter((a): a is AssetRegistrationListItem => !!a);
-    if (!regs.length) {
-      this.childError = 'Select at least one child.';
-      return;
-    }
-    if (this.saving) return;
-    this.saving = true;
-    this.childError = '';
-    const parentName = parentReg.assetName || parentReg.assetRegistrationId;
-    const existingParent = this.hierarchyNodeForAsset(parentReg);
-    const parent$ = existingParent ? of(existingParent.id) : this.api.create(this.inputFromRegistration(parentReg, null)).pipe(map((c) => c.id));
-    const failures: string[] = [];
-    parent$
-      .pipe(
-        switchMap((parentId) =>
-          forkJoin(
-            regs.map((reg) => {
-              const node = this.hierarchyNodeForAsset(reg);
-              const request: Observable<unknown> = node
-                ? this.api.update(node.id, { ...toInput(node.dto!), parentId })
-                : this.api.create(this.inputFromRegistration(reg, parentId));
-              return request.pipe(
-                map(() => true),
-                catchError((err) => {
-                  failures.push(`${reg.assetName || reg.assetRegistrationId}: ${apiErrorMessage(err)}`);
-                  return of(false);
-                }),
-              );
-            }),
-          ).pipe(map((results) => ({ parentId, saved: results.filter(Boolean).length }))),
-        ),
-      )
-      .subscribe({
-        next: ({ parentId, saved }) => {
-          this.saving = false;
-          this.expanded.add(parentId);
-          if (!failures.length) {
-            this.childOpen = false;
-            this.showToast(`${saved} child${saved === 1 ? '' : 'ren'} added under ${parentName}.`);
-          } else {
-            // keep the popup open on the children that failed
-            this.childIds = regs.filter((r) => failures.some((f) => f.startsWith((r.assetName || r.assetRegistrationId) + ':'))).map((r) => r.assetRegistrationId);
-            this.childError = `${saved} of ${regs.length} saved. ${failures.join(' · ')}`;
-            this.showToast(`${saved} of ${regs.length} saved.`);
-          }
-          this.reload();
-        },
-        error: (err) => {
-          this.saving = false;
-          this.childError = apiErrorMessage(err);
-          this.reload();
-        },
-      });
   }
 
   // ===== Move =====
