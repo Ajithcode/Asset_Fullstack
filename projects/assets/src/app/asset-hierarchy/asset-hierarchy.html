@@ -321,10 +321,8 @@
           <label class="field">
             <span class="field-label">Parent <em>*</em></span>
             <!-- registered assets (Asset Registration) only; one not in the hierarchy yet is added to it on save -->
-            <select class="control" name="parentId" [(ngModel)]="form.parentId" [class.is-invalid]="formSubmitted && !form.parentId">
-              <option value="" disabled>Select Parent Asset</option>
-              <option *ngFor="let o of registeredParentOptions" [value]="o.id">{{ o.label }}</option>
-            </select>
+            <app-filter-select name="parentId" [(ngModel)]="form.parentId" [options]="registeredParentOptions" [includeAll]="false"
+              [search]="true" placeholder="Select Parent Asset" ariaLabel="Parent asset" [invalid]="formSubmitted && !form.parentId"></app-filter-select>
             <span *ngIf="formSubmitted && !form.parentId" class="error">Select the parent asset.</span>
             <span *ngIf="!registeredAssets.length" class="error">No registered assets yet (Asset Registration).</span>
           </label>

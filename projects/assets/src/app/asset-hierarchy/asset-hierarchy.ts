@@ -50,6 +50,7 @@ import {
 } from 'lucide-angular';
 import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
+import { FilterSelect } from '../shared/filter-select/filter-select';
 import { AssetRegistrationListItem, AssetRegistrationService } from '../services/asset-registration/asset-registration';
 import {
   AssetHierarchyItemDto,
@@ -130,7 +131,7 @@ const DIAGRAM_ROW_LIMIT = 6;
 @Component({
   selector: 'app-asset-hierarchy',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect],
   templateUrl: './asset-hierarchy.html',
   styleUrl: './asset-hierarchy.css',
 })
@@ -831,19 +832,26 @@ export class AssetHierarchy implements OnInit {
    * Parent choices in Add to Hierarchy (Add Child) / edit: the registered assets only (Asset Registration), each once.
    * When editing, assets placed at or below the edited item are left out (an item cannot go under itself).
    */
-  get registeredParentOptions(): { id: string; label: string }[] {
+  get registeredParentOptions(): { value: string; label: string }[] {
     const editing = this.editingNode;
-    return this.registeredAssets
+    const list = this.registeredAssets
       .filter((a) => {
         const node = this.hierarchyNodeForAsset(a);
         return !(editing && node && this.isInSubtree(node, editing));
       })
-      .map((a) => ({
-        id: REG_PREFIX + a.assetRegistrationId,
-        label: [`${a.assetName || a.assetRegistrationId}${a.assetTag ? ' (' + a.assetTag + ')' : ''}`, a.category, a.assetType].filter(Boolean).join(' · '),
-      }))
+      // asset name and Asset ID, e.g. "laptop · AR000012" (the search box matches either)
+      .map((a) => ({ value: REG_PREFIX + a.assetRegistrationId, label: `${a.assetName || a.assetRegistrationId} · ${a.assetRegistrationId}` }))
       .sort((x, y) => x.label.localeCompare(y.label));
+    // same array while nothing changed, so the open dropdown keeps its search and position
+    const key = list.map((o) => o.value).join('|');
+    if (key !== this.parentOptionsKey) {
+      this.parentOptionsKey = key;
+      this.parentOptionsCache = list;
+    }
+    return this.parentOptionsCache;
   }
+  private parentOptionsKey = '';
+  private parentOptionsCache: { value: string; label: string }[] = [];
 
   /** The Parent choice for a hierarchy node: its registered asset (matched by tag), else none. */
   private registeredChoiceFor(n: HierarchyNode | null): string {
