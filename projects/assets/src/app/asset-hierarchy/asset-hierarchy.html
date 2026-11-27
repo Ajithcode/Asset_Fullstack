@@ -317,8 +317,24 @@
           <label class="field">
             <span class="field-label">Parent <em>*</em></span>
             <!-- registered assets (Asset Registration) only; one not in the hierarchy yet is added to it on save -->
-            <app-filter-select name="parentId" [(ngModel)]="form.parentId" [options]="registeredParentOptions" [includeAll]="false"
-              [search]="true" placeholder="Select Parent Asset" ariaLabel="Parent asset" [invalid]="formSubmitted && !form.parentId"></app-filter-select>
+            <!-- type in the box to search the registered assets (name or Asset ID), then pick one from the list -->
+            <div class="combo" [class.is-open]="parentListOpen">
+              <input class="control combo-input" type="text" name="parentQuery" [(ngModel)]="parentQuery" (ngModelChange)="onParentInput()"
+                (focus)="openParentList()" (click)="openParentList()" (blur)="closeParentListSoon()" (keydown)="onParentKey($event)"
+                placeholder="Search parent asset by name or ID" autocomplete="off" role="combobox" aria-autocomplete="list"
+                aria-controls="parent-list" [attr.aria-expanded]="parentListOpen" [attr.aria-activedescendant]="parentListOpen ? 'parent-opt-' + parentActive : null"
+                [class.is-invalid]="formSubmitted && !form.parentId" />
+              <lucide-icon class="combo-icon" [img]="icons.Search" [size]="15"></lucide-icon>
+              <ul *ngIf="parentListOpen" id="parent-list" class="combo-list" role="listbox" aria-label="Parent asset">
+                <li *ngFor="let o of parentMatches; let i = index" [id]="'parent-opt-' + i" role="option" class="combo-opt"
+                  [class.is-active]="i === parentActive" [class.is-selected]="o.value === form.parentId" [attr.aria-selected]="o.value === form.parentId"
+                  (mouseenter)="parentActive = i" (mousedown)="$event.preventDefault(); pickParent(o)">
+                  <span>{{ o.label }}</span>
+                  <lucide-icon *ngIf="o.value === form.parentId" [img]="icons.Check" [size]="14"></lucide-icon>
+                </li>
+                <li *ngIf="!parentMatches.length" class="combo-empty">No asset matches "{{ parentQuery }}"</li>
+              </ul>
+            </div>
             <span *ngIf="formSubmitted && !form.parentId" class="error">Select the parent asset.</span>
             <span *ngIf="!registeredAssets.length" class="error">No registered assets yet (Asset Registration).</span>
           </label>
