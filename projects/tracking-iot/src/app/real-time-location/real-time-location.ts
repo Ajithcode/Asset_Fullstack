@@ -142,6 +142,13 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   followError = '';
   live: LiveSnapshot | null = null;
   livePoint: LivePoint | null = null;
+  /**
+   * Live details next to the live marker: shown while the marker or the panel itself is hovered. Position of the
+   * marker inside the map card (px) and whether the panel sits above it (or below, near the top edge).
+   */
+  liveAt: { left: number; top: number; below: boolean } | null = null;
+  private livePanelHovered = false;
+  private liveHideTimer?: ReturnType<typeof setTimeout>;
   liveTrail: { x: number; y: number }[] = [];
   mapFocus: MapFocus | null = null;
   private liveSub?: Subscription;
@@ -966,7 +973,39 @@ export class RealTimeLocation implements OnInit, OnDestroy {
   }
 
   /** Stop: closes the socket (the server stops streaming) and removes the live marker. */
+  /** The map reports the live marker under the mouse (viewport px), or null when it leaves. */
+  onLiveHover(p: { x: number; y: number } | null, card: HTMLElement): void {
+    if (!p) {
+      this.hideLivePanelSoon();
+      return;
+    }
+    clearTimeout(this.liveHideTimer);
+    const r = card.getBoundingClientRect();
+    // keep the 380px-wide panel inside the card; it needs ~240px above the marker, else it opens below
+    const half = Math.min(190, r.width / 2 - 8);
+    const left = Math.min(Math.max(p.x - r.left, half + 8), r.width - half - 8);
+    const top = p.y - r.top;
+    this.liveAt = { left, top, below: top < 250 };
+  }
+
+  onLivePanelHover(on: boolean): void {
+    this.livePanelHovered = on;
+    if (on) clearTimeout(this.liveHideTimer);
+    else this.hideLivePanelSoon();
+  }
+
+  /** A short delay, so the mouse can move from the marker into the panel (e.g. to press Stop). */
+  private hideLivePanelSoon(): void {
+    clearTimeout(this.liveHideTimer);
+    this.liveHideTimer = setTimeout(() => {
+      if (!this.livePanelHovered) this.liveAt = null;
+    }, 250);
+  }
+
   stopLive(): void {
+    clearTimeout(this.liveHideTimer);
+    this.liveAt = null;
+    this.livePanelHovered = false;
     this.liveSub?.unsubscribe();
     this.liveSub = undefined;
     this.followId = this.followName = this.followError = '';

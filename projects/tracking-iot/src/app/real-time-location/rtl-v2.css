@@ -162,3 +162,16 @@ a.btn { text-decoration: none; }
 .loc-all { display: inline-flex; align-items: center; gap: 6px; font-size: 0.781rem; color: #475569; cursor: pointer; }
 .loc-chk, .loc-all input { width: 16px; height: 16px; margin: 0; accent-color: #6d28d9; flex: none; }
 .hl-chip { background: #fff; box-shadow: 0 2px 8px rgba(15, 23, 42, .18); }
+
+/* Live details on hover of the live marker: centred above it with a pointer, or below it near the top edge */
+.live-panel--float { bottom: auto; z-index: 1200; width: min(380px, calc(100% - 16px)); transform: translate(-50%, calc(-100% - 20px)); animation: live-pop .15s ease-out; }
+.live-panel--float::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 14px; height: 14px; background: #fff;
+  border-right: 1.5px solid #fecaca; border-bottom: 1.5px solid #fecaca; transform: translateX(-50%) rotate(45deg); }
+.live-panel--float.live-panel--wait::after { border-color: #e2e8f0; }
+/* invisible bridge over the gap, so moving from the marker to the panel keeps it open */
+.live-panel--float::before { content: ""; position: absolute; left: 25%; right: 25%; bottom: -22px; height: 22px; }
+.live-panel--float.live-panel--below { transform: translate(-50%, 20px); }
+.live-panel--float.live-panel--below::after { bottom: auto; top: -8px; transform: translateX(-50%) rotate(225deg); }
+.live-panel--float.live-panel--below::before { bottom: auto; top: -22px; }
+@keyframes live-pop { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .live-panel--float { animation: none; } }

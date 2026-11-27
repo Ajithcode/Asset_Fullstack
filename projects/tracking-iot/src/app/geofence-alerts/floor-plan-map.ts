@@ -97,7 +97,7 @@ const ASSET_SVG =
     .fp-total b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #6d28d9; color: #fff; font-size: 0.688rem; }
     .fp-zone-label { transform: translate(-50%, -100%); white-space: nowrap; padding: 2px 8px; border-radius: 6px; background: var(--c); color: #fff;
       font-size: 0.688rem; font-weight: 600; box-shadow: 0 2px 6px rgba(15, 23, 42, .2); }
-    .fp-live-marker { transition: transform 1.6s ease-out; }
+    .fp-live-marker { transition: transform 1.6s ease-out; cursor: pointer; }
     .leaflet-zoom-anim .fp-live-marker { transition: none; }
     .fp-live { position: relative; display: grid; place-items: center; width: 22px; height: 22px; }
     .fp-live i { position: absolute; inset: 0; border-radius: 50%; background: rgba(220, 38, 38, .35); animation: fp-live-pulse 1.6s ease-out infinite; }
@@ -175,6 +175,12 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   /** The "Total Assets" bubble in the middle of each zone (off where the assets themselves are drawn). */
   @Input() showTotals = true;
   @Output() assetSelect = new EventEmitter<string>();
+  /**
+   * The live marker is under the mouse: its centre in viewport (client) pixels, updated while the map pans / zooms
+   * or the marker moves; null when the mouse leaves it. Lets the page show the live details next to the marker.
+   */
+  @Output() liveHover = new EventEmitter<{ x: number; y: number } | null>();
+  private liveHovered = false;
 
   @ViewChild('host', { static: true }) private host!: ElementRef<HTMLDivElement>;
   private readonly ngZone = inject(NgZone);
@@ -214,6 +220,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.liveLayer = Lf.layerGroup().addTo(map);
       this.assetLayer = Lf.layerGroup().addTo(map);
       map.setView([this.h / 2, W / 2], -1);
+      map.on('move zoom', () => this.emitLiveHover());
       this.resize = new ResizeObserver(() => map.invalidateSize({ animate: false }));
       this.resize.observe(this.host.nativeElement);
       this.sync();
@@ -259,6 +266,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
       this.liveMarker = undefined;
       this.liveLine = undefined;
       this.signalMarker = undefined;
+      this.setLiveHovered(false);
       this.shownFocus = '';
       const url = this.imageUrl;
       if (!url) return;
@@ -593,6 +601,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     this.updateSignal();
     const live = this.live;
     if (!live) {
+      this.setLiveHovered(false);
       this.liveMarker?.remove();
       this.liveLine?.remove();
       this.liveMarker = undefined;
@@ -607,14 +616,18 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     if (!this.liveMarker) {
       this.liveMarker = L.marker(pos, {
         keyboard: false,
-        interactive: false,
+        interactive: true,
         zIndexOffset: 1000,
         icon: L.divIcon({ className: 'fp-live-marker', html, iconSize: [22, 22], iconAnchor: [11, 11] }),
-      }).addTo(this.liveLayer);
+      })
+        .on('mouseover', () => this.setLiveHovered(true))
+        .on('mouseout', () => this.setLiveHovered(false))
+        .addTo(this.liveLayer);
     } else {
       // setLatLng moves the same element, so the CSS transition glides it to the new point
       this.liveMarker.setLatLng(pos);
       this.liveMarker.setIcon(L.divIcon({ className: 'fp-live-marker', html, iconSize: [22, 22], iconAnchor: [11, 11] }));
+      this.emitLiveHover();
     }
 
     const path = this.liveTrail.map((p) => this.at(p.x, p.y));
@@ -627,6 +640,23 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
     }
 
     this.applyFocus();
+  }
+
+  private setLiveHovered(on: boolean): void {
+    if (this.liveHovered === on) return;
+    this.liveHovered = on;
+    if (on) this.emitLiveHover();
+    else this.ngZone.run(() => this.liveHover.emit(null));
+  }
+
+  /** While the live marker is hovered: where it is on screen now. */
+  private emitLiveHover(): void {
+    const map = this.map;
+    const marker = this.liveMarker;
+    if (!this.liveHovered || !map || !marker) return;
+    const p = map.latLngToContainerPoint(marker.getLatLng());
+    const r = map.getContainer().getBoundingClientRect();
+    this.ngZone.run(() => this.liveHover.emit({ x: r.left + p.x, y: r.top + p.y }));
   }
 
   private applyFocus(): void {
