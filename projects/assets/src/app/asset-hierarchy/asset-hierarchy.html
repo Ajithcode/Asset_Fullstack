@@ -123,7 +123,7 @@
               <lucide-icon [img]="icons.Ellipsis" [size]="18"></lucide-icon>
             </button>
             <div *ngIf="openMenu === 'selected'" class="menu" role="menu" (click)="$event.stopPropagation()">
-              <button type="button" role="menuitem" (click)="openAdd(selected)"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Child</button>
+              <button type="button" role="menuitem" (click)="openAddChild(selected)"><lucide-icon [img]="icons.Plus" [size]="15"></lucide-icon>Add Child</button>
               <button *ngIf="selected.kind !== 'root'" type="button" role="menuitem" (click)="openMove(selected)"><lucide-icon [img]="icons.MoveRight" [size]="15"></lucide-icon>Move To…</button>
               <ng-container *ngIf="selected.kind !== 'root'">
                 <hr />
@@ -215,7 +215,7 @@
             <h2>{{ selected.kind === 'asset' ? 'Child Assets' : 'Children' }} ({{ children.length }})</h2>
             <p>{{ selected.kind === 'asset' ? 'Assets directly under this asset in the hierarchy' : 'Items directly under ' + selected.name }}</p>
           </div>
-          <button type="button" class="btn btn-primary" (click)="openAdd(selected)">
+          <button type="button" class="btn btn-primary" (click)="openAddChild(selected)">
             <lucide-icon [img]="icons.Plus" [size]="16"></lucide-icon>
             Add Child {{ selected.kind === 'asset' ? 'Asset' : '' }}
           </button>
@@ -485,6 +485,49 @@
         <button type="button" class="btn btn-primary" [disabled]="moveParentId === null || saving" (click)="confirmMove()">Move</button>
       </div>
     </div>
+  </div>
+
+  <!-- ===== Add child modal (registered assets) ===== -->
+  <div *ngIf="childOpen" class="overlay" (click)="childOpen = false">
+    <form class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="child-title" (click)="$event.stopPropagation()" (ngSubmit)="saveChildren()">
+      <div class="modal-head">
+        <h2 id="child-title">Add Child</h2>
+        <button type="button" class="icon-btn" (click)="childOpen = false" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
+      </div>
+      <div class="modal-body">
+        <div class="field-pair field-pair--even">
+          <label class="field">
+            <span class="field-label">Category</span>
+            <select class="control" name="childCategory" [(ngModel)]="childCategory" (ngModelChange)="childType = ''">
+              <option value="">All categories</option>
+              <option *ngFor="let c of childCategories" [value]="c">{{ c }}</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Type</span>
+            <select class="control" name="childType" [(ngModel)]="childType">
+              <option value="">All types</option>
+              <option *ngFor="let t of childTypes" [value]="t">{{ t }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="field">
+          <span class="field-label">Parent <em>*</em></span>
+          <app-search-select [options]="childParentOptions" [selected]="childParent" (selectedChange)="setChildParent($event)" placeholder="Search a registered asset by name or ID"></app-search-select>
+        </div>
+        <div class="field">
+          <span class="field-label">Child assets <em>*</em></span>
+          <app-search-select [options]="childOptions" [multiple]="true" [selected]="childIds" (selectedChange)="childIds = $event" placeholder="Search and pick one or more assets"></app-search-select>
+        </div>
+        <label class="hint"><input type="checkbox" name="childMove" [(ngModel)]="childMove" (ngModelChange)="onChildMoveChange()" /> Move: allow assets that already have a parent (re-parent them)</label>
+        <p *ngIf="childError" class="error" role="alert">{{ childError }}</p>
+      </div>
+      <div class="modal-foot">
+        <span class="hint grow">{{ childIds.length }} selected</span>
+        <button type="button" class="btn btn-outline" (click)="childOpen = false">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving || !childParent.length || !childIds.length">Add</button>
+      </div>
+    </form>
   </div>
 
   <!-- ===== Assign assets modal ===== -->
