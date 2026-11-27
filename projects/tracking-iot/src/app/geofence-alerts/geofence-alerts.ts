@@ -58,7 +58,8 @@ import { AlertRuleApiService } from './alert-rule-api.service';
 import { IoTAlertApiService, statusToApi } from './iot-alert-api.service';
 import { GeofenceEventQuery, GeofenceKpis, GeofenceSummaryApi, GeofenceTarget } from './geofence-summary-api';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone, ZoneOption } from './floor-map-api.service';
-import { FloorPlanMap } from './floor-plan-map';
+import { FloorPlanMap, PlanAsset } from './floor-plan-map';
+import { LIVE_MARKERS_MS, liveZoneMarkers, markersKey } from '../shared/live-zone-markers';
 import { RtlApi, RtlEvent } from '../real-time-location/rtl-api';
 import { AlertFeedService, DesktopAlertsService } from 'shared-ui';
 
@@ -287,6 +288,8 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     clearTimeout(this.toastTimer);
     clearTimeout(this.searchTimer);
     clearInterval(this.pollTimer);
+    clearInterval(this.markersTimer);
+    this.markersSub?.unsubscribe();
     this.planSub?.unsubscribe();
     this.feedSub?.unsubscribe();
     this.hSub?.unsubscribe();
@@ -294,6 +297,11 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
 
   // ===== floor plan view (Building > Floor, then Zone) =====
   private readonly floorApi = inject(FloorMapApiService);
+  /** Live asset markers on the floor view: same source as Real-Time Location (resolved zone per tag). */
+  floorAssets: PlanAsset[] = [];
+  private floorAssetsKey = '';
+  private markersSub?: Subscription;
+  private markersTimer?: ReturnType<typeof setInterval>;
   floorOptions: FloorOption[] = [];
   /** Floors request finished (the dropdown says when there are none). */
   floorsLoaded = false;
@@ -426,16 +434,23 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     this.planPlots = [];
     this.planError = '';
     this.planSub?.unsubscribe();
+    this.floorAssets = [];
+    this.floorAssetsKey = '';
+    clearInterval(this.markersTimer);
+    this.markersSub?.unsubscribe();
     if (!id) return;
     this.startFeed();
     const plan = this.floorPlan;
     if (!plan) return;
+    this.loadFloorAssets();
+    this.markersTimer = setInterval(() => this.loadFloorAssets(), LIVE_MARKERS_MS);
     this.planLoading = true;
     this.planSub = forkJoin({ zones: this.floorApi.zones(plan.id), plots: this.floorApi.plots(plan.id) }).subscribe({
       next: ({ zones, plots }) => {
         if (id !== this.floorId) return;
         this.planZones = zones;
-        this.planPlots = plots;
+        // gateways only: manually plotted asset pins are not live positions (live markers come from the resolved location)
+        this.planPlots = plots.filter((p) => p.kind !== 'asset');
         this.planLoading = false;
         this.applyPendingZone();
       },
@@ -459,6 +474,19 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     const code = this.pendingZoneCode;
     this.pendingZoneCode = '';
     this.floorZoneId = this.floorZones.find((z) => z.code.trim().toUpperCase() === code)?.id ?? '';
+  }
+
+  private loadFloorAssets(): void {
+    const plan = this.floorPlan;
+    if (!plan) return;
+    this.markersSub?.unsubscribe();
+    this.markersSub = liveZoneMarkers(this.rtlApi, plan.id).subscribe((list) => {
+      if (!list || this.floorPlan?.id !== plan.id) return;
+      const key = markersKey(list);
+      if (key === this.floorAssetsKey) return;
+      this.floorAssetsKey = key;
+      this.floorAssets = list;
+    });
   }
 
   /** Live gateway feed, started with the first floor shown. */
