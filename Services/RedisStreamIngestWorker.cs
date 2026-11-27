@@ -17,6 +17,9 @@ public class RedisStreamIngestWorker(
     TimeSeriesCollectionInitializer initializer,
     DeviceTriggerTracker triggers,
     TagLocationResolver resolver,
+    FastModeFlag fastFlag,
+    FastStateStore fastStore,
+    FastStateWriter fastWriter,
     IOptions<LocationSettings> location,
     IOptions<RedisSettings> redisSettings,
     IOptions<List<StreamMapping>> mappings,
@@ -121,7 +124,23 @@ public class RedisStreamIngestWorker(
         Dictionary<string, TagLocationResolver.TagState>? locationChanges = null;
         if (documents.Count > 0 && mapping.DeviceTriggerField != null)
         {
-            if (location.Value.ResolverEnabled)
+            if (fastFlag.Active)
+            {
+                // The fast resolver decides; the readings of the 15 s window are only labelled with its current device.
+                var latest = new Dictionary<string, (double?, string?)>();
+                foreach (var d in documents)
+                {
+                    var tag = d["meta"]["tagid"].ToString()!.ToLowerInvariant();
+                    var gw = d["meta"]["gatewayid"].ToString()!.ToLowerInvariant();
+                    var at = fastStore.Current.TryGetValue(tag, out var cur) && cur.Device == gw;
+                    TagLocationResolver.SetTrigger(d, mapping, at ? DeviceTriggerTracker.In : null, at ? cur.SinceMs : null, null);
+                    if (fastStore.Current.ContainsKey(tag))
+                        latest[tag] = (d.GetValue("battery", BsonNull.Value).IsNumeric ? d["battery"].ToDouble() : null,
+                            d.GetValue("status", BsonNull.Value) is { IsString: true } st ? st.AsString : null);
+                }
+                await fastWriter.UpdateBatteryStatusAsync(latest, ct);
+            }
+            else if (location.Value.ResolverEnabled)
             {
                 var resolved = await resolver.ApplyAsync(documents, mapping, ct);
                 documents = resolved.Documents;

@@ -40,4 +40,10 @@ public class LocationSettings
 
     /// <summary>Seconds between reloads of the plotted devices (maps_plots).</summary>
     public int PlotCacheSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// true = the fast resolver (Location:Fast, fed by the NetworkServer fast lane) decides and writes TagLocationState /
+    /// ZoneVisit; false = the 15 s window resolver above does. A Redis key (Location:Fast:FlagKey, "1"/"0") overrides this at runtime.
+    /// </summary>
+    public bool FastMode { get; set; }
 }

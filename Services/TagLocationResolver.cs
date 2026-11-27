@@ -98,6 +98,13 @@ public class TagLocationResolver(
         return new Result(result, changes);
     }
 
+    /// <summary>Back from the fast resolver: forget the cached state so it is seeded again from Mongo TagLocationState (current device / zone).</summary>
+    public async Task ResetFromMongoAsync(StreamMapping mapping)
+    {
+        await redis.GetDatabase().KeyDeleteAsync(StateKey(mapping));
+        _seeded = false;
+    }
+
     /// <summary>Persist after the insert succeeded (Redis state + Mongo read model).</summary>
     public async Task SaveAsync(StreamMapping mapping, Dictionary<string, TagState> changes, CancellationToken ct)
     {
@@ -283,7 +290,7 @@ public class TagLocationResolver(
     }
 
     // trigger null -> device_trigger null, no zone fields (a reading of a device that is not the resolved one)
-    private static void SetTrigger(BsonDocument doc, StreamMapping mapping, string? trigger, long? zoneInMs, DateTime? zoneOut)
+    internal static void SetTrigger(BsonDocument doc, StreamMapping mapping, string? trigger, long? zoneInMs, DateTime? zoneOut)
     {
         var field = mapping.DeviceTriggerField!;
         doc[field] = trigger == null ? BsonNull.Value : trigger;

@@ -15,6 +15,7 @@ builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection("Redi
 builder.Services.Configure<MongoSettings>(builder.Configuration.GetSection("Mongo"));
 builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("Mqtt"));
 builder.Services.Configure<LocationSettings>(builder.Configuration.GetSection("Location"));
+builder.Services.Configure<FastLocationSettings>(builder.Configuration.GetSection("Location:Fast"));
 builder.Services.Configure<List<StreamMapping>>(builder.Configuration.GetSection("StreamMappings"));
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -32,7 +33,11 @@ builder.Services.AddSingleton<TimeSeriesCollectionInitializer>();
 builder.Services.AddSingleton<DeviceTriggerTracker>();
 builder.Services.AddSingleton<PlottedDeviceLookup>();
 builder.Services.AddSingleton<TagLocationResolver>();
+builder.Services.AddSingleton<FastModeFlag>();
+builder.Services.AddSingleton<FastStateStore>();
+builder.Services.AddSingleton<FastStateWriter>();
 builder.Services.AddHostedService<RedisStreamIngestWorker>();
+builder.Services.AddHostedService<FastLocationWorker>();
 builder.Services.AddHostedService<MqttSubscriberWorker>();
 
 var app = builder.Build();
