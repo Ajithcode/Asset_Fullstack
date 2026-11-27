@@ -21,6 +21,7 @@ public class RedisStreamIngestWorker(
     FastStateStore fastStore,
     FastStateWriter fastWriter,
     IOptions<LocationSettings> location,
+    IOptions<FastLocationSettings> fastSettings,
     IOptions<RedisSettings> redisSettings,
     IOptions<List<StreamMapping>> mappings,
     ILogger<RedisStreamIngestWorker> logger) : BackgroundService
@@ -139,6 +140,11 @@ public class RedisStreamIngestWorker(
                             d.GetValue("status", BsonNull.Value) is { IsString: true } st ? st.AsString : null);
                 }
                 await fastWriter.UpdateBatteryStatusAsync(latest, ct);
+                if (fastSettings.Value.ShadowSlow && location.Value.ResolverEnabled)
+                {
+                    try { await resolver.ShadowApplyAsync(documents, mapping, fastSettings.Value.ShadowLogCollection, ct); }
+                    catch (Exception ex) { logger.LogWarning(ex, "15 s shadow resolver failed (ignored, log only)"); }
+                }
             }
             else if (location.Value.ResolverEnabled)
             {

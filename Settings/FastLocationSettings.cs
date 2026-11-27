@@ -11,6 +11,9 @@ namespace WorkerNetworkService.Settings;
 public class FastLocationSettings
 {
     public bool Shadow { get; set; }
+
+    /// <summary>While the fast mode is live: keep running the 15 s resolver log-only (variant slow15 in the shadow log) for a reverse comparison.</summary>
+    public bool ShadowSlow { get; set; }
     public string Stream { get; set; } = "networkserver_fast";
     public string Group { get; set; } = "fast-resolver";
     public string FlagKey { get; set; } = "a360:flags:location_fast_mode";

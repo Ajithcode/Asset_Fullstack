@@ -98,10 +98,57 @@ public class TagLocationResolver(
         return new Result(result, changes);
     }
 
+    /// <summary>
+    /// Log-only run of the 15 s logic while the fast resolver is live: same decisions, but on copies of the documents, with its own
+    /// Redis state hash (seeded from TagLocationState per tag) and NO Mongo state / time-series / alert writes. Every zone change it
+    /// would have made goes to the shadow log collection as variant "slow15".
+    /// </summary>
+    public async Task ShadowApplyAsync(List<BsonDocument> documents, StreamMapping mapping, string logCollection, CancellationToken ct)
+    {
+        var db = redis.GetDatabase();
+        var key = StateKey(mapping) + ":shadow";
+        var (inZone, allPlotted) = await plots.GetAsync(ct);
+
+        var docs = documents.Select(d => d.DeepClone().AsBsonDocument).OrderBy(Time).ToList();
+        var tagIds = docs.Select(TagId).Where(t => !allPlotted.Contains(t)).Distinct().ToArray();
+        if (tagIds.Length == 0) return;
+        var stored = await db.HashGetAsync(key, tagIds.Select(t => (RedisValue)t).ToArray());
+        var states = new Dictionary<string, TagState>();
+        for (var i = 0; i < tagIds.Length; i++)
+            states[tagIds[i]] = Parse(stored[i]) ?? await FromMongoAsync(tagIds[i], ct) ?? new TagState();
+
+        var log = new List<BsonDocument>();
+        foreach (var window in docs.GroupBy(Time))
+        {
+            var t = new DateTimeOffset(window.Key).ToUnixTimeMilliseconds();
+            foreach (var tag in window.GroupBy(TagId))
+            {
+                if (!states.TryGetValue(tag.Key, out var st)) continue;
+                var oldDevice = st.Device; var oldZone = st.ZoneId;
+                Resolve(st, tag.ToList(), t, window.Key, inZone, mapping);
+                if (st.Device != oldDevice && st.Device != null)
+                {
+                    var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    log.Add(new BsonDocument
+                    {
+                        { "at", new BsonDateTime(now) }, { "atMs", now }, { "tag", tag.Key }, { "variant", "slow15" }, { "type", "decision" },
+                        { "kind", oldDevice == null ? "First" : st.ZoneId != oldZone ? "ZoneChange" : "DeviceChange" },
+                        { "fromZone", oldZone is null ? BsonNull.Value : oldZone }, { "toZone", st.ZoneId is null ? BsonNull.Value : st.ZoneId },
+                        { "fromDevice", oldDevice is null ? BsonNull.Value : oldDevice }, { "device", st.Device },
+                        { "windowMs", t },
+                    });
+                }
+            }
+        }
+        await db.HashSetAsync(key, states.Select(c => new HashEntry(c.Key, JsonSerializer.Serialize(c.Value))).ToArray());
+        if (log.Count > 0)
+            await database.GetCollection<BsonDocument>(logCollection).InsertManyAsync(log, new InsertManyOptions { IsOrdered = false }, ct);
+    }
+
     /// <summary>Back from the fast resolver: forget the cached state so it is seeded again from Mongo TagLocationState (current device / zone).</summary>
     public async Task ResetFromMongoAsync(StreamMapping mapping)
     {
-        await redis.GetDatabase().KeyDeleteAsync(StateKey(mapping));
+        await redis.GetDatabase().KeyDeleteAsync(new RedisKey[] { StateKey(mapping), StateKey(mapping) + ":shadow" });
         _seeded = false;
     }
 

@@ -87,9 +87,9 @@ public class FastLocationWorker(
                     lastTouch = now;
                     await writer.TouchAsync(_engines[0].Seen().Where(s => now - s.LastSeenMs < 60_000).Select(s => (s.Tag, s.LastSeenMs, s.Rssi)), ct);
                 }
-                if (F.Shadow && !active)
+                if (F.Shadow)
                 {
-                    if (now - lastOfficial >= 1000) { lastOfficial = now; await PollOfficialAsync(now, ct); }
+                    if (!active && now - lastOfficial >= 1000) { lastOfficial = now; await PollOfficialAsync(now, ct); }
                     if (now - lastSnap >= F.SnapshotSeconds * 1000) { lastSnap = now; await SnapshotAsync(now, ct); }
                 }
                 await FlushLogAsync(ct);
@@ -178,7 +178,7 @@ public class FastLocationWorker(
             engine.RefreshLabels(inZone);
             foreach (var d in engine.Evaluate(now, inZone))
             {
-                if (F.Shadow && !active) _log.Add(LogDocument(engine.Params.Name, "decision", d, now));
+                if (F.Shadow) _log.Add(LogDocument(engine.Params.Name, "decision", d, now));
                 if (i == 0 && active)
                 {
                     await writer.ApplyAsync(d, now, ct);
