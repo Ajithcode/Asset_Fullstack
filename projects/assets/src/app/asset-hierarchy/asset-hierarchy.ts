@@ -50,7 +50,6 @@ import {
 } from 'lucide-angular';
 import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
-import { FilterSelect } from '../shared/filter-select/filter-select';
 import { AssetRegistrationListItem, AssetRegistrationService } from '../services/asset-registration/asset-registration';
 import {
   AssetHierarchyItemDto,
@@ -131,7 +130,7 @@ const DIAGRAM_ROW_LIMIT = 6;
 @Component({
   selector: 'app-asset-hierarchy',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule, FilterSelect],
+  imports: [CommonModule, FormsModule, RouterModule, LucideAngularModule],
   templateUrl: './asset-hierarchy.html',
   styleUrl: './asset-hierarchy.css',
 })
@@ -613,6 +612,7 @@ export class AssetHierarchy implements OnInit {
     this.form = { ...this.emptyForm(this.registeredChoiceFor(parent)), kind };
     this.formSubmitted = false;
     this.formError = '';
+    this.resetParentInput();
     this.formOpen = true;
   }
 
@@ -632,6 +632,7 @@ export class AssetHierarchy implements OnInit {
     };
     this.formSubmitted = false;
     this.formError = '';
+    this.resetParentInput();
     this.formOpen = true;
   }
 
@@ -851,6 +852,84 @@ export class AssetHierarchy implements OnInit {
     return this.parentOptionsCache;
   }
   private parentOptionsKey = '';
+
+  // ----- Parent field: type in the box to search, pick from the list below it -----
+
+  /** Text in the Parent box: the chosen asset's label, or what the user is typing. */
+  parentQuery = '';
+  parentListOpen = false;
+  parentActive = 0;
+  private parentCloseTimer?: ReturnType<typeof setTimeout>;
+
+  private resetParentInput(): void {
+    this.parentQuery = this.registeredParentOptions.find((o) => o.value === this.form.parentId)?.label ?? '';
+    this.parentListOpen = false;
+    this.parentActive = 0;
+  }
+
+  /** Assets matching the typed text (name or Asset ID); all of them while the box shows the chosen asset. */
+  get parentMatches(): { value: string; label: string }[] {
+    const all = this.registeredParentOptions;
+    const q = this.parentQuery.trim().toLowerCase();
+    const chosen = all.find((o) => o.value === this.form.parentId);
+    if (!q || (chosen && chosen.label.toLowerCase() === q)) return all;
+    return all.filter((o) => o.label.toLowerCase().includes(q));
+  }
+
+  onParentInput(): void {
+    // typing replaces the choice until an asset is picked again
+    const chosen = this.registeredParentOptions.find((o) => o.value === this.form.parentId);
+    if (!chosen || chosen.label !== this.parentQuery) this.form.parentId = '';
+    this.parentListOpen = true;
+    this.parentActive = 0;
+  }
+
+  openParentList(): void {
+    clearTimeout(this.parentCloseTimer);
+    this.parentListOpen = true;
+    const i = this.parentMatches.findIndex((o) => o.value === this.form.parentId);
+    this.parentActive = Math.max(0, i);
+  }
+
+  pickParent(o: { value: string; label: string }): void {
+    this.form.parentId = o.value;
+    this.parentQuery = o.label;
+    this.parentListOpen = false;
+  }
+
+  /** Closes after a moment, so a click on the list still lands; restores the chosen asset's label. */
+  closeParentListSoon(): void {
+    clearTimeout(this.parentCloseTimer);
+    this.parentCloseTimer = setTimeout(() => {
+      this.parentListOpen = false;
+      const chosen = this.registeredParentOptions.find((o) => o.value === this.form.parentId);
+      if (chosen) this.parentQuery = chosen.label;
+    }, 150);
+  }
+
+  onParentKey(e: KeyboardEvent): void {
+    const list = this.parentMatches;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!this.parentListOpen) {
+        this.openParentList();
+        return;
+      }
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      this.parentActive = list.length ? (this.parentActive + step + list.length) % list.length : 0;
+      setTimeout(() => document.getElementById('parent-opt-' + this.parentActive)?.scrollIntoView({ block: 'nearest' }));
+    } else if (e.key === 'Enter') {
+      // pick the highlighted asset instead of submitting the form
+      if (this.parentListOpen && list[this.parentActive]) {
+        e.preventDefault();
+        this.pickParent(list[this.parentActive]);
+      }
+    } else if (e.key === 'Escape' && this.parentListOpen) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.parentListOpen = false;
+    }
+  }
   private parentOptionsCache: { value: string; label: string }[] = [];
 
   /** The Parent choice for a hierarchy node: its registered asset (matched by tag), else none. */

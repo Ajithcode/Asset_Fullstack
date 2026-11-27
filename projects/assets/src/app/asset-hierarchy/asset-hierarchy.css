@@ -1492,3 +1492,70 @@ button.caret:hover {
     max-height: calc(100dvh - var(--piq-topbar-h, 64px) - 16px);
   }
 }
+
+/* ===== Parent asset: a search box that is also the dropdown ===== */
+.combo {
+  position: relative;
+}
+
+.combo-input {
+  padding-left: 34px;
+}
+
+.combo-icon {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  display: flex;
+  color: var(--ah-text-muted);
+  pointer-events: none;
+}
+
+.combo.is-open .combo-input {
+  border-color: var(--ah-accent);
+  box-shadow: 0 0 0 3px rgba(79, 43, 216, 0.12);
+}
+
+.combo-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 220px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+}
+
+.combo-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.844rem;
+  color: var(--ah-text);
+  cursor: pointer;
+}
+
+.combo-opt.is-active {
+  background: #f3f0ff;
+}
+
+.combo-opt.is-selected {
+  font-weight: 600;
+  color: var(--ah-accent);
+}
+
+.combo-empty {
+  padding: 10px;
+  font-size: 0.813rem;
+  color: var(--ah-text-muted);
+}
