@@ -382,6 +382,9 @@
         <button type="button" role="menuitem" (click)="editAsset(a)"><lucide-icon [img]="icons.Pencil" [size]="15"></lucide-icon>Edit Asset</button>
         <button type="button" role="menuitem" (click)="openAssetModule('/assets/assignment', a)"><lucide-icon [img]="icons.UserRound" [size]="15"></lucide-icon>Assign / Transfer</button>
         <button type="button" role="menuitem" (click)="openAssetModule('/assets/location-history', a)"><lucide-icon [img]="icons.History" [size]="15"></lucide-icon>Location History</button>
+        <!-- same two actions as Real-Time Location › Locate asset -->
+        <button type="button" role="menuitem" [disabled]="checkingRowId === a.id" (click)="locateRow(a, 'signal')"><lucide-icon [img]="icons.Lightbulb" [size]="15"></lucide-icon>Blink LED / Buzzer</button>
+        <button type="button" role="menuitem" [disabled]="checkingRowId === a.id" (click)="locateRow(a, 'live')"><lucide-icon [img]="icons.LocateFixed" [size]="15"></lucide-icon>Live Tracking</button>
         <button type="button" role="menuitem" (click)="openAssetModule('/assets/maintenance', a)"><lucide-icon [img]="icons.Wrench" [size]="15"></lucide-icon>Schedule Maintenance</button>
         <hr />
         <button type="button" role="menuitem" class="danger" [disabled]="deletingId === a.registrationId" (click)="deleteAsset(a)"><lucide-icon [img]="icons.Trash2" [size]="15"></lucide-icon>Delete Asset</button>
@@ -407,7 +410,8 @@
         <h2 id="no-tag-title">No tag linked</h2>
         <button type="button" class="icon-btn" (click)="noTagFor = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
       </div>
-      <p id="no-tag-text">{{ s.sub }} is located through its parent asset <b>{{ s.name }}</b><ng-container *ngIf="s.tag"> ({{ s.tag }})</ng-container>, which is not linked with a tag ID, so it cannot be located, blinked or tracked live. Link a tag to {{ s.name }} in Tracking &amp; IoT › Tag Management first.</p>
+      <p *ngIf="s.sub" id="no-tag-text">{{ s.sub }} is located through its parent asset <b>{{ s.name }}</b><ng-container *ngIf="s.tag"> ({{ s.tag }})</ng-container>, which is not linked with a tag ID, so it cannot be located, blinked or tracked live. Link a tag to {{ s.name }} in Tracking &amp; IoT › Tag Management first.</p>
+      <p *ngIf="!s.sub" id="no-tag-text"><b>{{ s.name }}</b><ng-container *ngIf="s.tag"> ({{ s.tag }})</ng-container> is not linked with a tag ID, so it cannot be located, blinked or tracked live. Link a tag to it in Tracking &amp; IoT › Tag Management first.</p>
       <div class="tag-modal__foot">
         <button type="button" class="btn btn-outline" (click)="openTagManagement()">Open Tag Management</button>
         <button type="button" class="btn btn-primary" (click)="noTagFor = null">OK</button>
