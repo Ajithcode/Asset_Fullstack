@@ -319,17 +319,14 @@
             </select>
           </label>
           <label class="field">
-            <span class="field-label">Parent</span>
-            <select class="control" name="parentId" [(ngModel)]="form.parentId">
-              <option [ngValue]="null" disabled>Select Parent</option>
-              <optgroup label="In the hierarchy">
-                <option *ngFor="let o of parentOptions" [ngValue]="o.id">{{ o.label }}</option>
-              </optgroup>
-              <!-- registered assets (Asset Registration) not in the hierarchy yet: picking one adds it first -->
-              <optgroup *ngIf="registeredMoveOptions.length" label="Registered assets">
-                <option *ngFor="let o of registeredMoveOptions" [ngValue]="o.id">{{ o.label }}</option>
-              </optgroup>
+            <span class="field-label">Parent <em>*</em></span>
+            <!-- registered assets (Asset Registration) only; one not in the hierarchy yet is added to it on save -->
+            <select class="control" name="parentId" [(ngModel)]="form.parentId" [class.is-invalid]="formSubmitted && !form.parentId">
+              <option value="" disabled>Select Parent Asset</option>
+              <option *ngFor="let o of registeredParentOptions" [value]="o.id">{{ o.label }}</option>
             </select>
+            <span *ngIf="formSubmitted && !form.parentId" class="error">Select the parent asset.</span>
+            <span *ngIf="!registeredAssets.length" class="error">No registered assets yet (Asset Registration).</span>
           </label>
         </div>
         <div class="field-pair">
