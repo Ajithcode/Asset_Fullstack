@@ -34,6 +34,8 @@ public static class TrackingServiceCollectionExtensions
         });
 
         services.AddSingleton<ISequenceGenerator, MongoSequenceGenerator>();
+        services.AddSingleton<A360.Tracking.Api.Locating.LocationPushHub>();
+        services.AddHostedService(sp => sp.GetRequiredService<A360.Tracking.Api.Locating.LocationPushHub>());
 
         services.AddScoped<EventLogRepository>();
         services.AddScoped<IEventLogRepository>(serviceProvider => serviceProvider.GetRequiredService<EventLogRepository>());

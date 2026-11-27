@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text.Json;
+using A360.Tracking.Api.Locating;
 using A360.Tracking.Api.Telemetry;
 
 namespace A360.Tracking.Api.Endpoints;
@@ -83,6 +84,7 @@ public static class RealTimeLocationEndpoints
         HttpContext context,
         TagLocationService service,
         IConfiguration configuration,
+        LocationPushHub hub,
         int? minutes = null,
         string? siteId = null,
         string? floorPlanId = null,
@@ -107,11 +109,36 @@ public static class RealTimeLocationEndpoints
         // change) and the reading fields (to spot a new timestamp on the same tag + gateway).
         Dictionary<string, (string Placement, string Reading)>? sent = null;
 
+        // The worker publishes every zone change; a push wakes this loop at once (the poll stays as the reconcile).
+        var push = hub.Enabled ? hub.Subscribe() : null;
+        Task<bool>? tickTask = null, pushTask = null;
+        var pushedIds = new List<string>();
+
         try
         {
-            // NetworkTimeSeries is a time-series collection (no change streams), so it is re-read on an interval.
-            do
+            var first = true;
+            while (true)
             {
+                if (!first)
+                {
+                    tickTask ??= timer.WaitForNextTickAsync(connection.Token).AsTask();
+                    if (push is not null) pushTask ??= push.Reader.WaitToReadAsync(connection.Token).AsTask();
+                    var done = await Task.WhenAny(pushTask is null ? [tickTask] : [tickTask, pushTask]);
+                    if (done == tickTask)
+                    {
+                        if (!await tickTask) break;
+                        tickTask = null;
+                    }
+                    else
+                    {
+                        if (!await pushTask!) break;
+                        pushTask = null;
+                        while (push!.Reader.TryRead(out var p)) pushedIds.Add(p.Id);
+                    }
+                }
+                first = false;
+
+                // NetworkTimeSeries is a time-series collection (no change streams), so it is re-read on an interval.
                 var snapshot = await service.GetLatestAsync(Since(minutes), siteId, floorPlanId, zoneId, zonedOnly, connection.Token);
                 var current = snapshot.Tags.ToDictionary(t => t.TagId, t => (Placement: PlacementKey(t), Reading: ReadingKey(t)));
 
@@ -145,16 +172,19 @@ public static class RealTimeLocationEndpoints
                 {
                     var payload = JsonSerializer.SerializeToUtf8Bytes(message, JsonOptions);
                     await socket.SendAsync(payload, WebSocketMessageType.Text, endOfMessage: true, connection.Token);
+                    if (pushedIds.Count > 0) _ = hub.MarkSentAsync(pushedIds.ToList());
                 }
+                pushedIds.Clear();
 
                 sent = current;
             }
-            while (await timer.WaitForNextTickAsync(connection.Token));
         }
         catch (Exception exception) when (exception is OperationCanceledException or WebSocketException)
         {
             // Client closed the connection or went away.
         }
+
+        if (push is not null) hub.Unsubscribe(push);
 
         if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
         {
