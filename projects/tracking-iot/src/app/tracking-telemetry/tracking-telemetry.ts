@@ -11,9 +11,7 @@ import {
   History, Layers, Link, MapPin, RadioTower, Search, Signal, TriangleAlert, Wifi, WifiOff, X,
 } from 'lucide-angular';
 import { apiErrorMessage } from '../shared/tracking-api';
-import { FloorPlanMap, PlanAsset } from '../geofence-alerts/floor-plan-map';
-import { RtlApi } from '../real-time-location/rtl-api';
-import { LIVE_MARKERS_MS, liveZoneMarkers, markersKey } from '../shared/live-zone-markers';
+import { FloorPlanMap } from '../geofence-alerts/floor-plan-map';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone } from '../geofence-alerts/floor-map-api.service';
 import { AssetTrend, EventPage, MetricSeries, RangeKey, TelemetryEvent, TelemetryOverview, TelemetryOverviewApi, TrackedAsset } from './telemetry-overview-api';
 
@@ -58,11 +56,6 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
 
   private readonly api = inject(TelemetryOverviewApi);
   private readonly floorApi = inject(FloorMapApiService);
-  private readonly rtlApi = inject(RtlApi);
-  /** Live asset markers: same source as Real-Time Location (resolved zone per tag). */
-  mapAssets: PlanAsset[] = [];
-  private mapAssetsKey = '';
-  private markersSub?: Subscription;
   private readonly destroyRef = inject(DestroyRef);
   private readonly zone = inject(NgZone);
   @ViewChild('chartBox') private chartBox?: ElementRef<HTMLDivElement>;
@@ -127,7 +120,6 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
     this.refresh();
     this.loadFloors();
     this.timers.push(setInterval(() => this.refresh(), POLL_MS));
-    this.timers.push(setInterval(() => this.loadMarkers(), LIVE_MARKERS_MS));
     this.timers.push(setInterval(() => (this.now = new Date()), 1000));
     this.floorApi.gatewaysLive().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((m) => {
       if (!m.data) return;
@@ -154,7 +146,6 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
     this.loadSub?.unsubscribe();
     this.trendSub?.unsubscribe();
     this.planSub?.unsubscribe();
-    this.markersSub?.unsubscribe();
     this.evSub?.unsubscribe();
   }
 
@@ -330,32 +321,14 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
     this.planPlots = [];
     this.planSub?.unsubscribe();
     const plan = this.plans.get(id);
-    this.mapAssets = [];
-    this.mapAssetsKey = '';
     if (!plan) return;
-    this.loadMarkers();
     this.planSub = forkJoin({ zones: this.floorApi.zones(plan.id), plots: this.floorApi.plots(plan.id) }).subscribe({
       next: ({ zones, plots }) => {
         if (id !== this.mapFloorId) return;
         this.planZones = zones;
-        // gateways only: manually plotted asset pins are not live positions (live markers come from the resolved location)
-        this.planPlots = plots.filter((p) => p.kind !== 'asset');
+        this.planPlots = plots;
       },
       error: () => undefined,
-    });
-  }
-
-  /** Live asset positions of the floor on the map (the same overview Real-Time Location reads). */
-  private loadMarkers(): void {
-    const plan = this.plans.get(this.mapFloorId);
-    if (!plan) return;
-    this.markersSub?.unsubscribe();
-    this.markersSub = liveZoneMarkers(this.rtlApi, plan.id).subscribe((list) => {
-      if (!list || this.plans.get(this.mapFloorId)?.id !== plan.id) return;
-      const key = markersKey(list);
-      if (key === this.mapAssetsKey) return;
-      this.mapAssetsKey = key;
-      this.mapAssets = list;
     });
   }
 

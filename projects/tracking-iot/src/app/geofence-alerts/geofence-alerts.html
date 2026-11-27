@@ -70,8 +70,7 @@
             (zoneClick)="selectZoneById($event)" (alertClick)="onAlertClick()" (drawPoints)="drawCount = $event" (drawDone)="onDrawDone($event)"
             (editChange)="onEditChange($event)" (zoomChange)="zoomInfo = $event" (ready)="drawMap = $event"></app-geofence-map>
           <app-floor-plan-map *ngIf="floorId" [imageUrl]="floorImage" [fallbackUrl]="floorMdmImage" [zones]="planZones" [plots]="planPlots" [zoneId]="floorScope"
-            [feed]="gatewayFeed" [showLabels]="showLabels" [showAssets]="showAssets" [showDevices]="showGateways" [note]="floorNote"
-            [assetMarkers]="floorAssets" [showTotals]="false"></app-floor-plan-map>
+            [feed]="gatewayFeed" [showLabels]="showLabels" [showAssets]="showAssets" [showDevices]="showGateways" [note]="floorNote"></app-floor-plan-map>
           <app-map-draw-tools *ngIf="!floorId" [map]="drawMap" storageKey="geofence-alerts" side="right" [top]="96"></app-map-draw-tools>
 
           <div *ngIf="!floorId" class="seg map-seg" role="group" aria-label="Map style">
