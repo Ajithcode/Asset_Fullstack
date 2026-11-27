@@ -76,7 +76,7 @@ const darken = (c: string, f = 0.7): string => {
   return '#' + ch.join('');
 };
 /** Glide of an asset marker between zones (ease-in-out). */
-const GLIDE_MS = 1800;
+const GLIDE_MS = 500; // live zone-to-zone glide (was 1800 before the fast push: the move now starts < 0.5 s after the decision)
 /** Asset icon size on screen, and the zoom below which every zone with 2+ assets shows one badge. */
 const ICON_PX = 30;
 /** Zoom below which the zone name chips are shortened. */

@@ -13,6 +13,7 @@ import { DeviceHealth } from './device-health/device-health';
 import { DeviceMaintenance } from './device-maintenance/device-maintenance';
 import { DeviceTypeModel } from './device-type-model/device-type-model';
 import { DeviceReplacement } from './device-replacement/device-replacement';
+import { DevLocation } from './dev-location/dev-location';
 
 // Mounted by the shell at /tracking-iot; paths match the Tracking & IoT menu in the shell's sidebar.
 // /tracking-iot/locating-classic (the previous floor-plan Locating remote) is routed by the shell.
@@ -29,6 +30,7 @@ export const routes: Routes = [
   { path: 'device-type-model', component: DeviceTypeModel },
   { path: 'device-replacement', component: DeviceReplacement },
   { path: 'real-time-location', component: RealTimeLocation },
+  { path: 'dev-location', component: DevLocation }, // dev only, not in the menu (API 404 unless DevTools:Enabled)
   { path: 'tag-management', component: TagManagement },
   { path: 'device-management', component: DeviceManagement },
   { path: 'gateways', component: ModulePlaceholder, data: { title: 'Gateways' } },
