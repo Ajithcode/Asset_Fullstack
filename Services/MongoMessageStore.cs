@@ -26,7 +26,7 @@ public record IngestResult(string Format, string? Id = null, int? Buffered = nul
 /// buffers them and writes them per time window, keeping each mac only once.
 /// </summary>
 public class MongoMessageStore(
-    TagAggregator aggregator, TimeSeriesWriter timeSeries, RedisStreamPublisher publisher,
+    TagAggregator aggregator, TimeSeriesWriter timeSeries, RedisStreamPublisher publisher, FastLanePublisher fastLane,
     ILogger<MongoMessageStore> logger)
 {
     public async Task<IngestResult> IngestAsync(string source, string? deviceId, string? topic, byte[] payload,
@@ -36,6 +36,7 @@ public class MongoMessageStore(
 
         if (GatewayPayload.TryParse(data, out var batch))
         {
+            fastLane.Enqueue(source, batch); // fast lane first: it converts the readings before TagAggregator reuses them
             var buffered = aggregator.Add(source, deviceId, topic, batch);
             logger.LogDebug("Buffered {Kind} message from gateway {GatewayId} with {Count} of {Total} tags",
                 batch.Kind, batch.GatewayId, buffered, batch.Tags.Count);

@@ -21,6 +21,8 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 });
 builder.Services.AddSingleton<RedisStreamPublisher>();
 builder.Services.AddSingleton<TimeSeriesWriter>();
+builder.Services.AddSingleton<FastLanePublisher>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<FastLanePublisher>());
 builder.Services.AddSingleton<TagAggregator>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TagAggregator>());
 builder.Services.AddSingleton<MongoMessageStore>();

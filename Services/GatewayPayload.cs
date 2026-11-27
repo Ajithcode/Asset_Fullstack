@@ -77,18 +77,30 @@ public static class GatewayPayload
                 ["batterypercentage"] = item["batterypercentage"]?.DeepClone() ?? BatteryFromRaw(raw),
                 ["device_trigger"] = Str(item["device_trigger"]),
                 ["status"] = Str(item["status"]) ?? "online", // it was just seen by the gateway
-                ["time"] = Time(item["time"]),
+                ["time"] = Time(item["time"] ?? item["timestamp"]),
             });
         }
         return tags;
     }
 
-    // Scan time sent by the gateway as Unix seconds (or milliseconds) -> "2026-11-23T05:31:18.000Z"; null if absent.
+    // Scan time sent by the gateway: Unix seconds / milliseconds, or an ISO string ("2026-11-27T09:38:23.529Z") ->
+    // "2026-11-23T05:31:18.000Z"; null if absent or empty.
     private static string? Time(JsonNode? node)
     {
-        if (node is not JsonValue v || !v.TryGetValue<double>(out var t) || t <= 0)
+        if (node is not JsonValue v)
             return null;
-        var ms = t > 1e12 ? (long)t : (long)(t * 1000);
+        long ms;
+        if (v.TryGetValue<string>(out var text))
+        {
+            if (!DateTimeOffset.TryParse(text, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out var parsed))
+                return null;
+            ms = parsed.ToUnixTimeMilliseconds();
+        }
+        else if (v.TryGetValue<double>(out var t) && t > 0)
+            ms = t > 1e12 ? (long)t : (long)(t * 1000);
+        else
+            return null;
         return DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'");
     }
 
