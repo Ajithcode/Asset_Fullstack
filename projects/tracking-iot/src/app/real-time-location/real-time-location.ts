@@ -382,15 +382,19 @@ export class RealTimeLocation implements OnInit, OnDestroy {
         this.locateAll = d.assets;
         const a = d.assets.find((x) => x.assetId === assetId || (!!tag && x.tags.some((t) => t.toLowerCase() === tag.toLowerCase())));
         if (!a) {
-          this.showToast(`${assetId} is not on the location map yet: its tag${tag ? ' ' + tag : ''} has not been heard by a gateway.`);
+          this.showToast(`No location yet: ${assetId}${tag ? ' (tag ' + tag + ')' : ''} has not been heard by a gateway.`);
           return;
         }
+        if (!this.hasLocation(a)) this.showToast(`No location yet for ${a.name}: ${this.noLocationReason(a)}.`);
         // the linked tag first, so the bulb / live follow use it
         const asset = tag && !a.tags.includes(tag) ? { ...a, tags: [tag, ...a.tags] } : a;
         if (action === 'signal') {
           this.locateOpen = true;
           this.locateQuery = '';
           this.locateSel = new Set();
+          // pin it (individual icon + ring, zoom to its zone) so it is not hidden inside a cluster
+          this.clearFilters();
+          if (this.hasLocation(a)) this.focusAsset(a.assetId);
           this.openSignal(asset);
         } else {
           this.startLive(asset);
