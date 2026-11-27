@@ -59,6 +59,7 @@ import { IoTAlertApiService, statusToApi } from './iot-alert-api.service';
 import { GeofenceEventQuery, GeofenceKpis, GeofenceSummaryApi, GeofenceTarget } from './geofence-summary-api';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone, ZoneOption } from './floor-map-api.service';
 import { FloorPlanMap } from './floor-plan-map';
+import { ZONE_COUNTS_MS, zoneAssetLabels } from '../shared/zone-asset-counts';
 import { RtlApi, RtlEvent } from '../real-time-location/rtl-api';
 import { AlertFeedService, DesktopAlertsService } from 'shared-ui';
 
@@ -287,6 +288,8 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     clearTimeout(this.toastTimer);
     clearTimeout(this.searchTimer);
     clearInterval(this.pollTimer);
+    clearInterval(this.countsTimer);
+    this.countsSub?.unsubscribe();
     this.planSub?.unsubscribe();
     this.feedSub?.unsubscribe();
     this.hSub?.unsubscribe();
@@ -294,6 +297,11 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
 
   // ===== floor plan view (Building > Floor, then Zone) =====
   private readonly floorApi = inject(FloorMapApiService);
+  /** Zone "Total Assets" from the resolved location (same count as Real-Time Location). */
+  zoneCounts: Record<string, string[]> | null = null;
+  private zoneCountsKey = '';
+  private countsSub?: Subscription;
+  private countsTimer?: ReturnType<typeof setInterval>;
   floorOptions: FloorOption[] = [];
   /** Floors request finished (the dropdown says when there are none). */
   floorsLoaded = false;
@@ -426,10 +434,16 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     this.planPlots = [];
     this.planError = '';
     this.planSub?.unsubscribe();
+    this.zoneCounts = null;
+    this.zoneCountsKey = '';
+    clearInterval(this.countsTimer);
+    this.countsSub?.unsubscribe();
     if (!id) return;
     this.startFeed();
     const plan = this.floorPlan;
     if (!plan) return;
+    this.loadZoneCounts();
+    this.countsTimer = setInterval(() => this.loadZoneCounts(), ZONE_COUNTS_MS);
     this.planLoading = true;
     this.planSub = forkJoin({ zones: this.floorApi.zones(plan.id), plots: this.floorApi.plots(plan.id) }).subscribe({
       next: ({ zones, plots }) => {
@@ -459,6 +473,19 @@ export class GeofenceAlerts implements OnInit, OnDestroy {
     const code = this.pendingZoneCode;
     this.pendingZoneCode = '';
     this.floorZoneId = this.floorZones.find((z) => z.code.trim().toUpperCase() === code)?.id ?? '';
+  }
+
+  private loadZoneCounts(): void {
+    const plan = this.floorPlan;
+    if (!plan) return;
+    this.countsSub?.unsubscribe();
+    this.countsSub = zoneAssetLabels(this.rtlApi, plan.id).subscribe((counts) => {
+      if (!counts || this.floorPlan?.id !== plan.id) return;
+      const key = JSON.stringify(counts);
+      if (key === this.zoneCountsKey) return;
+      this.zoneCountsKey = key;
+      this.zoneCounts = counts;
+    });
   }
 
   /** Live gateway feed, started with the first floor shown. */

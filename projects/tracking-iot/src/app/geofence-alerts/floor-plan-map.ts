@@ -275,6 +275,11 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
   @Input() assetFocus: AssetFocus | null = null;
   /** The "Total Assets" bubble in the middle of each zone (off where the assets themselves are drawn). */
   @Input() showTotals = true;
+  /**
+   * Per-zone asset labels from the resolved location (TagLocationState, the Real-Time Location count). When set, the zone "Total Assets"
+   * count / list come from here instead of the gateways' heard assets; the per-gateway "hears N assets" figures are unchanged.
+   */
+  @Input() zoneAssetLabels: Record<string, string[]> | null = null;
   @Output() assetSelect = new EventEmitter<string>();
   /** Popup buttons of an asset marker (Real-Time Location): Locate, and LED / Buzzer (the page opens its existing panel). */
   @Output() assetLocate = new EventEmitter<string>();
@@ -1220,6 +1225,7 @@ export class FloorPlanMap implements AfterViewInit, OnChanges, OnDestroy {
 
   /** Asset names heard by the gateways plotted in a zone (deduplicated). */
   private zoneAssets(zoneId: string): string[] {
+    if (this.zoneAssetLabels) return this.zoneAssetLabels[zoneId] ?? [];
     const names = new Map<string, string>();
     for (const p of this.plots) {
       if (p.kind !== 'device' || p.zoneId !== zoneId) continue;

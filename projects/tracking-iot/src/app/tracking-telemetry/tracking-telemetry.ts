@@ -12,6 +12,8 @@ import {
 } from 'lucide-angular';
 import { apiErrorMessage } from '../shared/tracking-api';
 import { FloorPlanMap } from '../geofence-alerts/floor-plan-map';
+import { RtlApi } from '../real-time-location/rtl-api';
+import { ZONE_COUNTS_MS, zoneAssetLabels } from '../shared/zone-asset-counts';
 import { FloorMapApiService, FloorOption, FloorPlanRef, GatewayFeed, PlanPlot, PlanZone } from '../geofence-alerts/floor-map-api.service';
 import { AssetTrend, EventPage, MetricSeries, RangeKey, TelemetryEvent, TelemetryOverview, TelemetryOverviewApi, TrackedAsset } from './telemetry-overview-api';
 
@@ -56,6 +58,11 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
 
   private readonly api = inject(TelemetryOverviewApi);
   private readonly floorApi = inject(FloorMapApiService);
+  private readonly rtlApi = inject(RtlApi);
+  /** Zone "Total Assets" from the resolved location (same count as Real-Time Location). */
+  zoneCounts: Record<string, string[]> | null = null;
+  private zoneCountsKey = '';
+  private countsSub?: Subscription;
   private readonly destroyRef = inject(DestroyRef);
   private readonly zone = inject(NgZone);
   @ViewChild('chartBox') private chartBox?: ElementRef<HTMLDivElement>;
@@ -120,6 +127,7 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
     this.refresh();
     this.loadFloors();
     this.timers.push(setInterval(() => this.refresh(), POLL_MS));
+    this.timers.push(setInterval(() => this.loadZoneCounts(), ZONE_COUNTS_MS));
     this.timers.push(setInterval(() => (this.now = new Date()), 1000));
     this.floorApi.gatewaysLive().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((m) => {
       if (!m.data) return;
@@ -146,6 +154,7 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
     this.loadSub?.unsubscribe();
     this.trendSub?.unsubscribe();
     this.planSub?.unsubscribe();
+    this.countsSub?.unsubscribe();
     this.evSub?.unsubscribe();
   }
 
@@ -321,7 +330,10 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
     this.planPlots = [];
     this.planSub?.unsubscribe();
     const plan = this.plans.get(id);
+    this.zoneCounts = null;
+    this.zoneCountsKey = '';
     if (!plan) return;
+    this.loadZoneCounts();
     this.planSub = forkJoin({ zones: this.floorApi.zones(plan.id), plots: this.floorApi.plots(plan.id) }).subscribe({
       next: ({ zones, plots }) => {
         if (id !== this.mapFloorId) return;
@@ -329,6 +341,19 @@ export class TrackingTelemetry implements OnInit, AfterViewInit, OnDestroy {
         this.planPlots = plots;
       },
       error: () => undefined,
+    });
+  }
+
+  private loadZoneCounts(): void {
+    const plan = this.plans.get(this.mapFloorId);
+    if (!plan) return;
+    this.countsSub?.unsubscribe();
+    this.countsSub = zoneAssetLabels(this.rtlApi, plan.id).subscribe((counts) => {
+      if (!counts || this.plans.get(this.mapFloorId)?.id !== plan.id) return;
+      const key = JSON.stringify(counts);
+      if (key === this.zoneCountsKey) return;
+      this.zoneCountsKey = key;
+      this.zoneCounts = counts;
     });
   }
 

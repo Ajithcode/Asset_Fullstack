@@ -63,7 +63,7 @@
     <!-- Floor plan map -->
     <section class="card map-card" aria-label="Floor plan map">
       <app-floor-plan-map *ngIf="mapFloorId" [imageUrl]="mapImage" [fallbackUrl]="mapFallback" [zones]="planZones" [plots]="planPlots" [feed]="feed"
-        [showLabels]="showLabels" [showAssets]="showAssetsLayer" [showDevices]="showDevicesLayer" [highlight]="highlight" [note]="mapNote"></app-floor-plan-map>
+        [showLabels]="showLabels" [showAssets]="showAssetsLayer" [showDevices]="showDevicesLayer" [highlight]="highlight" [note]="mapNote" [zoneAssetLabels]="zoneCounts"></app-floor-plan-map>
       <p *ngIf="!mapFloorId" class="map-empty muted">{{ mapNote || 'Loading floor plans…' }}</p>
       <div class="mo mo-top">
         <select class="control control-sm" [ngModel]="mapFloorId" (ngModelChange)="setFloor($event)" aria-label="Floor"><option value="" disabled>Select floor</option><option *ngFor="let f of floors" [value]="f.id">{{ f.label }}</option></select>
