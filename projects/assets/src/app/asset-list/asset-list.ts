@@ -741,22 +741,25 @@ export class AssetList {
 
   /** Sub asset whose tag link is being checked. */
   checkingSubId: string | null = null;
-  /** Sub asset with no tag linked: shown in the "not linked" popup. */
-  noTagFor: SubItem | null = null;
+  /** Parent asset with no tag linked (and the sub asset it was asked for): shown in the "not linked" popup. */
+  noTagFor: { name: string; tag: string; sub: string } | null = null;
 
   /**
-   * Bulb (blink LED / buzzer) or location (live tracking) button: checks Tag Management for a tag linked to the
-   * asset first; with one, opens Real-Time Location on that asset and action, otherwise explains it has no tag.
+   * Bulb (blink LED / buzzer) or location (live tracking) button on a sub asset. A sub asset has no tag of its own: it
+   * moves with its parent, so this locates the PARENT asset (the row it is listed under, e.g. laptop for mouse wire).
+   * Checks Tag Management for a tag linked to the parent first; with one, opens Real-Time Location on the parent and
+   * action, otherwise explains that the parent has no tag.
    */
-  locateSub(sub: SubItem, action: 'signal' | 'live'): void {
+  locateSub(sub: SubItem, main: AssetRow, action: 'signal' | 'live'): void {
     if (this.checkingSubId) return;
     this.checkingSubId = sub.id;
     this.tagLinks.linkedTags().subscribe({
       next: (tags) => {
         this.checkingSubId = null;
-        const link = TagLinkService.findFor(tags, sub);
+        const link =
+          tags.find((t) => t.assetRegistrationId === main.registrationId) ?? TagLinkService.findFor(tags, { tag: main.tag, name: main.name });
         if (!link?.assetRegistrationId) {
-          this.noTagFor = sub;
+          this.noTagFor = { name: main.name, tag: main.tag, sub: sub.name };
           return;
         }
         this.router.navigate(['/tracking-iot/real-time-location'], {

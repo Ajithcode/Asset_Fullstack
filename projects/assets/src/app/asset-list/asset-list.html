@@ -360,12 +360,12 @@
               <small class="mono">{{ s.tag || '–' }} · {{ s.kind }}</small>
             </span>
           </button>
-          <!-- same two actions as Real-Time Location › Locate asset -->
-          <button type="button" class="sub-act" [disabled]="checkingSubId === s.id" (click)="locateSub(s, 'signal')"
-            [title]="'Blink LED / buzzer on ' + s.name" [attr.aria-label]="'Blink LED or buzzer on ' + s.name">
+          <!-- same two actions as Real-Time Location › Locate asset, on the PARENT asset (the sub asset moves with it) -->
+          <button type="button" class="sub-act" [disabled]="checkingSubId === s.id" (click)="locateSub(s, a, 'signal')"
+            [title]="'Blink LED / buzzer on ' + a.name + ' (parent of ' + s.name + ')'" [attr.aria-label]="'Blink LED or buzzer on ' + a.name + ', the parent of ' + s.name">
             <lucide-icon [img]="icons.Lightbulb" [size]="15"></lucide-icon></button>
-          <button type="button" class="sub-act" [disabled]="checkingSubId === s.id" (click)="locateSub(s, 'live')"
-            [title]="'Show ' + s.name + ' live on the map'" [attr.aria-label]="'Show ' + s.name + ' live on the map'">
+          <button type="button" class="sub-act" [disabled]="checkingSubId === s.id" (click)="locateSub(s, a, 'live')"
+            [title]="'Show ' + a.name + ' (parent of ' + s.name + ') live on the map'" [attr.aria-label]="'Show ' + a.name + ', the parent of ' + s.name + ', live on the map'">
             <lucide-icon [img]="icons.LocateFixed" [size]="15"></lucide-icon></button>
           </div>
         </li>
@@ -410,7 +410,7 @@
         <h2 id="no-tag-title">No tag linked</h2>
         <button type="button" class="icon-btn" (click)="noTagFor = null" aria-label="Close"><lucide-icon [img]="icons.X" [size]="18"></lucide-icon></button>
       </div>
-      <p id="no-tag-text"><b>{{ s.name }}</b><ng-container *ngIf="s.tag"> ({{ s.tag }})</ng-container> is not linked with a tag ID, so it cannot be located, blinked or tracked live. Link a tag to it in Tracking &amp; IoT › Tag Management first.</p>
+      <p id="no-tag-text">{{ s.sub }} is located through its parent asset <b>{{ s.name }}</b><ng-container *ngIf="s.tag"> ({{ s.tag }})</ng-container>, which is not linked with a tag ID, so it cannot be located, blinked or tracked live. Link a tag to {{ s.name }} in Tracking &amp; IoT › Tag Management first.</p>
       <div class="tag-modal__foot">
         <button type="button" class="btn btn-outline" (click)="openTagManagement()">Open Tag Management</button>
         <button type="button" class="btn btn-primary" (click)="noTagFor = null">OK</button>
