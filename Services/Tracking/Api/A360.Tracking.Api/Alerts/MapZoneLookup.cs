@@ -17,7 +17,7 @@ public sealed class MapZoneLookup(IMongoDatabase database)
     {
         var filter = Builders<BsonDocument>.Filter.Eq("zone_id", zoneId.Trim()) & Builders<BsonDocument>.Filter.Ne("is_deleted", true);
         var zone = await database.GetCollection<BsonDocument>(Zones).Find(filter).FirstOrDefaultAsync(cancellationToken);
-        return zone is null ? null : ToRef(zone);
+        return zone is null ? null : ToRef(zone, await A360.Repository.Repositories.ZoneNames.GetAsync(database, cancellationToken));
     }
 
     public async Task<Dictionary<string, MapZoneRef>> GetManyAsync(IEnumerable<string> zoneIds, CancellationToken cancellationToken)
@@ -30,7 +30,8 @@ public sealed class MapZoneLookup(IMongoDatabase database)
 
         var filter = Builders<BsonDocument>.Filter.In("zone_id", ids) & Builders<BsonDocument>.Filter.Ne("is_deleted", true);
         var zones = await database.GetCollection<BsonDocument>(Zones).Find(filter).ToListAsync(cancellationToken);
-        return zones.Select(ToRef).ToDictionary(z => z.ZoneId);
+        var names = await A360.Repository.Repositories.ZoneNames.GetAsync(database, cancellationToken);
+        return zones.Select(z => ToRef(z, names)).ToDictionary(z => z.ZoneId);
     }
 
     /// <summary>Gateway (device) ids plotted in each zone, lower case.</summary>
@@ -60,10 +61,10 @@ public sealed class MapZoneLookup(IMongoDatabase database)
         return result;
     }
 
-    private static MapZoneRef ToRef(BsonDocument zone)
+    private static MapZoneRef ToRef(BsonDocument zone, A360.Repository.Repositories.ZoneNames names)
     {
         var location = zone.TryGetValue("location", out var l) && l.IsBsonDocument ? l.AsBsonDocument : null;
-        var name = Text(zone, "name") ?? Text(zone, "code") ?? "Zone";
+        var name = names.Resolve(Text(zone, "zone_id"), Text(zone, "name")) ?? Text(zone, "code") ?? "Zone";
         var path = location is null ? null : Text(location, "location_path");
         var floor = location is null ? null : Text(location, "floor_name");
         return new MapZoneRef(

@@ -27,6 +27,7 @@ public sealed class GeofenceAlertsService(IMongoDatabase database, MapZoneLookup
         var rules = await Rules.Find(r => !r.IsDeleted).ToListAsync(ct);
         var geofences = await Geofences.Find(g => !g.IsDeleted).ToListAsync(ct);
         var zones = await database.GetCollection<BsonDocument>("maps_zones").Find(Builders<BsonDocument>.Filter.Ne("is_deleted", true)).ToListAsync(ct);
+        var zoneNames = await A360.Repository.Repositories.ZoneNames.GetAsync(database, ct);
         var zoneIds = zones.Select(z => S(z, "zone_id")).OfType<string>().ToList();
         var gateways = await zoneLookup.GatewaysByZoneAsync(zoneIds, ct);
         var assets = await TaggedAssetsAsync(ct);
@@ -100,7 +101,7 @@ public sealed class GeofenceAlertsService(IMongoDatabase database, MapZoneLookup
             monitoredAll.UnionWith(scope);
             var location = z.TryGetValue("location", out var l) && l.IsBsonDocument ? l.AsBsonDocument : new BsonDocument();
             var area = z.TryGetValue("area_m2", out var am) && am.IsNumeric ? am.ToDouble() : (double?)null;
-            targets.Add(Target(id, "Indoor", S(z, "name") ?? S(z, "code") ?? "Zone", S(z, "code"), S(z, "access_rule"), S(z, "zone_type"),
+            targets.Add(Target(id, "Indoor", zoneNames.Resolve(zoneId, S(z, "name")) ?? S(z, "code") ?? "Zone", S(z, "code"), S(z, "access_rule"), S(z, "zone_type"),
                 S(location, "site_id"), S(location, "site_name"), S(location, "building_name"), S(location, "floor_name"), S(z, "floor_plan_id"), S(location, "location_path"),
                 S(z, "shape"), area, activeRules.Count > 0 ? "Monitored" : "Not monitored", on.Count, activeRules.Count, scope.Count,
                 gateways.GetValueOrDefault(zoneId)?.Count ?? 0, insideNow.GetValueOrDefault(zoneId), S(z, "created_by"),
@@ -181,13 +182,14 @@ public sealed class GeofenceAlertsService(IMongoDatabase database, MapZoneLookup
         var rows = await Alerts.Find(filter).SortByDescending(a => a.RaisedAt).Skip((page - 1) * pageSize).Limit(pageSize).ToListAsync(ct);
         var eventTypes = (await Alerts.Distinct(a => a.EventType, baseFilter, cancellationToken: ct).ToListAsync(ct)).Where(t => !string.IsNullOrWhiteSpace(t)).OrderBy(t => t).ToList();
 
+        var zoneNames = await A360.Repository.Repositories.ZoneNames.GetAsync(database, ct);
         var items = rows.Select(a =>
         {
             var rule = a.AlertRuleId is not null ? ruleById.GetValueOrDefault(a.AlertRuleId) : null;
             var status = a.Status ?? IoTAlertStatus.Open;
             return new GeofenceEventDto(
                 a.AlertId, a.RaisedAt, a.AssetRegistrationId, a.AssetName, a.DeviceId, a.SiteName,
-                a.GeofenceId ?? rule?.GeofenceId, a.GeofenceName ?? rule?.GeofenceName, a.EventType,
+                a.GeofenceId ?? rule?.GeofenceId, zoneNames.ResolveGeofence(a.GeofenceId ?? rule?.GeofenceId, a.GeofenceName ?? rule?.GeofenceName), a.EventType,
                 a.RuleSeverity ?? rule?.Severity ?? a.Severity, a.Severity, status, a.Message, a.AlertRuleId, rule?.Name,
                 a.DurationSeconds, a.AssignedTo, a.AssignedTo ?? a.ResolvedBy ?? a.AcknowledgedBy,
                 a.AcknowledgedBy, a.AcknowledgedAt, a.ResolvedBy, a.ResolvedAt, a.EscalatedAt, a.EscalatedTo,

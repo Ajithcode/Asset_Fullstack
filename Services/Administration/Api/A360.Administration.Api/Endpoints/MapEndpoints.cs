@@ -420,6 +420,7 @@ public static class MapEndpoints
         string? tenantId,
         IFloorPlanRepository floorPlanRepository,
         IMapZoneRepository repository,
+        MongoDB.Driver.IMongoDatabase database,
         CancellationToken cancellationToken)
     {
         if (await floorPlanRepository.GetByFloorPlanIdAsync(floorPlanId, cancellationToken) is null)
@@ -428,8 +429,9 @@ public static class MapEndpoints
         }
 
         var zones = await repository.GetByFloorPlanAsync(floorPlanId, clientId, tenantId, cancellationToken);
+        var names = await A360.Repository.Repositories.ZoneNames.GetAsync(database, cancellationToken);
 
-        return Results.Ok(zones.Select(ZoneResponse.FromEntity));
+        return Results.Ok(zones.Select(z => ZoneResponse.FromEntity(z, names)));
     }
 
     private static async Task<IResult> CreateZoneAsync(
@@ -566,6 +568,7 @@ public static class MapEndpoints
         string? tenantId,
         IFloorPlanRepository floorPlanRepository,
         IMapPlotRepository repository,
+        MongoDB.Driver.IMongoDatabase database,
         CancellationToken cancellationToken)
     {
         var validationErrors = MapValidationExtensions.ValidateKind(kind, required: false);
@@ -586,7 +589,8 @@ public static class MapEndpoints
             tenantId,
             cancellationToken);
 
-        return Results.Ok(plots.Select(PlotResponse.FromEntity));
+        var names = await A360.Repository.Repositories.ZoneNames.GetAsync(database, cancellationToken);
+        return Results.Ok(plots.Select(p => PlotResponse.FromEntity(p, names)));
     }
 
     // Upsert: places the item on the plan or moves it. A removed item is placed again on its old row.

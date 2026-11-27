@@ -145,13 +145,13 @@ public sealed record AlertRuleResponse(
     string? UpdatedBy,
     DateTime? UpdatedAt)
 {
-    public static AlertRuleResponse FromEntity(AlertRule rule)
+    public static AlertRuleResponse FromEntity(AlertRule rule, A360.Repository.Repositories.ZoneNames? zones = null)
     {
         return new AlertRuleResponse(
             rule.Id,
             rule.Name,
             rule.GeofenceId,
-            rule.GeofenceName,
+            zones?.ResolveGeofence(rule.GeofenceId, rule.GeofenceName) ?? rule.GeofenceName,
             rule.Trigger,
             rule.Severity,
             rule.AssetGroup,

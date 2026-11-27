@@ -314,12 +314,13 @@ public sealed class TelemetryOverviewService(IMongoDatabase database, IConfigura
     private async Task<Dictionary<string, Plot>> PlottedGatewaysAsync(CancellationToken ct)
     {
         var rows = await C("maps_plots").Find(new BsonDocument { { "kind", "device" }, { "is_deleted", new BsonDocument("$ne", true) } }).ToListAsync(ct);
+        var zoneNames = await ZoneNames.GetAsync(database, ct);
         var result = new Dictionary<string, Plot>();
         foreach (var r in rows)
         {
             var id = Str(r, "item_id")?.ToLowerInvariant();
             if (id is null || result.ContainsKey(id)) continue;
-            result[id] = new Plot(Str(r, "zone_id"), Str(r, "zone_name") ?? Str(r, "location", "zone_name"), Str(r, "location", "floor_name"),
+            result[id] = new Plot(Str(r, "zone_id"), zoneNames.Resolve(Str(r, "zone_id"), Str(r, "zone_name") ?? Str(r, "location", "zone_name")), Str(r, "location", "floor_name"),
                 Str(r, "location", "building_name"), Str(r, "location", "site_id"), Str(r, "location", "site_name"), Str(r, "floor_plan_id"), Str(r, "location", "location_path"));
         }
 

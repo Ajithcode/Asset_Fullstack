@@ -66,6 +66,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             .Include(asset => asset.LocationAssignment.Location.SiteName)
             .Include(asset => asset.LocationAssignment.Location.BuildingName)
             .Include(asset => asset.LocationAssignment.Location.FloorName)
+            .Include(asset => asset.LocationAssignment.Location.ZoneId)
             .Include(asset => asset.LocationAssignment.Location.ZoneName)
             .Include(asset => asset.LocationAssignment.Location.LocationPath)
             .Include(asset => asset.LocationAssignment.Location.Latitude)
@@ -79,6 +80,7 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
             .ToListAsync(cancellationToken);
 
         var tagIdsByAsset = await GetTagIdsByAssetAsync(assets, cancellationToken);
+        var zoneNames = await ZoneNames.GetAsync(_database, cancellationToken);
 
         return assets.Select(asset => new DashboardAsset(
                 asset.AssetRegistrationId,
@@ -90,10 +92,10 @@ public sealed class AssetDashboardRepository : IAssetDashboardRepository
                 asset.LocationAssignment?.Location?.Latitude,
                 asset.LocationAssignment?.Location?.Longitude,
                 asset.LocationAssignment?.Location?.SiteId,
-                asset.LocationAssignment?.Location?.LocationPath,
+                zoneNames.ResolveWithPath(asset.LocationAssignment?.Location?.ZoneId, asset.LocationAssignment?.Location?.ZoneName, asset.LocationAssignment?.Location?.LocationPath).Path,
                 asset.LocationAssignment?.Location?.BuildingName,
                 asset.LocationAssignment?.Location?.FloorName,
-                asset.LocationAssignment?.Location?.ZoneName,
+                zoneNames.Resolve(asset.LocationAssignment?.Location?.ZoneId, asset.LocationAssignment?.Location?.ZoneName),
                 asset.Classification?.Category,
                 asset.Classification?.SubCategory,
                 asset.Classification?.Criticality,

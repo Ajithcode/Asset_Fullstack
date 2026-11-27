@@ -366,6 +366,7 @@ public static class AssetRegistrationEndpoints
 
     private static async Task<IResult> GetAssetRegistrationsAsync(
         IAssetRegistrationRepository assetRegistrationRepository,
+        MongoDB.Driver.IMongoDatabase database,
         CancellationToken cancellationToken,
         string? search = null,
         string? category = null,
@@ -391,7 +392,8 @@ public static class AssetRegistrationEndpoints
         return Results.Ok(AssetRegistrationListResponse.FromResult(
             result,
             page < 1 ? 1 : page,
-            pageSize is < 1 or > AssetRegistrationRepository.MaxPageSize ? AssetRegistrationRepository.DefaultPageSize : pageSize));
+            pageSize is < 1 or > AssetRegistrationRepository.MaxPageSize ? AssetRegistrationRepository.DefaultPageSize : pageSize,
+            await A360.Repository.Repositories.ZoneNames.GetAsync(database, cancellationToken)));
     }
 
     private static async Task<IResult> LookupAssetRegistrationAsync(

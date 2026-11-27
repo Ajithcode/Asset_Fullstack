@@ -29,6 +29,7 @@ public static class AlertRuleEndpoints
 
     private static async Task<IResult> GetAlertRulesAsync(
         IAlertRuleRepository repository,
+        MongoDB.Driver.IMongoDatabase database,
         CancellationToken cancellationToken,
         string? geofenceId = null)
     {
@@ -39,7 +40,8 @@ public static class AlertRuleEndpoints
             rules = rules.Where(rule => rule.GeofenceId == geofenceId.Trim());
         }
 
-        return Results.Ok(rules.Select(AlertRuleResponse.FromEntity).ToList());
+        var zones = await A360.Repository.Repositories.ZoneNames.GetAsync(database, cancellationToken);
+        return Results.Ok(rules.Select(r => AlertRuleResponse.FromEntity(r, zones)).ToList());
     }
 
     private static async Task<IResult> GetAlertRuleAsync(

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using A360.Repository.Repositories;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -209,6 +210,7 @@ public sealed class RealTimeLocationService(IMongoDatabase database, TelemetryOv
         var regex = new BsonArray(ids.Select(k => new BsonRegularExpression($"^{Regex.Escape(k)}$", "i")));
         var rows = await C("AssetRegistration").Find(new BsonDocument { { "is_deleted", new BsonDocument("$ne", true) }, { "asset_registration_id", new BsonDocument("$in", regex) } })
             .Project(Builders<BsonDocument>.Projection.Include("asset_registration_id").Include("location_assignment.location")).ToListAsync(ct);
+        var zoneNames = await ZoneNames.GetAsync(database, ct);
         var result = new Dictionary<string, ExpectedLocation>(StringComparer.OrdinalIgnoreCase);
         foreach (var r in rows)
         {
@@ -217,7 +219,7 @@ public sealed class RealTimeLocationService(IMongoDatabase database, TelemetryOv
             var loc = r.TryGetValue("location_assignment", out var la) && la.IsBsonDocument && la.AsBsonDocument.TryGetValue("location", out var l) && l.IsBsonDocument ? l.AsBsonDocument : null;
             if (loc is null) continue;
             string? S(string f) => loc.TryGetValue(f, out var v) && v.IsString && !string.IsNullOrWhiteSpace(v.AsString) ? v.AsString : null;
-            result[id.AsString] = new ExpectedLocation(S("zone_id"), S("zone_name"), S("floor_id"), S("floor_name"), S("building_name"), S("site_name"), S("location_path"));
+            result[id.AsString] = new ExpectedLocation(S("zone_id"), zoneNames.Resolve(S("zone_id"), S("zone_name")), S("floor_id"), S("floor_name"), S("building_name"), S("site_name"), S("location_path"));
         }
 
         return result;
@@ -248,6 +250,7 @@ public sealed class RealTimeLocationService(IMongoDatabase database, TelemetryOv
     private async Task<Dictionary<string, Plot>> PlotsAsync(CancellationToken ct)
     {
         var rows = await C("maps_plots").Find(new BsonDocument { { "kind", "device" }, { "is_deleted", new BsonDocument("$ne", true) } }).ToListAsync(ct);
+        var zoneNames = await ZoneNames.GetAsync(database, ct);
         var result = new Dictionary<string, Plot>(StringComparer.OrdinalIgnoreCase);
         foreach (var r in rows)
         {
@@ -255,7 +258,7 @@ public sealed class RealTimeLocationService(IMongoDatabase database, TelemetryOv
             if (!id.IsString || result.ContainsKey(id.AsString)) continue;
             string? S(BsonDocument d, string f) => d.TryGetValue(f, out var v) && v.IsString && !string.IsNullOrWhiteSpace(v.AsString) ? v.AsString : null;
             var loc = r.TryGetValue("location", out var l) && l.IsBsonDocument ? l.AsBsonDocument : new BsonDocument();
-            result[id.AsString] = new Plot(S(r, "zone_name") ?? S(loc, "zone_name"), S(loc, "floor_name"));
+            result[id.AsString] = new Plot(zoneNames.Resolve(S(r, "zone_id"), S(r, "zone_name") ?? S(loc, "zone_name")), S(loc, "floor_name"));
         }
 
         return result;

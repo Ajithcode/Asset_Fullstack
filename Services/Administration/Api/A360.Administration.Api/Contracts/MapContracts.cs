@@ -201,8 +201,19 @@ public sealed record MapLocationDto(
     string? ZoneCode,
     string? LocationPath)
 {
-    public static MapLocationDto? FromEntity(MapLocation? l) =>
-        l is null ? null : new MapLocationDto(l.SiteId, l.SiteName, l.BuildingId, l.BuildingName, l.FloorId, l.FloorName, l.ZoneId, l.ZoneName, l.ZoneCode, l.LocationPath);
+    public static MapLocationDto? FromEntity(MapLocation? l, A360.Repository.Repositories.ZoneNames? zones = null)
+    {
+        if (l is null) return null;
+        var name = zones?.Resolve(l.ZoneId, l.ZoneName) ?? l.ZoneName;
+        // location_path ends with the stored zone name (Site > Building > Floor > Zone): swap in the current MDM name
+        var path = l.LocationPath;
+        if (!string.IsNullOrEmpty(path) && !string.IsNullOrEmpty(l.ZoneName) && name != l.ZoneName && path.EndsWith(l.ZoneName, StringComparison.Ordinal))
+        {
+            path = path[..^l.ZoneName.Length] + name;
+        }
+
+        return new MapLocationDto(l.SiteId, l.SiteName, l.BuildingId, l.BuildingName, l.FloorId, l.FloorName, l.ZoneId, name, l.ZoneCode, path);
+    }
 }
 
 // POST /api/administration/maps/floor-plans/{floorPlanId}/zones and PUT /api/administration/maps/zones/{zoneId}
@@ -263,13 +274,13 @@ public sealed record ZoneResponse(
     string? TenantId,
     MapLocationDto? Location = null)
 {
-    public static ZoneResponse FromEntity(MapZone zone)
+    public static ZoneResponse FromEntity(MapZone zone, A360.Repository.Repositories.ZoneNames? zones = null)
     {
         return new ZoneResponse(
             zone.ZoneId,
             zone.FloorPlanId,
             zone.Code,
-            zone.Name,
+            zones?.Resolve(zone.ZoneId, zone.Name) ?? zone.Name,
             zone.ZoneType,
             zone.Color,
             zone.Shape,
@@ -294,7 +305,7 @@ public sealed record ZoneResponse(
             zone.UpdatedAt,
             zone.ClientId,
             zone.TenantId,
-            MapLocationDto.FromEntity(zone.Location));
+            MapLocationDto.FromEntity(zone.Location, zones));
     }
 }
 
@@ -341,7 +352,7 @@ public sealed record PlotResponse(
     string? DeviceRecordId = null,
     string? AssetRegistrationId = null)
 {
-    public static PlotResponse FromEntity(MapPlot plot)
+    public static PlotResponse FromEntity(MapPlot plot, A360.Repository.Repositories.ZoneNames? zones = null)
     {
         return new PlotResponse(
             plot.Code,
@@ -362,9 +373,9 @@ public sealed record PlotResponse(
             plot.Kind,
             plot.ItemId,
             plot.UpdatedAt,
-            plot.ZoneName,
+            zones?.Resolve(plot.ZoneId, plot.ZoneName) ?? plot.ZoneName,
             plot.ZoneCode,
-            MapLocationDto.FromEntity(plot.Location),
+            MapLocationDto.FromEntity(plot.Location, zones),
             plot.DeviceId,
             plot.DeviceRecordId,
             plot.AssetRegistrationId);

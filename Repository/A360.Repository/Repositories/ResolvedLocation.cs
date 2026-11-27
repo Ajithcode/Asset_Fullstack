@@ -45,12 +45,13 @@ public sealed class ResolvedLocationReader(IMongoDatabase database, IConfigurati
             ? new BsonDocument("updated_at", new BsonDocument("$gte", s))
             : new BsonDocument();
         var rows = await database.GetCollection<BsonDocument>(CollectionName).Find(filter).ToListAsync(ct);
+        var zoneNames = await ZoneNames.GetAsync(database, ct);
         var result = new Dictionary<string, ResolvedTagLocation>(StringComparer.Ordinal);
         foreach (var d in rows)
         {
             if (!d["_id"].IsString || !d.GetValue("updated_at", BsonNull.Value).IsValidDateTime) continue;
             result[d["_id"].AsString.ToLowerInvariant()] = new ResolvedTagLocation(
-                d["_id"].AsString.ToLowerInvariant(), Str(d, "device_id"), Str(d, "zone_id"), Str(d, "zone_name"), Str(d, "floor_plan_id"),
+                d["_id"].AsString.ToLowerInvariant(), Str(d, "device_id"), Str(d, "zone_id"), zoneNames.Resolve(Str(d, "zone_id"), Str(d, "zone_name")), Str(d, "floor_plan_id"),
                 d.GetValue("since", BsonNull.Value).IsValidDateTime ? d["since"].ToUniversalTime() : null,
                 d["updated_at"].ToUniversalTime(), Num(d, "rssi"), Num(d, "battery"), Str(d, "status"));
         }

@@ -53,10 +53,11 @@ public static class AlertFeedEndpoints
         var ruleIds = rows.Select(a => a.AlertRuleId).Where(id => id is not null).Distinct().ToList();
         var rules = ruleIds.Count == 0 ? [] : await database.GetCollection<AlertRule>("AlertRule").Find(r => ruleIds.Contains(r.Id)).ToListAsync(ct);
         var ruleById = rules.ToDictionary(r => r.Id);
+        var zoneNames = await A360.Repository.Repositories.ZoneNames.GetAsync(database, ct);
         var items = rows.Select(a =>
         {
             var rule = a.AlertRuleId is not null ? ruleById.GetValueOrDefault(a.AlertRuleId) : null;
-            return new FeedAlert(a.AlertId, a.RaisedAt, a.RuleSeverity ?? rule?.Severity ?? a.Severity, a.EventType, a.AssetRegistrationId, a.AssetName, a.GeofenceName ?? rule?.GeofenceName,
+            return new FeedAlert(a.AlertId, a.RaisedAt, a.RuleSeverity ?? rule?.Severity ?? a.Severity, a.EventType, a.AssetRegistrationId, a.AssetName, zoneNames.ResolveGeofence(a.GeofenceId ?? rule?.GeofenceId, a.GeofenceName ?? rule?.GeofenceName),
                 a.SiteName, a.Message, a.Status ?? IoTAlertStatus.Open, rule?.Name, rule?.NotificationChannels ?? [], rule?.NotifySound ?? false, a.AcknowledgedBy, a.AcknowledgedAt);
         }).ToList();
         return Results.Ok(new FeedResponse(DateTime.UtcNow, unacknowledged, items));

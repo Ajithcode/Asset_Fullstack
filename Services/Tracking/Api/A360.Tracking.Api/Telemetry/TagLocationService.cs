@@ -151,6 +151,7 @@ public sealed class TagLocationService(IMongoDatabase database, IConfiguration c
             .Find(new BsonDocument { { "kind", "device" }, { "is_deleted", new BsonDocument("$ne", true) } })
             .ToListAsync(ct);
 
+        var zoneNames = await ZoneNames.GetAsync(database, ct);
         var result = new Dictionary<string, GatewayPlot>(StringComparer.Ordinal);
         foreach (var r in rows)
         {
@@ -169,7 +170,7 @@ public sealed class TagLocationService(IMongoDatabase database, IConfiguration c
                 deviceId!,
                 Str(r, "name"),
                 Str(r, "zone_id") ?? Str(r, "location", "zone_id"),
-                Str(r, "zone_name") ?? Str(r, "location", "zone_name"),
+                zoneNames.Resolve(Str(r, "zone_id") ?? Str(r, "location", "zone_id"), Str(r, "zone_name") ?? Str(r, "location", "zone_name")),
                 Str(r, "zone_code") ?? Str(r, "location", "zone_code"),
                 Str(r, "floor_plan_id"),
                 Str(r, "location", "floor_name"),

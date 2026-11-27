@@ -151,7 +151,7 @@ public sealed record IoTAlertResponse(
     string? EscalatedTo = null,
     IReadOnlyList<IoTAlertHistoryResponse>? History = null)
 {
-    public static IoTAlertResponse FromEntity(IoTAlert alert)
+    public static IoTAlertResponse FromEntity(IoTAlert alert, A360.Repository.Repositories.ZoneNames? zones = null)
     {
         return new IoTAlertResponse(
             alert.Id,
@@ -178,7 +178,7 @@ public sealed record IoTAlertResponse(
             alert.ClientId,
             alert.TenantId,
             alert.GeofenceId,
-            alert.GeofenceName,
+            zones?.ResolveGeofence(alert.GeofenceId, alert.GeofenceName) ?? alert.GeofenceName,
             alert.RuleSeverity,
             alert.DurationSeconds,
             alert.AssignedTo,

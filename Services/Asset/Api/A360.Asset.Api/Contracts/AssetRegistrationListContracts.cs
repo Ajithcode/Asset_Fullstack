@@ -27,9 +27,10 @@ public sealed record AssetListItemResponse(
     DateTime? NextMaintenanceDate,
     DateTime? CreatedAt)
 {
-    public static AssetListItemResponse FromEntity(AssetRegistration asset)
+    public static AssetListItemResponse FromEntity(AssetRegistration asset, A360.Repository.Repositories.ZoneNames? zones = null)
     {
         var location = asset.LocationAssignment.Location;
+        var (zoneName, locationPath) = zones is null ? (location.ZoneName, location.LocationPath) : zones.ResolveWithPath(location.ZoneId, location.ZoneName, location.LocationPath);
         var assignment = asset.LocationAssignment.Assignment;
 
         return new AssetListItemResponse(
@@ -43,9 +44,9 @@ public sealed record AssetListItemResponse(
             location.SiteName,
             location.BuildingName,
             location.FloorName,
-            location.ZoneName,
+            zoneName,
             location.RoomName,
-            location.LocationPath,
+            locationPath,
             assignment.AssignedToUserId,
             assignment.AssignedToName,
             asset.Classification.Department,
@@ -95,10 +96,10 @@ public sealed record AssetRegistrationListResponse(
     int PageSize,
     AssetStatusSummary Summary)
 {
-    public static AssetRegistrationListResponse FromResult(AssetRegistrationQueryResult result, int page, int pageSize)
+    public static AssetRegistrationListResponse FromResult(AssetRegistrationQueryResult result, int page, int pageSize, A360.Repository.Repositories.ZoneNames? zones = null)
     {
         return new AssetRegistrationListResponse(
-            result.Items.Select(AssetListItemResponse.FromEntity).ToList(),
+            result.Items.Select(a => AssetListItemResponse.FromEntity(a, zones)).ToList(),
             result.TotalCount,
             page,
             pageSize,

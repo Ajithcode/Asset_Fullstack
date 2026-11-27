@@ -155,6 +155,8 @@ public static class ZoneEndpoints
         IFloorRepository floors,
         ISiteRepository sites,
         IEventLogger eventLogger,
+        MongoDB.Driver.IMongoDatabase database,
+        ILogger<ZoneEndpointsLog> log,
         CancellationToken cancellationToken)
     {
         if (!MongoObjectId.IsValid(id))
@@ -179,6 +181,7 @@ public static class ZoneEndpoints
             return Results.NotFound();
         }
 
+        var oldName = zone.Name;
         request.ApplyTo(zone);
 
         var referenceError = await ResolveReferencesAsync(
@@ -222,6 +225,20 @@ public static class ZoneEndpoints
             zone.Name,
             EventAction.Updated,
             cancellationToken);
+
+        if (!string.Equals(oldName, zone.Name, StringComparison.Ordinal))
+        {
+            try
+            {
+                var counts = await A360.Repository.Repositories.ZoneNameSync.RenameAsync(database, id, oldName, zone.Name, cancellationToken);
+                log.LogInformation("Zone {ZoneId} renamed '{Old}' -> '{New}': synced stored names {Counts}", id, oldName, zone.Name, string.Join(", ", counts.Select(c => $"{c.Key}={c.Value}")));
+            }
+            catch (Exception ex)
+            {
+                // the rename itself is saved; readers resolve the name from Master Data anyway
+                log.LogWarning(ex, "Zone {ZoneId} renamed but syncing stored names failed", id);
+            }
+        }
 
         return Results.Ok(ZoneResponse.FromEntity(zone));
     }
@@ -391,3 +408,6 @@ public static class ZoneEndpoints
             : $"floor '{zone.FloorName}' of building '{zone.BuildingName}'";
     }
 }
+
+/// <summary>Logger category for <see cref="ZoneEndpoints"/> (a static class cannot be a type argument).</summary>
+internal sealed class ZoneEndpointsLog;

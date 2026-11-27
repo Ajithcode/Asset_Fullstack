@@ -38,6 +38,7 @@ public static class IoTAlertEndpoints
     /// </summary>
     private static async Task<IResult> GetAlertsAsync(
         IIoTAlertRepository repository,
+        MongoDB.Driver.IMongoDatabase database,
         CancellationToken cancellationToken,
         int? days = null,
         string? status = null,
@@ -63,9 +64,10 @@ public static class IoTAlertEndpoints
                 siteName, assetRegistrationId, search),
             cancellationToken);
 
+        var zones = await A360.Repository.Repositories.ZoneNames.GetAsync(database, cancellationToken);
         return Results.Ok(alerts
             .Take(limit ?? int.MaxValue)
-            .Select(IoTAlertResponse.FromEntity)
+            .Select(a => IoTAlertResponse.FromEntity(a, zones))
             .ToList());
     }
 
@@ -99,10 +101,11 @@ public static class IoTAlertEndpoints
     private static async Task<IResult> GetAlertAsync(
         string alertId,
         IIoTAlertRepository repository,
+        MongoDB.Driver.IMongoDatabase database,
         CancellationToken cancellationToken)
     {
         var alert = await repository.GetByAlertIdAsync(alertId.Trim(), cancellationToken);
-        return alert is null ? NotFound(alertId) : Results.Ok(IoTAlertResponse.FromEntity(alert));
+        return alert is null ? NotFound(alertId) : Results.Ok(IoTAlertResponse.FromEntity(alert, await A360.Repository.Repositories.ZoneNames.GetAsync(database, cancellationToken)));
     }
 
     private static async Task<IResult> CreateAlertAsync(

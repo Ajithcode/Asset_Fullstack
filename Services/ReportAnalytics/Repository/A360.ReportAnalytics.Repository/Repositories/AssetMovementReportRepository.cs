@@ -342,15 +342,16 @@ public sealed class AssetMovementReportRepository : IAssetMovementReportReposito
                         } }
                 },
                 new FindOptions { Collation = CaseInsensitive })
-            .Project(new BsonDocument { { "device_id", 1 }, { "item_id", 1 }, { "zone_name", 1 }, { "location", 1 } })
+            .Project(new BsonDocument { { "device_id", 1 }, { "item_id", 1 }, { "zone_id", 1 }, { "zone_name", 1 }, { "location", 1 } })
             .Sort(new BsonDocument { { "updated_at", -1 }, { "created_at", -1 }, { "_id", -1 } })
             .ToListAsync(cancellationToken);
 
+        var zoneNames = await A360.Repository.Repositories.ZoneNames.GetAsync(_database, cancellationToken);
         foreach (var plot in plots)
         {
             var deviceId = Text(plot, "device_id") ?? Text(plot, "item_id");
-            // The drawn zone first, else the Master Data zone the plot sits in.
-            var zone = Text(plot, "zone_name") ?? Text(Sub(plot, "location"), "zone_name");
+            // Current Master Data name by zone id; the stored copy only as a fallback.
+            var zone = zoneNames.Resolve(Text(plot, "zone_id"), Text(plot, "zone_name") ?? Text(Sub(plot, "location"), "zone_name"));
             if (deviceId is not null && zone is not null)
             {
                 zones.TryAdd(deviceId, zone);

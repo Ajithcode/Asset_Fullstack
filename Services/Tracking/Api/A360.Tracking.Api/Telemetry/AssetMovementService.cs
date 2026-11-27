@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using A360.Repository.Repositories;
 using A360.Tracking.Domain.Entities;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -305,6 +306,7 @@ public sealed class AssetMovementService(IMongoDatabase database, IConfiguration
             .Sort(new BsonDocument { { "updated_at", -1 }, { "created_at", -1 }, { "_id", -1 } })
             .ToListAsync(ct);
 
+        var zoneNames = await ZoneNames.GetAsync(database, ct);
         var wanted = gatewayIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var r in rows)
         {
@@ -314,7 +316,7 @@ public sealed class AssetMovementService(IMongoDatabase database, IConfiguration
             result[key] = new Plot(
                 Str(r, "name"),
                 Str(r, "zone_id") ?? Str(r, "location", "zone_id"),
-                Str(r, "zone_name") ?? Str(r, "location", "zone_name"),
+                zoneNames.Resolve(Str(r, "zone_id") ?? Str(r, "location", "zone_id"), Str(r, "zone_name") ?? Str(r, "location", "zone_name")),
                 Str(r, "zone_code") ?? Str(r, "location", "zone_code"),
                 Str(r, "location", "floor_name"));
         }
