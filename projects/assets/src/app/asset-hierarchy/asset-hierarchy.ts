@@ -590,7 +590,7 @@ export class AssetHierarchy implements OnInit {
   openAdd(parent: HierarchyNode = this.selected, kind: NodeForm['kind'] = 'asset'): void {
     this.openMenu = null;
     this.editingNode = null;
-    this.form = { ...this.emptyForm(parent.id), kind };
+    this.form = { ...this.emptyForm(this.registeredChoiceFor(parent)), kind };
     this.formSubmitted = false;
     this.formError = '';
     this.formOpen = true;
@@ -608,7 +608,7 @@ export class AssetHierarchy implements OnInit {
       modelId: n.dto.modelId ?? '',
       manufacturer: n.manufacturer,
       status: n.status === 'Inactive' ? 'Inactive' : 'Active',
-      parentId: this.parentOf(n.id)?.id ?? this.root.id,
+      parentId: this.registeredChoiceFor(this.parentOf(n.id)),
     };
     this.formSubmitted = false;
     this.formError = '';
@@ -622,7 +622,7 @@ export class AssetHierarchy implements OnInit {
 
   get formValid(): boolean {
     const f = this.form;
-    return !!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || (!!f.typeId && !!f.status));
+    return !!f.name.trim() && !!f.tag.trim() && !this.isTagTaken(f.tag) && (f.kind !== 'asset' || (!!f.typeId && !!f.status)) && !!this.registeredFor(f.parentId);
   }
 
   saveForm(): void {
@@ -632,11 +632,12 @@ export class AssetHierarchy implements OnInit {
     const isAsset = f.kind === 'asset';
     const manufacturer = isAsset ? f.manufacturer.trim() : '';
     const editing = this.editingNode;
-    // a registered asset not in the hierarchy yet as the parent: it is added first, then the item goes under it
-    const reg = this.registeredFor(f.parentId);
+    // the parent is a registered asset: the hierarchy asset with its tag, or (not there yet) it is added first
+    const reg = this.registeredFor(f.parentId)!;
+    const existing = this.hierarchyNodeForAsset(reg);
     const input: HierarchyItemInput = {
       itemKind: f.kind,
-      parentId: f.parentId === ROOT_ID || reg ? null : f.parentId,
+      parentId: null,
       name: f.name.trim(),
       assetTag: f.tag.trim().toUpperCase(),
       assetTypeId: isAsset ? f.typeId || null : null,
@@ -646,9 +647,9 @@ export class AssetHierarchy implements OnInit {
       manufacturerName: manufacturer || null,
       status: isAsset ? (f.status as AssetStatus) : 'Active',
     };
-    const parent = this.find(f.parentId) ?? this.root;
-    const parentName = reg ? reg.assetName || reg.assetRegistrationId : parent.name;
-    const parentId$: Observable<string | null> = reg ? this.addRegisteredToHierarchy(reg).pipe(map((created) => created.id)) : of(input.parentId);
+    const parent = existing ?? this.root;
+    const parentName = reg.assetName || reg.assetRegistrationId;
+    const parentId$: Observable<string | null> = existing ? of(existing.id) : this.addRegisteredToHierarchy(reg).pipe(map((created) => created.id));
     const request = parentId$.pipe(
       switchMap((parentId) => (editing ? this.api.update(editing.id, { ...input, parentId }) : this.api.create({ ...input, parentId }))),
     );
@@ -668,7 +669,7 @@ export class AssetHierarchy implements OnInit {
         this.saving = false;
         this.formError = apiErrorMessage(err);
         // the registered parent may already have been added to the hierarchy
-        if (reg) this.reload();
+        if (!existing) this.reload();
       },
     });
   }
@@ -807,6 +808,32 @@ export class AssetHierarchy implements OnInit {
   }
 
   /** Registered assets not in the hierarchy yet, as Move destinations: "laptop (lp002) · main asset · hardware". */
+  /**
+   * Parent choices in Add to Hierarchy (Add Child) / edit: the registered assets only (Asset Registration), each once.
+   * When editing, assets placed at or below the edited item are left out (an item cannot go under itself).
+   */
+  get registeredParentOptions(): { id: string; label: string }[] {
+    const editing = this.editingNode;
+    return this.registeredAssets
+      .filter((a) => {
+        const node = this.hierarchyNodeForAsset(a);
+        return !(editing && node && this.isInSubtree(node, editing));
+      })
+      .map((a) => ({
+        id: REG_PREFIX + a.assetRegistrationId,
+        label: [`${a.assetName || a.assetRegistrationId}${a.assetTag ? ' (' + a.assetTag + ')' : ''}`, a.category, a.assetType].filter(Boolean).join(' · '),
+      }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+  }
+
+  /** The Parent choice for a hierarchy node: its registered asset (matched by tag), else none. */
+  private registeredChoiceFor(n: HierarchyNode | null): string {
+    if (!n || n.kind !== 'asset' || !n.tag) return '';
+    const tag = n.tag.toUpperCase();
+    const reg = this.registeredAssets.find((a) => (a.assetTag ?? '').trim().toUpperCase() === tag);
+    return reg ? REG_PREFIX + reg.assetRegistrationId : '';
+  }
+
   get registeredMoveOptions(): { id: string; label: string }[] {
     return this.registeredAssets
       .filter((a) => !this.hierarchyNodeForAsset(a))
