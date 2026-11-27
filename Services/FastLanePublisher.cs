@@ -81,8 +81,8 @@ public class FastLanePublisher : BackgroundService
 
     private static void AddReading(JsonArray readings, string tagId, JsonObject tag, long ts, string kind, string device, string frame)
     {
-        var rssi = tag["rssi"] is JsonValue v && v.TryGetValue<double>(out var r) ? (JsonNode?)r : null;
-        if (rssi is null)
+        var rssi = GatewayPayload.Rssi(tag); // handles parsed (any number type) and relayed (int) values
+        if (rssi == double.MinValue)
             return; // nothing to locate with
         readings.Add(new JsonArray(tagId, rssi, ts, kind, device, frame));
     }
