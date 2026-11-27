@@ -48,7 +48,7 @@ import {
   X,
   Zap,
 } from 'lucide-angular';
-import { Observable, forkJoin, map, switchMap } from 'rxjs';
+import { Observable, forkJoin, map, of, switchMap } from 'rxjs';
 import { apiErrorMessage } from '../services/asset-api';
 import { AssetRegistrationListItem, AssetRegistrationService } from '../services/asset-registration/asset-registration';
 import {
@@ -632,9 +632,11 @@ export class AssetHierarchy implements OnInit {
     const isAsset = f.kind === 'asset';
     const manufacturer = isAsset ? f.manufacturer.trim() : '';
     const editing = this.editingNode;
+    // a registered asset not in the hierarchy yet as the parent: it is added first, then the item goes under it
+    const reg = this.registeredFor(f.parentId);
     const input: HierarchyItemInput = {
       itemKind: f.kind,
-      parentId: f.parentId === ROOT_ID ? null : f.parentId,
+      parentId: f.parentId === ROOT_ID || reg ? null : f.parentId,
       name: f.name.trim(),
       assetTag: f.tag.trim().toUpperCase(),
       assetTypeId: isAsset ? f.typeId || null : null,
@@ -645,7 +647,11 @@ export class AssetHierarchy implements OnInit {
       status: isAsset ? (f.status as AssetStatus) : 'Active',
     };
     const parent = this.find(f.parentId) ?? this.root;
-    const request = editing ? this.api.update(editing.id, input) : this.api.create(input);
+    const parentName = reg ? reg.assetName || reg.assetRegistrationId : parent.name;
+    const parentId$: Observable<string | null> = reg ? this.addRegisteredToHierarchy(reg).pipe(map((created) => created.id)) : of(input.parentId);
+    const request = parentId$.pipe(
+      switchMap((parentId) => (editing ? this.api.update(editing.id, { ...input, parentId }) : this.api.create({ ...input, parentId }))),
+    );
 
     this.saving = true;
     this.formError = '';
@@ -654,12 +660,15 @@ export class AssetHierarchy implements OnInit {
         this.saving = false;
         this.formOpen = false;
         this.expanded.add(parent.id);
-        this.showToast(editing ? `${saved.name} updated.` : `${saved.name} added under ${parent.name}.`);
+        if (saved.parentId) this.expanded.add(saved.parentId);
+        this.showToast(editing ? `${saved.name} updated.` : `${saved.name} added under ${parentName}.`);
         this.reload();
       },
       error: (err) => {
         this.saving = false;
         this.formError = apiErrorMessage(err);
+        // the registered parent may already have been added to the hierarchy
+        if (reg) this.reload();
       },
     });
   }
@@ -836,24 +845,32 @@ export class AssetHierarchy implements OnInit {
   }
 
   /** Adds the registered asset to the hierarchy (top level, as an asset), then moves the items under it. */
+  /** Adds a registered asset to the hierarchy at the top level, as an asset (POST /api/asset-hierarchy). */
+  private addRegisteredToHierarchy(reg: AssetRegistrationListItem): Observable<AssetHierarchyItemDto> {
+    return this.api.create({
+      itemKind: 'asset',
+      parentId: null,
+      name: reg.assetName || reg.assetRegistrationId,
+      assetTag: (reg.assetTag || reg.assetRegistrationId).trim().toUpperCase(),
+      assetTypeId: null,
+      modelId: null,
+      manufacturerId: null,
+      manufacturerName: reg.manufacturer || null,
+      status: reg.status === 'Inactive' ? 'Inactive' : 'Active',
+    });
+  }
+
+  private registeredFor(id: string | null): AssetRegistrationListItem | undefined {
+    return id?.startsWith(REG_PREFIX) ? this.registeredAssets.find((a) => REG_PREFIX + a.assetRegistrationId === id) : undefined;
+  }
+
   private moveUnderRegistered(reg: AssetRegistrationListItem): void {
     const nodes = this.movingNodes.filter((n) => !!n.dto);
     this.moveTarget = null;
     this.checkedChildren.clear();
     if (!nodes.length || this.saving) return;
     const name = reg.assetName || reg.assetRegistrationId;
-    const request = this.api
-      .create({
-        itemKind: 'asset',
-        parentId: null,
-        name,
-        assetTag: (reg.assetTag || reg.assetRegistrationId).trim().toUpperCase(),
-        assetTypeId: null,
-        modelId: null,
-        manufacturerId: null,
-        manufacturerName: reg.manufacturer || null,
-        status: reg.status === 'Inactive' ? 'Inactive' : 'Active',
-      })
+    const request = this.addRegisteredToHierarchy(reg)
       .pipe(
         switchMap((created) => {
           this.expanded.add(created.id);
