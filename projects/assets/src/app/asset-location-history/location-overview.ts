@@ -132,11 +132,9 @@ export class LocationOverview implements OnInit, OnDestroy {
   readonly sourceColors = SOURCE_COLORS;
   readonly pageSizes = [10, 25, 50];
   readonly ranges = [
+    { value: 1, label: 'Last 24 Hours' },
     { value: 7, label: 'Last 7 Days' },
     { value: 30, label: 'Last 30 Days' },
-    { value: 90, label: 'Last 90 Days' },
-    { value: 365, label: 'Last 12 Months' },
-    { value: 0, label: 'All Time' },
   ];
 
   private readonly router = inject(Router);
@@ -154,7 +152,8 @@ export class LocationOverview implements OnInit, OnDestroy {
   private assets: AssetListItemDto[] = [];
 
   // Filters
-  range: number | null = null;
+  /** Days; the default is the last 24 hours (the movement API allows at most 31 days). */
+  range = 1;
   site = '';
   category = '';
   type = '';
@@ -224,9 +223,13 @@ export class LocationOverview implements OnInit, OnDestroy {
     clearTimeout(this.toastTimer);
   }
 
+  onRange(): void {
+    this.reload();
+  }
+
   reload(): void {
     this.loading = true;
-    this.api.overview().subscribe({
+    this.api.overview(this.range).subscribe({
       next: ({ assets, events }) => {
         this.assets = assets;
         this.raw = events;
@@ -303,14 +306,16 @@ export class LocationOverview implements OnInit, OnDestroy {
   }
 
   get filtersActive(): boolean {
-    return !!(this.site || this.category || this.type || this.zone || this.source || this.status || this.search || this.range !== null);
+    return !!(this.site || this.category || this.type || this.zone || this.source || this.status || this.search || this.range !== 1);
   }
 
   resetFilters(): void {
     this.site = this.category = this.type = this.zone = this.status = this.search = '';
     this.source = '';
-    this.range = null;
-    this.refresh();
+    const reload = this.range !== 1;
+    this.range = 1;
+    if (reload) this.reload();
+    else this.refresh();
   }
 
   // ===== Derived data =====
@@ -334,8 +339,8 @@ export class LocationOverview implements OnInit, OnDestroy {
     this.selected.clear();
     const now = Date.now();
     const q = this.search.trim().toLowerCase();
-    const days = this.range ?? 0;
-    const from = days ? startOfDay(new Date(now - (days - 1) * DAY)).getTime() : 0;
+    const days = this.range;
+    const from = days === 1 ? now - DAY : startOfDay(new Date(now - (days - 1) * DAY)).getTime();
     const prevFrom = days ? from - days * DAY : 0;
     const scoped = this.events.filter((e) => this.matches(e, q));
     this.filteredEvents = scoped.filter((e) => e.at.getTime() >= from);
@@ -385,7 +390,7 @@ export class LocationOverview implements OnInit, OnDestroy {
     }
     const avgDwell = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 0;
     const unverified = this.summary.filter((s) => this.isUnverified(s)).length;
-    const vs = days ? `vs. previous ${days} days` : 'all recorded events';
+    const vs = days ? (days === 1 ? 'vs. previous 24 hours' : `vs. previous ${days} days`) : 'all recorded events';
     this.kpis = [
       { value: assetsNow.toLocaleString(), delta: days ? pct(assetsNow, assetsPrev) : null, note: vs },
       { value: this.filteredEvents.length.toLocaleString(), delta: days ? pct(this.filteredEvents.length, previous.length) : null, note: vs },

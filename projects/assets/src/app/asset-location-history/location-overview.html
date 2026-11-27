@@ -65,7 +65,7 @@
   <div class="card filters">
     <lucide-icon class="filters-ic" [img]="icons.CalendarDays" [size]="20"></lucide-icon>
     <label class="field"><span class="field-label">Date Range</span>
-      <select class="control" [(ngModel)]="range" (ngModelChange)="refresh()"><option [ngValue]="null">Select Date Range</option><option *ngFor="let r of ranges" [ngValue]="r.value">{{ r.label }}</option></select></label>
+      <select class="control" [(ngModel)]="range" (ngModelChange)="onRange()"><option *ngFor="let r of ranges" [ngValue]="r.value">{{ r.label }}</option></select></label>
     <label class="field"><span class="field-label">Site</span>
       <select class="control" [(ngModel)]="site" (ngModelChange)="refresh()"><option value="">Select Site</option><option *ngFor="let o of siteOptions" [value]="o">{{ o }}</option></select></label>
     <label class="field"><span class="field-label">Category</span>

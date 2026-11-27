@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import { AssetRecord, AuthService, environment } from 'shared-ui';
@@ -23,6 +23,31 @@ export interface LocationEventDto {
   details: string | null;
   createdBy: string | null;
   createdAt: string | null;
+}
+
+/** GET /api/tag-ids/asset-movement visit (MovementVisit). */
+export interface MovementVisitDto {
+  fromPlace: string | null;
+  gatewayIds: string[];
+  zoneName: string | null;
+  from: string;
+  to: string;
+  minutes: number;
+  readings: number;
+}
+
+/** GET /api/tag-ids/asset-movement item (AssetMovement), the fields used here. */
+export interface AssetMovementDto {
+  assetRegistrationId: string;
+  assetCode: string | null;
+  assetName: string | null;
+  tagIds: string[];
+  history: MovementVisitDto[] | null;
+}
+
+interface AssetMovementPageDto {
+  totalPages: number;
+  items: AssetMovementDto[];
 }
 
 export type MovementType = 'In' | 'Out' | 'Move';
@@ -83,6 +108,45 @@ export function toMovements(events: LocationEventDto[]): ApiMovement[] {
     });
 }
 
+/** "1h 5m" style duration from minutes. */
+export function fmtMinutes(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  return d ? `${d}d ${h}h ${m % 60}m` : h ? `${h}h ${m % 60}m` : `${m}m`;
+}
+
+/** Zone shown for a visit: the zone's current name, else the gateway it was heard by (unplotted gateway). */
+export function visitPlace(v: MovementVisitDto): string {
+  return v.zoneName || (v.gatewayIds?.length ? `Gateway ${v.gatewayIds[0]}` : 'Unknown location');
+}
+
+/**
+ * Resolved zone visits (device_trigger "in" readings, written by the location resolver) as location events:
+ * "Entered Zone" at the visit start, "Departed Zone" at its end (not for the latest visit, which is the current location),
+ * both with the time spent in the zone.
+ */
+export function visitsToEvents(item: AssetMovementDto, assetKey: string, assetName: string): LocationEventDto[] {
+  const visits = item.history ?? [];
+  const out: LocationEventDto[] = [];
+  visits.forEach((v, i) => {
+    const zone = visitPlace(v);
+    const last = i === visits.length - 1;
+    const base = { assetId: assetKey, assetName, zoneName: zone, createdBy: 'System', createdAt: null };
+    out.push({
+      ...base, id: `${item.assetRegistrationId}-${i}-in`, eventId: `${item.assetRegistrationId}-${i}-in`, eventTime: v.from,
+      eventType: 'Entered Zone', details: last ? `Current location, ${fmtMinutes(v.minutes)} so far (BLE)` : `Time spent in zone ${fmtMinutes(v.minutes)} (BLE)`,
+    });
+    if (!last) {
+      out.push({
+        ...base, id: `${item.assetRegistrationId}-${i}-out`, eventId: `${item.assetRegistrationId}-${i}-out`, eventTime: v.to,
+        eventType: 'Departed Zone', details: `Left after ${fmtMinutes(v.minutes)} (BLE)`,
+      });
+    }
+  });
+  return out;
+}
+
 @Injectable({ providedIn: 'root' })
 export class LocationHistoryService {
   private readonly http = inject(HttpClient);
@@ -103,7 +167,18 @@ export class LocationHistoryService {
       // the history still shows without the registration
       catchError(() => of(null)),
     );
-    const events$ = this.http.get<LocationEventDto[]>(`${TRACKING_API}location-events`);
+    const manual$ = this.http.get<LocationEventDto[]>(`${TRACKING_API}location-events`).pipe(catchError(() => of([] as LocationEventDto[])));
+    // resolved zone visits of the asset's tags, last 31 days
+    const resolved$ = reg$.pipe(
+      switchMap((reg) =>
+        reg
+          ? this.fetchMovement(31, reg.item.assetRegistrationId).pipe(
+              map((items) => items.flatMap((i) => visitsToEvents(i, asset.tag, asset.name))),
+            )
+          : of([] as LocationEventDto[]),
+      ),
+    );
+    const events$ = forkJoin({ manual: manual$, resolved: resolved$ }).pipe(map((r) => [...r.manual, ...r.resolved]));
     return forkJoin({ reg: reg$, events: events$ }).pipe(
       map(({ reg, events }) => {
         const tag = asset.tag.toUpperCase();
@@ -119,13 +194,45 @@ export class LocationHistoryService {
     );
   }
 
-  /** Overview: every location event (Tracking service) and the registered assets (Asset API) they refer to. */
-  overview(): Observable<{ assets: AssetListItemDto[]; events: LocationEventDto[] }> {
+  /** Zone visits (history=true) of all assets, or of one, for the last `days` days (the API allows 31), all pages. */
+  private fetchMovement(days: number, assetId?: string): Observable<AssetMovementDto[]> {
+    const to = new Date();
+    const from = new Date(to.getTime() - Math.min(days, 31) * 86_400_000 + 60_000);
+    const page = (n: number): Observable<AssetMovementPageDto> => {
+      let params = new HttpParams().set('history', 'true').set('page', n).set('pageSize', 200).set('from', from.toISOString()).set('to', to.toISOString());
+      if (assetId) params = params.set('assetId', assetId);
+      return this.http.get<AssetMovementPageDto>(`${TRACKING_API}tag-ids/asset-movement`, { params });
+    };
+    return page(1).pipe(
+      switchMap((first) =>
+        first.totalPages > 1
+          ? forkJoin(Array.from({ length: first.totalPages - 1 }, (_, i) => page(i + 2))).pipe(map((rest) => [first, ...rest].flatMap((p) => p.items)))
+          : of(first.items),
+      ),
+      catchError(() => of([] as AssetMovementDto[])),
+    );
+  }
+
+  /**
+   * Overview: the resolved zone visits of the last `days` days (Tracking service, from the worker-resolved zone readings)
+   * plus manually recorded location events, and the registered assets (Asset API) they refer to.
+   */
+  overview(days = 1): Observable<{ assets: AssetListItemDto[]; events: LocationEventDto[] }> {
     return forkJoin({
-      // the events still show without the registry
       assets: this.lookup.list(),
-      events: this.http.get<LocationEventDto[]>(`${TRACKING_API}location-events`),
-    });
+      manual: this.http.get<LocationEventDto[]>(`${TRACKING_API}location-events`).pipe(catchError(() => of([] as LocationEventDto[]))),
+      // the previous period is loaded too (for the +/- % deltas), capped at the API's 31 days
+      movement: this.fetchMovement(Math.max(days * 2, 2)),
+    }).pipe(
+      map(({ assets, manual, movement }) => {
+        const byReg = new Map(assets.map((a) => [a.assetRegistrationId, a]));
+        const resolved = movement.flatMap((m) => {
+          const a = byReg.get(m.assetRegistrationId);
+          return visitsToEvents(m, a?.assetTag || m.tagIds[0] || m.assetCode || m.assetRegistrationId, a?.assetName || m.assetName || m.assetCode || '');
+        });
+        return { assets, events: [...manual, ...resolved] };
+      }),
+    );
   }
 
   /** Records a movement as a location event. */
