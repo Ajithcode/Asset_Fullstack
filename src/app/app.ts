@@ -2,6 +2,7 @@ import { Component, NgZone, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { installMenuViewportGuard } from 'shared-ui';
+import { ThemeService } from './services/theme.service';
 
 @Component({
   standalone: true,
@@ -16,6 +17,10 @@ export class App {
   constructor() {
     // One guard for every module: action menus (⋮) stay inside the visible screen.
     // Outside the Angular zone: its observer/listeners/frames must not trigger app-wide change detection.
-    if (isPlatformBrowser(inject(PLATFORM_ID))) inject(NgZone).runOutsideAngular(() => installMenuViewportGuard());
+    if (isPlatformBrowser(inject(PLATFORM_ID))) {
+      inject(NgZone).runOutsideAngular(() => installMenuViewportGuard());
+      // light / dark theme from the start (login page too), following the browser / OS setting
+      inject(ThemeService);
+    }
   }
 }

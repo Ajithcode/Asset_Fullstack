@@ -855,7 +855,8 @@
 
 .menu-toggle,
 .notification-btn,
-.email-btn {
+.email-btn,
+.theme-btn {
   width: 40px;
   height: 40px;
   border-radius: 12px;
@@ -1047,4 +1048,14 @@
   .topbar-search {
     display: none;
   }
+}
+
+/* Light / dark theme toggle: same base as the other topbar icon buttons */
+.theme-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
 }

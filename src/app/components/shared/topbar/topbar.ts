@@ -1,5 +1,6 @@
 import { Component, ElementRef, HostListener, Output, EventEmitter, inject, Input } from '@angular/core';
 import { NavPage, NavSearchService } from '../sidebar/nav-search.service';
+import { ThemeService } from '../../../services/theme.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -83,6 +84,8 @@ export class Topbar {
 
   // ---- page search (Ctrl+K): the pages of the sidebar menu
   private readonly navSearch = inject(NavSearchService);
+  /** Light / dark theme (follows the browser by default); the sun / moon button toggles it. */
+  readonly themes = inject(ThemeService);
   searchQuery = '';
   searchOpen = false;
   searchIndex = 0;

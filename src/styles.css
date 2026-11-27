@@ -147,3 +147,23 @@ html {
     scrollbar-color: var(--piq-scroll-thumb-hover) var(--piq-scroll-track);
   }
 }
+
+/* =====================================================================
+   Dark theme: <html data-theme="dark"> (ThemeService; set before start-up in index.html).
+   One layer over the whole app, so every module, sub-module and popup follows without its own dark styles:
+   the page is inverted with the hues turned back (a white card becomes dark grey, dark text light, purple stays
+   purple). On the root element the filter does not affect position: fixed, so popups and overlays stay put.
+   Real-colour content is inverted back: photos and logos, video, embedded pages, the floor-plan maps, and the
+   purple topbar / sidebar. Mark anything else that must keep its colours with data-theme-keep.
+   ===================================================================== */
+html[data-theme='dark'] {
+  filter: invert(1) hue-rotate(180deg) contrast(0.9);
+  background: #fff;
+}
+
+html[data-theme='dark']
+  :is(img, video, picture, iframe, .leaflet-container, .topbar-shell, .sidebar, [data-theme-keep]):not(
+    :is(.leaflet-container, .topbar-shell, .sidebar, [data-theme-keep]) *
+  ) {
+  filter: contrast(1.111) hue-rotate(180deg) invert(1);
+}
