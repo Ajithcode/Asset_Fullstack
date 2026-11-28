@@ -56,6 +56,7 @@ public class LocateCommandStore(IMongoDatabase database, IOptions<LocatingSettin
                 { "receivedAt", receivedAt },
                 { "code", reply.Code.HasValue ? reply.Code.Value : BsonNull.Value },
                 { "error", reply.Error.HasValue ? reply.Error.Value : BsonNull.Value },
+                { "message", reply.Message is null ? (BsonValue)BsonNull.Value : new BsonString(reply.Message) },
                 { "raw", raw },
             }),
         };
@@ -64,6 +65,7 @@ public class LocateCommandStore(IMongoDatabase database, IOptions<LocatingSettin
             updates.Add(Update.Set("status", status));
             updates.Add(Update.Set("code", reply.Code.HasValue ? (BsonValue)reply.Code.Value : BsonNull.Value));
             updates.Add(Update.Set("error", reply.Error.HasValue ? (BsonValue)reply.Error.Value : BsonNull.Value));
+            updates.Add(Update.Set("gatewayMessage", reply.Message is null ? (BsonValue)BsonNull.Value : new BsonString(reply.Message)));
             updates.Add(Update.Set(status == GatewayReply.StatusAccepted ? "acceptedAt" : "completedAt", receivedAt));
         }
 

@@ -18,9 +18,15 @@ public class TagGatewayLookup(IMongoDatabase database, IOptions<LocatingSettings
 
     public async Task<TagGateway?> FindLatestAsync(string tagId, CancellationToken ct)
     {
+        var gateways = options.Value.CommandGatewayIds.Where(g => !string.IsNullOrWhiteSpace(g)).Select(NormalizeId).ToArray();
         var filter = Builders<BsonDocument>.Filter.And(
             Builders<BsonDocument>.Filter.Eq("meta.tagid", tagId),
-            Builders<BsonDocument>.Filter.Exists("meta.gatewayid"),
+            gateways.Length > 0
+                // only real gateways (a repeater's id is also stored as gatewayid for relayed readings), and only fresh readings
+                ? Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.In("meta.gatewayid", gateways),
+                    Builders<BsonDocument>.Filter.Gte("timestamp", DateTime.UtcNow - TimeSpan.FromSeconds(options.Value.GatewayWindowSeconds)))
+                : Builders<BsonDocument>.Filter.Exists("meta.gatewayid"),
             // "out" documents of the worker (gateway a tag just left) carry no rssi: never the gateway to command through
             Builders<BsonDocument>.Filter.Ne("device_trigger", "out"));
 

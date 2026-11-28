@@ -172,7 +172,9 @@ public class LocatingSession(
         var found = await lookup.FindLatestAsync(tagId, ct);
         if (found is null)
         {
-            SendError($"No NetworkTimeSeries data with a gatewayid for tag '{tagId}'.");
+            SendError(options.Value.CommandGatewayIds.Length > 0
+                ? $"Tag '{tagId}' is out of the gateway's command range: no gateway heard it directly in the last {options.Value.GatewayWindowSeconds} s (repeaters cannot send commands). Bring the tag closer to the gateway."
+                : $"No NetworkTimeSeries data with a gatewayid for tag '{tagId}'.");
             return;
         }
 
@@ -290,7 +292,7 @@ public class LocatingSession(
         if (!_pending.TryRemove(reqId, out var pending))
             return;
         await commands.MarkTimeoutAsync(pending.GatewayId, reqId);
-        SendStatus(pending, GatewayReply.StatusTimeout, null, null);
+        SendStatus(pending, GatewayReply.StatusTimeout, null, null, null);
     }
 
     // Turns a gateway reply to one of this session's commands into a commandStatus message.
@@ -303,10 +305,10 @@ public class LocatingSession(
 
         if (status != GatewayReply.StatusAccepted && _pending.TryRemove(reply.ReqId, out _))
             pending.Timeout.Cancel();
-        SendStatus(pending, status, reply.Code, reply.Error);
+        SendStatus(pending, status, reply.Code, reply.Error, reply.Message);
     }
 
-    private void SendStatus(PendingCommand pending, string status, int? code, int? error)
+    private void SendStatus(PendingCommand pending, string status, int? code, int? error, string? gatewayMessage)
     {
         var what = pending.Command.Kind switch
         {
@@ -329,7 +331,7 @@ public class LocatingSession(
             {
                 GatewayReply.StatusAccepted => "Gateway accepted the command.",
                 GatewayReply.StatusCompleted => $"Tag is {what}.",
-                GatewayReply.StatusFailed => $"Tag did not respond (error {error}).",
+                GatewayReply.StatusFailed => $"Gateway error {code}{(error is > 0 ? $"/{error}" : "")}: {(string.IsNullOrWhiteSpace(gatewayMessage) ? "the tag did not respond" : gatewayMessage.TrimEnd('!', '.'))}. The gateway could not reach or command the tag.",
                 _ => "No answer from the gateway in time.",
             },
         });

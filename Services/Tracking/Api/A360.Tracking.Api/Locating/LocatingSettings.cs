@@ -30,6 +30,13 @@ public class LocatingSettings
     /// <summary>Time-series collection the latest gateway of a tag is read from (meta.tagid, meta.gatewayid, timestamp).</summary>
     public string TimeSeriesCollection { get; set; } = "NetworkTimeSeries";
 
+    /// <summary>
+    /// Ids of the real gateways that may be commanded (repeaters relay readings but do not accept commands). When set, a command goes to the
+    /// strongest DIRECT reading of one of these gateways within GatewayWindowSeconds; a tag not heard directly by any of them is refused
+    /// ("out of the gateway's command range"). Empty = old behaviour (any device that reported the tag).
+    /// </summary>
+    public string[] CommandGatewayIds { get; set; } = [];
+
     /// <summary>Readings this close to a tag's newest one compete on RSSI to pick the gateway.</summary>
     public int GatewayWindowSeconds { get; set; } = 30;
 
@@ -55,7 +62,7 @@ public class LocatingSettings
     public int BuzzerOpcode { get; set; } = 90003;
 
     /// <summary>How long to wait for the gateway's final answer (code 2) before reporting a timeout.</summary>
-    public int CommandTimeoutSeconds { get; set; } = 60;
+    public int CommandTimeoutSeconds { get; set; } = 90;
 
     public string ResponseTopicFor(string gatewayId) => ResponseTopic.Replace("{gateway}", gatewayId);
     public string ActionTopicFor(string gatewayId) => ActionTopic.Replace("{gateway}", gatewayId);

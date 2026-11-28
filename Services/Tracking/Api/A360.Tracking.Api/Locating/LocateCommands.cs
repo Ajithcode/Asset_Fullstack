@@ -213,7 +213,7 @@ public static class LocateCommandBuilder
 /// code 1 = accepted by the gateway, code 2 = done (error 0 = the tag is blinking / beeping, anything else = failed).
 /// The fields are read from the top level first, then from "payload".
 /// </summary>
-public sealed record GatewayReply(int ReqId, int? Code, int? Error)
+public sealed record GatewayReply(int ReqId, int? Code, int? Error, string? Message = null)
 {
     public const string StatusSent = "sent";
     public const string StatusAccepted = "accepted";
@@ -221,7 +221,12 @@ public sealed record GatewayReply(int ReqId, int? Code, int? Error)
     public const string StatusFailed = "failed";
     public const string StatusTimeout = "timeout";
 
-    public static GatewayReply? TryParse(string raw)
+    /// <summary>
+    /// Reads a gateway reply in any of its shapes: {"req_id","payload":{"code"}} (v1), {"req_id","cmds":[{"payload":{"code"}}]} (v2, code 1 =
+    /// accepted) and the final per-tag result {"payload":{"details":{"&lt;tag&gt;":{"code":2,"error":0,"message":"..."}}}} (code 2 = sent to the tag,
+    /// any other code = the gateway's error, e.g. 671). With several cmds (LED + buzzer) any failure wins, completed needs all of them.
+    /// </summary>
+    public static GatewayReply? TryParse(string raw, string? tagId = null)
     {
         JsonObject? root;
         try { root = JsonNode.Parse(raw) as JsonObject; }
@@ -229,21 +234,53 @@ public sealed record GatewayReply(int ReqId, int? Code, int? Error)
         if (root is null)
             return null;
 
+        var results = new List<(int? Code, int? Error, string? Message)>();
+        void Read(JsonObject? payload)
+        {
+            if (payload is null) return;
+            if (payload["details"] is JsonObject details)
+            {
+                var entry = (tagId != null && details[tagId] is JsonObject own ? own : details.Select(kv => kv.Value as JsonObject).FirstOrDefault(o => o != null));
+                if (entry != null) results.Add((Number(entry["code"]), Number(entry["error"]), (entry["message"] as JsonValue)?.ToString()));
+                return;
+            }
+            results.Add((Number(payload["code"]), Number(payload["error"]), (payload["message"] as JsonValue)?.ToString()));
+        }
+
         var inner = root["payload"] as JsonObject;
         var reqId = Number(root["req_id"]) ?? Number(inner?["req_id"]);
         if (reqId is null)
             return null;
-        return new GatewayReply(reqId.Value,
-            Number(root["code"]) ?? Number(inner?["code"]),
-            Number(root["error"]) ?? Number(inner?["error"]));
+
+        if (root["cmds"] is JsonArray cmds)
+            foreach (var cmd in cmds)
+                Read((cmd as JsonObject)?["payload"] as JsonObject);
+        else if (root["code"] is not null)
+            results.Add((Number(root["code"]), Number(root["error"]), (root["message"] as JsonValue)?.ToString()));
+        else
+            Read(inner);
+
+        var known = results.Where(r => r.Code.HasValue).ToList();
+        if (known.Count == 0)
+            return new GatewayReply(reqId.Value, null, Number(root["error"]) ?? Number(inner?["error"]));
+
+        // a failure wins: any code other than 1 / 2, or code 2 with a non-zero error
+        var bad = known.FirstOrDefault(r => (r.Code != 1 && r.Code != 2) || (r.Code == 2 && r.Error is not (null or 0)));
+        if (bad.Code.HasValue)
+            return new GatewayReply(reqId.Value, bad.Code, bad.Error ?? 0, bad.Message);
+        var allDone = known.All(r => r.Code == 2);
+        var pick = known[0];
+        return allDone
+            ? new GatewayReply(reqId.Value, 2, 0, known.Select(r => r.Message).FirstOrDefault(m => !string.IsNullOrEmpty(m)))
+            : new GatewayReply(reqId.Value, 1, null, pick.Message);
     }
 
-    /// <summary>The command status this reply moves to, or null when it says nothing about the outcome.</summary>
     public string? Status => Code switch
     {
         1 => StatusAccepted,
         2 => Error is null or 0 ? StatusCompleted : StatusFailed,
-        _ => null,
+        null => null,
+        _ => StatusFailed,
     };
 
     private static int? Number(JsonNode? node) => node switch
