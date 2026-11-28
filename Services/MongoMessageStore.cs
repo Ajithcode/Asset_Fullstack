@@ -32,6 +32,9 @@ public class MongoMessageStore(
     public async Task<IngestResult> IngestAsync(string source, string? deviceId, string? topic, byte[] payload,
         CancellationToken ct = default)
     {
+        // gateway commands carry the tag connection key: mask it before anything is parsed, stored, published or logged
+        if (SecretMasker.IsCommandTopic(topic))
+            payload = Encoding.ASCII.GetBytes(SecretMasker.Mask(Encoding.ASCII.GetString(payload)));
         var (format, data) = AsciiPayloadParser.Parse(payload);
 
         if (GatewayPayload.TryParse(data, out var batch))
