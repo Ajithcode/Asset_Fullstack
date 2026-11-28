@@ -295,7 +295,7 @@ public class GatewayMqttBridge : BackgroundService
         base.Dispose();
     }
 
-    private static string Preview(string s) => s.Length > 200 ? s[..200] + "..." : s;
+    private static string Preview(string s) { s = SecretMasker.Mask(s); return s.Length > 200 ? s[..200] + "..." : s; }
 
     private sealed class Subscription(Func<Task> unsubscribe) : IAsyncDisposable
     {

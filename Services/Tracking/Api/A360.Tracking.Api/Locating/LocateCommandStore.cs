@@ -28,7 +28,7 @@ public class LocateCommandStore(IMongoDatabase database, IOptions<LocatingSettin
             { "gatewayid", gatewayId },
             { "topic", topic },
             { "options", BsonDocument.Parse(command.Options.ToJsonString()) },
-            { "request", BsonDocument.Parse(command.Message.ToJsonString()) },
+            { "request", BsonDocument.Parse(SecretMasker.Mask(command.Message.ToJsonString())) },
             { "status", GatewayReply.StatusSent },
             { "sentAt", sentAt },
             { "responses", new BsonArray() },
