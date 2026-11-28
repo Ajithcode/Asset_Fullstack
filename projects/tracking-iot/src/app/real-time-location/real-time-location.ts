@@ -874,10 +874,10 @@ export class RealTimeLocation implements OnInit, OnDestroy {
         if (this.signalling && m.gatewayid) this.signalling.gatewayId = m.gatewayid;
         break;
       case 'commandSent':
-        // The backend answers within Locating:CommandTimeoutSeconds (60 s) with completed / failed / timeout;
+        // The backend answers within Locating:CommandTimeoutSeconds (90 s) with completed / failed / timeout;
         // if even that never arrives (connection dropped), stop waiting here so Send works again
         clearTimeout(this.ctlWaitTimer);
-        this.ctlWaitTimer = setTimeout(() => this.onCtlMessage({ type: 'commandStatus', command: m.command, status: 'timeout', message: 'No answer from the gateway in time. Check that the tag is near the gateway and try again.' }), 70_000);
+        this.ctlWaitTimer = setTimeout(() => this.onCtlMessage({ type: 'commandStatus', command: m.command, status: 'timeout', message: 'No answer from the gateway in time. Check that the tag is near the gateway and try again.' }), 100_000);
         if (m.command === 'off') break;
         if (c) {
           c.status = `Sent to gateway ${m.gatewayid}. Waiting for the tag`;
